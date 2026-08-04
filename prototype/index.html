@@ -3,10 +3,1891 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>Sudmar Service Platform</title>
+
+  <style>
+    :root {
+      --primary: #075985;
+      --primary-dark: #0c4a6e;
+      --primary-light: #e0f2fe;
+      --background: #f4f7fb;
+      --surface: #ffffff;
+      --text: #172033;
+      --muted: #64748b;
+      --border: #dbe3ec;
+
+      --success: #15803d;
+      --success-bg: #dcfce7;
+
+      --warning: #b45309;
+      --warning-bg: #fef3c7;
+
+      --danger: #b91c1c;
+      --danger-bg: #fee2e2;
+
+      --info: #1d4ed8;
+      --info-bg: #dbeafe;
+
+      --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      --radius: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+      background: var(--background);
+      color: var(--text);
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 250px 1fr;
+    }
+
+    .sidebar {
+      background: linear-gradient(
+        180deg,
+        var(--primary-dark),
+        var(--primary)
+      );
+
+      color: white;
+      padding: 22px 16px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+      padding: 0 8px;
+    }
+
+    .brand-logo {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.16);
+      font-weight: 800;
+      font-size: 18px;
+    }
+
+    .brand h1 {
+      font-size: 16px;
+      line-height: 1.2;
+    }
+
+    .brand p {
+      font-size: 12px;
+      opacity: 0.75;
+      margin-top: 3px;
+    }
+
+    .nav-group-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      opacity: 0.65;
+      margin: 22px 10px 8px;
+    }
+
+    .nav-button {
+      width: 100%;
+      border: 0;
+      color: white;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 12px;
+      border-radius: 10px;
+      text-align: left;
+      margin-bottom: 5px;
+    }
+
+    .nav-button:hover,
+    .nav-button.active {
+      background: rgba(255, 255, 255, 0.16);
+    }
+
+    .nav-icon {
+      width: 24px;
+      text-align: center;
+    }
+
+    .main {
+      min-width: 0;
+    }
+
+    .topbar {
+      min-height: 72px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 26px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .menu-button {
+      display: none;
+      border: 1px solid var(--border);
+      background: white;
+      border-radius: 9px;
+      padding: 8px 11px;
+    }
+
+    .topbar-title h2 {
+      font-size: 20px;
+    }
+
+    .topbar-title p {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .notification-button {
+      border: 1px solid var(--border);
+      background: white;
+      border-radius: 10px;
+      padding: 9px 12px;
+      position: relative;
+    }
+
+    .notification-dot {
+      position: absolute;
+      width: 9px;
+      height: 9px;
+      background: var(--danger);
+      border-radius: 50%;
+      right: 7px;
+      top: 6px;
+      border: 2px solid white;
+    }
+
+    .user-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 10px;
+      border-radius: 10px;
+      background: var(--background);
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--primary);
+      color: white;
+      font-weight: 700;
+    }
+
+    .user-box strong {
+      display: block;
+      font-size: 13px;
+    }
+
+    .user-box span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .content {
+      padding: 24px;
+    }
+
+    .section {
+      display: none;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .page-header h2 {
+      font-size: 23px;
+    }
+
+    .page-header p {
+      color: var(--muted);
+      margin-top: 5px;
+      font-size: 14px;
+    }
+
+    .primary-button {
+      border: 0;
+      background: var(--primary);
+      color: white;
+      padding: 11px 16px;
+      border-radius: 10px;
+      font-weight: 700;
+    }
+
+    .primary-button:hover {
+      background: var(--primary-dark);
+    }
+
+    .secondary-button {
+      border: 1px solid var(--border);
+      background: white;
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    .filters {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+
+    .filters-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .filters-title h3 {
+      font-size: 16px;
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(160px, 1fr));
+      gap: 12px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: white;
+      border-radius: 9px;
+      padding: 10px;
+      outline: none;
+    }
+
+    .field input:focus,
+    .field select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(7, 89, 133, 0.12);
+    }
+
+    .filter-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(150px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .kpi-card {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 17px;
+      box-shadow: var(--shadow);
+      text-align: left;
+      transition: transform 0.15s ease;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .kpi-card span {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .kpi-card strong {
+      font-size: 28px;
+    }
+
+    .kpi-card small {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .panel-header h3 {
+      font-size: 16px;
+    }
+
+    .priority-bars {
+      display: grid;
+      gap: 16px;
+    }
+
+    .priority-row {
+      display: grid;
+      grid-template-columns: 110px 1fr 38px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .priority-label {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .bar-track {
+      height: 10px;
+      background: #edf1f5;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 999px;
+    }
+
+    .p1 {
+      background: #dc2626;
+    }
+
+    .p2 {
+      background: #f97316;
+    }
+
+    .p3 {
+      background: #eab308;
+    }
+
+    .p4 {
+      background: #22c55e;
+    }
+
+    .activity-list {
+      list-style: none;
+      display: grid;
+      gap: 13px;
+    }
+
+    .activity-item {
+      display: grid;
+      grid-template-columns: 38px 1fr;
+      gap: 11px;
+      align-items: start;
+    }
+
+    .activity-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    .activity-item strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 3px;
+    }
+
+    .activity-item p {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .table-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .table-toolbar {
+      padding: 17px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+    }
+
+    .table-toolbar h3 {
+      font-size: 16px;
+    }
+
+    .table-toolbar p {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 3px;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1050px;
+    }
+
+    th,
+    td {
+      padding: 13px 15px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      font-size: 13px;
+      vertical-align: middle;
+    }
+
+    th {
+      background: #f8fafc;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    tbody tr:hover {
+      background: #f8fbfd;
+    }
+
+    .ticket-link {
+      border: 0;
+      background: transparent;
+      color: var(--primary);
+      font-weight: 800;
+      padding: 0;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .badge-danger {
+      color: var(--danger);
+      background: var(--danger-bg);
+    }
+
+    .badge-warning {
+      color: var(--warning);
+      background: var(--warning-bg);
+    }
+
+    .badge-success {
+      color: var(--success);
+      background: var(--success-bg);
+    }
+
+    .badge-info {
+      color: var(--info);
+      background: var(--info-bg);
+    }
+
+    .badge-neutral {
+      color: #475569;
+      background: #e2e8f0;
+    }
+
+    .empty-page {
+      background: white;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 50px 20px;
+      text-align: center;
+    }
+
+    .empty-page h3 {
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+
+    .empty-page p {
+      color: var(--muted);
+    }
+
+    .ticket-detail {
+      display: none;
+      margin-top: 18px;
+    }
+
+    .ticket-detail.visible {
+      display: block;
+    }
+
+    .ticket-detail-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 18px;
+    }
+
+    .detail-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .detail-item {
+      background: #f8fafc;
+      border-radius: 10px;
+      padding: 12px;
+    }
+
+    .detail-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .detail-item strong {
+      font-size: 13px;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 16px;
+    }
+
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 15px 1fr;
+      gap: 12px;
+    }
+
+    .timeline-dot {
+      width: 11px;
+      height: 11px;
+      background: var(--primary);
+      border-radius: 50%;
+      margin-top: 4px;
+      box-shadow: 0 0 0 4px var(--primary-light);
+    }
+
+    .timeline-content strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .timeline-content p {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .mobile-overlay {
+      display: none;
+    }
+
+    @media (max-width: 1100px) {
+      .filter-grid {
+        grid-template-columns: repeat(2, minmax(160px, 1fr));
+      }
+
+      .kpi-grid {
+        grid-template-columns: repeat(3, minmax(150px, 1fr));
+      }
+    }
+
+    @media (max-width: 850px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: fixed;
+        z-index: 30;
+        width: 260px;
+        transform: translateX(-100%);
+        transition: transform 0.2s ease;
+      }
+
+      .sidebar.open {
+        transform: translateX(0);
+      }
+
+      .mobile-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.45);
+        z-index: 20;
+      }
+
+      .mobile-overlay.visible {
+        display: block;
+      }
+
+      .menu-button {
+        display: inline-block;
+      }
+
+      .dashboard-grid,
+      .ticket-detail-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .user-box div:last-child {
+        display: none;
+      }
+    }
+
+    @media (max-width: 650px) {
+      .content {
+        padding: 16px;
+      }
+
+      .topbar {
+        padding: 12px 16px;
+      }
+
+      .topbar-title p {
+        display: none;
+      }
+
+      .page-header {
+        flex-direction: column;
+      }
+
+      .filter-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .kpi-grid {
+        grid-template-columns: repeat(2, minmax(130px, 1fr));
+      }
+
+      .detail-list {
+        grid-template-columns: 1fr;
+      }
+
+      .table-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
 </head>
+
 <body>
-  <h1>Sudmar Service Platform</h1>
-  <p>Prototipo inicial del sistema de gestión.</p>
+  <div class="app">
+
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-logo">SSP</div>
+
+        <div>
+          <h1>Sudmar Service Platform</h1>
+          <p>Gestión operativa interna</p>
+        </div>
+      </div>
+
+      <div class="nav-group-title">Operación</div>
+
+      <button class="nav-button active" data-section="dashboard">
+        <span class="nav-icon">▦</span>
+        Dashboard
+      </button>
+
+      <button class="nav-button" data-section="tickets">
+        <span class="nav-icon">☷</span>
+        Tickets
+      </button>
+
+      <button class="nav-button" data-section="activities">
+        <span class="nav-icon">✓</span>
+        Actividades
+      </button>
+
+      <button class="nav-button" data-section="calendar">
+        <span class="nav-icon">▣</span>
+        Calendario
+      </button>
+
+      <div class="nav-group-title">Catálogos</div>
+
+      <button class="nav-button" data-section="clients">
+        <span class="nav-icon">⌂</span>
+        Clientes
+      </button>
+
+      <button class="nav-button" data-section="equipment">
+        <span class="nav-icon">⚙</span>
+        Equipos
+      </button>
+
+      <div class="nav-group-title">Administración</div>
+
+      <button class="nav-button" data-section="warehouse">
+        <span class="nav-icon">▤</span>
+        Almacén
+      </button>
+
+      <button class="nav-button" data-section="purchases">
+        <span class="nav-icon">▧</span>
+        Compras
+      </button>
+
+      <button class="nav-button" data-section="billing">
+        <span class="nav-icon">$</span>
+        Facturación
+      </button>
+
+      <button class="nav-button" data-section="warranties">
+        <span class="nav-icon">◆</span>
+        Garantías
+      </button>
+
+      <button class="nav-button" data-section="settings">
+        <span class="nav-icon">⚙</span>
+        Configuración
+      </button>
+    </aside>
+
+    <div class="mobile-overlay" id="mobileOverlay"></div>
+
+    <main class="main">
+
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-button" id="menuButton">☰</button>
+
+          <div class="topbar-title">
+            <h2 id="pageTitle">Dashboard operativo</h2>
+            <p id="pageSubtitle">
+              Estado general de tickets, actividades y clientes.
+            </p>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="notification-button" title="Notificaciones">
+            🔔
+            <span class="notification-dot"></span>
+          </button>
+
+          <div class="user-box">
+            <div class="avatar">JJ</div>
+
+            <div>
+              <strong>Javier Jiménez</strong>
+              <span>Gerencia Operativa</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="content">
+
+        <section class="section active" id="dashboard">
+
+          <div class="page-header">
+            <div>
+              <h2>Resumen general</h2>
+              <p>
+                Información demostrativa para visualizar el alcance inicial.
+              </p>
+            </div>
+
+            <button class="primary-button" id="newTicketButton">
+              + Nuevo ticket
+            </button>
+          </div>
+
+          <div class="filters">
+            <div class="filters-title">
+              <h3>Filtros avanzados</h3>
+
+              <button class="secondary-button" id="saveFilterButton">
+                Guardar filtro
+              </button>
+            </div>
+
+            <div class="filter-grid">
+
+              <div class="field">
+                <label for="searchInput">Folio, cliente o descripción</label>
+
+                <input
+                  id="searchInput"
+                  type="search"
+                  placeholder="Ej. 2448 o cliente..."
+                >
+              </div>
+
+              <div class="field">
+                <label for="clientFilter">Cliente</label>
+
+                <select id="clientFilter">
+                  <option value="">Todos los clientes</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="priorityFilter">Prioridad</label>
+
+                <select id="priorityFilter">
+                  <option value="">Todas</option>
+                  <option value="1">Prioridad 1</option>
+                  <option value="2">Prioridad 2</option>
+                  <option value="3">Prioridad 3</option>
+                  <option value="4">Prioridad 4</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="statusFilter">Estado</label>
+
+                <select id="statusFilter">
+                  <option value="">Todos los estados</option>
+                  <option value="Abierto">Abierto</option>
+                  <option value="En proceso">En proceso</option>
+                  <option value="Pendiente administrativo">
+                    Pendiente administrativo
+                  </option>
+                  <option value="Pendiente de cierre">
+                    Pendiente de cierre
+                  </option>
+                  <option value="Cerrado">Cerrado</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="responsibleFilter">Responsable</label>
+
+                <select id="responsibleFilter">
+                  <option value="">Todos los responsables</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="businessFilter">Unidad de negocio</label>
+
+                <select id="businessFilter">
+                  <option value="">Todas las unidades</option>
+                  <option value="Servicios especializados">
+                    Servicios especializados
+                  </option>
+                  <option value="Proyectos">Proyectos</option>
+                  <option value="Ventas">Ventas</option>
+                  <option value="Garantías">Garantías</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="dateFrom">Fecha desde</label>
+                <input id="dateFrom" type="date">
+              </div>
+
+              <div class="field">
+                <label for="dateTo">Fecha hasta</label>
+                <input id="dateTo" type="date">
+              </div>
+            </div>
+
+            <div class="filter-actions">
+              <button class="secondary-button" id="clearFiltersButton">
+                Limpiar
+              </button>
+
+              <button class="primary-button" id="applyFiltersButton">
+                Aplicar filtros
+              </button>
+            </div>
+          </div>
+
+          <div class="kpi-grid">
+
+            <button class="kpi-card" data-kpi-status="">
+              <span>Tickets totales</span>
+              <strong id="totalTickets">0</strong>
+              <small>Todos los registros</small>
+            </button>
+
+            <button class="kpi-card" data-kpi-status="Abierto">
+              <span>Tickets abiertos</span>
+              <strong id="openTickets">0</strong>
+              <small>Requieren seguimiento</small>
+            </button>
+
+            <button class="kpi-card" data-kpi-status="Cerrado">
+              <span>Tickets cerrados</span>
+              <strong id="closedTickets">0</strong>
+              <small>Proceso concluido</small>
+            </button>
+
+            <button class="kpi-card" data-kpi-status="Vencido">
+              <span>Tickets vencidos</span>
+              <strong id="overdueTickets">0</strong>
+              <small>Fuera de fecha compromiso</small>
+            </button>
+
+            <button
+              class="kpi-card"
+              data-kpi-status="Pendiente administrativo"
+            >
+              <span>Pendiente administrativo</span>
+              <strong id="adminPendingTickets">0</strong>
+              <small>Atención técnica concluida</small>
+            </button>
+          </div>
+
+          <div class="dashboard-grid">
+
+            <div class="panel">
+              <div class="panel-header">
+                <h3>Tickets por prioridad</h3>
+                <span class="badge badge-neutral">Vista actual</span>
+              </div>
+
+              <div class="priority-bars" id="priorityBars"></div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-header">
+                <h3>Actividad reciente</h3>
+                <button class="secondary-button">Ver historial</button>
+              </div>
+
+              <ul class="activity-list">
+                <li class="activity-item">
+                  <div class="activity-icon">✓</div>
+
+                  <div>
+                    <strong>Dulce envió una actividad a validación</strong>
+                    <p>
+                      Ticket 2448 · Cotización de refacciones · Hace 12 minutos
+                    </p>
+                  </div>
+                </li>
+
+                <li class="activity-item">
+                  <div class="activity-icon">↻</div>
+
+                  <div>
+                    <strong>Javier cambió la prioridad</strong>
+                    <p>
+                      Ticket 2449 · Prioridad 2 a prioridad 1 · Hace 38 minutos
+                    </p>
+                  </div>
+                </li>
+
+                <li class="activity-item">
+                  <div class="activity-icon">⚠</div>
+
+                  <div>
+                    <strong>Actividad próxima a vencer</strong>
+                    <p>
+                      Ticket 2450 · Compra de refacción · Vence mañana
+                    </p>
+                  </div>
+                </li>
+
+                <li class="activity-item">
+                  <div class="activity-icon">▣</div>
+
+                  <div>
+                    <strong>Servicio programado</strong>
+                    <p>
+                      Ticket 2451 · Visita técnica · Miércoles 09:00
+                    </p>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="table-panel">
+
+            <div class="table-toolbar">
+              <div>
+                <h3>Seguimiento de tickets</h3>
+                <p id="tableSummary">0 tickets encontrados</p>
+              </div>
+
+              <div>
+                <button class="secondary-button" id="exportButton">
+                  Exportar a Excel
+                </button>
+              </div>
+            </div>
+
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Folio</th>
+                    <th>Cliente</th>
+                    <th>Equipos</th>
+                    <th>Prioridad</th>
+                    <th>Estado</th>
+                    <th>Responsable</th>
+                    <th>Fecha límite</th>
+                    <th>Actividades</th>
+                  </tr>
+                </thead>
+
+                <tbody id="ticketsTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="ticket-detail" id="ticketDetail">
+            <div class="page-header">
+              <div>
+                <h2 id="detailTitle">Detalle del ticket</h2>
+                <p>
+                  Expediente, línea de tiempo y actividades relacionadas.
+                </p>
+              </div>
+
+              <div>
+                <a
+                  class="primary-button"
+                  href="https://javi-jim2026.github.io/sudmar-diagnostico/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style="display:inline-block;text-decoration:none;"
+                >
+                  Generar reporte de diagnóstico
+                </a>
+              </div>
+            </div>
+
+            <div class="ticket-detail-grid">
+
+              <div class="panel">
+                <div class="panel-header">
+                  <h3>Información del ticket</h3>
+                  <span id="detailStatus" class="badge badge-info"></span>
+                </div>
+
+                <div class="detail-list" id="detailList"></div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-header">
+                  <h3>Línea de tiempo</h3>
+                  <button class="secondary-button">+ Agregar actividad</button>
+                </div>
+
+                <div class="timeline" id="timeline"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="tickets">
+          <div class="empty-page">
+            <h3>Módulo de tickets</h3>
+            <p>
+              Aquí se mostrará la vista completa de tickets,
+              filtros, creación y edición.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="activities">
+          <div class="empty-page">
+            <h3>Actividades y subtareas</h3>
+            <p>
+              Actividades simultáneas, responsables, fechas,
+              validación y temporizadores.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="calendar">
+          <div class="empty-page">
+            <h3>Calendario operativo</h3>
+            <p>
+              Vista diaria, semanal, mensual y anual de tickets,
+              visitas y actividades.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="clients">
+          <div class="empty-page">
+            <h3>Clientes y sucursales</h3>
+            <p>
+              Clientes, ubicaciones, contactos, contratos,
+              pólizas y cédulas mensuales.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="equipment">
+          <div class="empty-page">
+            <h3>Equipos</h3>
+            <p>
+              Equipos, modelos, números de serie,
+              ubicaciones e historial de atención.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="warehouse">
+          <div class="empty-page">
+            <h3>Almacén</h3>
+            <p>
+              Existencias, entradas, salidas, refacciones
+              y materiales relacionados con tickets.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="purchases">
+          <div class="empty-page">
+            <h3>Compras</h3>
+            <p>
+              Solicitudes, autorizaciones, proveedores
+              y seguimiento de adquisiciones.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="billing">
+          <div class="empty-page">
+            <h3>Facturación y cobranza</h3>
+            <p>
+              Cotizaciones, facturas, cédulas mensuales
+              y pendientes administrativos.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="warranties">
+          <div class="empty-page">
+            <h3>Garantías</h3>
+            <p>
+              Garantías de equipos, seguimiento con fábrica
+              y documentación relacionada.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="settings">
+          <div class="empty-page">
+            <h3>Configuración</h3>
+            <p>
+              Usuarios, roles, permisos, estados,
+              prioridades y plantillas de actividades.
+            </p>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const tickets = [
+      {
+        folio: 2448,
+        cliente: "Hospital Regional del Sur",
+        equipos: "3 generadores",
+        prioridad: 1,
+        estado: "En proceso",
+        responsable: "Javier Jiménez",
+        unidad: "Servicios especializados",
+        fecha: "2026-08-05",
+        vencido: false,
+        actividades: "4 de 7",
+        descripcion: "Falla recurrente de arranque en lote de generadores.",
+        contacto: "Ing. Roberto Salas",
+        canal: "WhatsApp",
+        ubicacion: "Villahermosa, Tabasco"
+      },
+      {
+        folio: 2449,
+        cliente: "Centro Comercial Maya",
+        equipos: "1 generador",
+        prioridad: 1,
+        estado: "Abierto",
+        responsable: "Javier Jiménez",
+        unidad: "Servicios especializados",
+        fecha: "2026-08-04",
+        vencido: true,
+        actividades: "1 de 5",
+        descripcion: "El equipo no enciende después de una falla eléctrica.",
+        contacto: "Laura Méndez",
+        canal: "Llamada",
+        ubicacion: "Mérida, Yucatán"
+      },
+      {
+        folio: 2450,
+        cliente: "Alimentos del Golfo",
+        equipos: "2 tableros",
+        prioridad: 2,
+        estado: "Pendiente administrativo",
+        responsable: "Dulce Flores",
+        unidad: "Ventas",
+        fecha: "2026-08-08",
+        vencido: false,
+        actividades: "6 de 8",
+        descripcion: "Atención técnica concluida; falta cotización final.",
+        contacto: "Carlos Herrera",
+        canal: "Correo",
+        ubicacion: "Veracruz, Veracruz"
+      },
+      {
+        folio: 2451,
+        cliente: "Hotel Costa Azul",
+        equipos: "1 planta de emergencia",
+        prioridad: 3,
+        estado: "Pendiente de cierre",
+        responsable: "Saúl González",
+        unidad: "Garantías",
+        fecha: "2026-08-14",
+        vencido: false,
+        actividades: "7 de 7",
+        descripcion: "Pendiente confirmación final y validación administrativa.",
+        contacto: "María Elena López",
+        canal: "WhatsApp",
+        ubicacion: "Cancún, Quintana Roo"
+      },
+      {
+        folio: 2452,
+        cliente: "Industria Petrolera Delta",
+        equipos: "5 generadores",
+        prioridad: 2,
+        estado: "Abierto",
+        responsable: "Javier Jiménez",
+        unidad: "Proyectos",
+        fecha: "2026-08-10",
+        vencido: false,
+        actividades: "2 de 9",
+        descripcion: "Revisión preventiva de lote de equipos.",
+        contacto: "Ing. Arturo Cruz",
+        canal: "Correo",
+        ubicacion: "Ciudad del Carmen, Campeche"
+      },
+      {
+        folio: 2453,
+        cliente: "Hospital Regional del Sur",
+        equipos: "1 tablero de transferencia",
+        prioridad: 4,
+        estado: "Cerrado",
+        responsable: "Dulce Flores",
+        unidad: "Servicios especializados",
+        fecha: "2026-07-30",
+        vencido: false,
+        actividades: "5 de 5",
+        descripcion: "Actualización de parámetros y pruebas finales.",
+        contacto: "Ing. Roberto Salas",
+        canal: "Correo",
+        ubicacion: "Villahermosa, Tabasco"
+      }
+    ];
+
+    let filteredTickets = [...tickets];
+
+    const tableBody = document.getElementById("ticketsTableBody");
+    const tableSummary = document.getElementById("tableSummary");
+
+    const searchInput = document.getElementById("searchInput");
+    const clientFilter = document.getElementById("clientFilter");
+    const priorityFilter = document.getElementById("priorityFilter");
+    const statusFilter = document.getElementById("statusFilter");
+    const responsibleFilter = document.getElementById("responsibleFilter");
+    const businessFilter = document.getElementById("businessFilter");
+
+    function getPriorityBadge(priority) {
+      const classes = {
+        1: "badge-danger",
+        2: "badge-warning",
+        3: "badge-info",
+        4: "badge-success"
+      };
+
+      return `
+        <span class="badge ${classes[priority]}">
+          Prioridad ${priority}
+        </span>
+      `;
+    }
+
+    function getStatusBadge(ticket) {
+      if (ticket.vencido && ticket.estado !== "Cerrado") {
+        return `<span class="badge badge-danger">Vencido</span>`;
+      }
+
+      const classes = {
+        "Abierto": "badge-info",
+        "En proceso": "badge-warning",
+        "Pendiente administrativo": "badge-warning",
+        "Pendiente de cierre": "badge-neutral",
+        "Cerrado": "badge-success"
+      };
+
+      return `
+        <span class="badge ${classes[ticket.estado] || "badge-neutral"}">
+          ${ticket.estado}
+        </span>
+      `;
+    }
+
+    function renderTickets() {
+      tableBody.innerHTML = "";
+
+      filteredTickets.forEach((ticket) => {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+          <td>
+            <button
+              class="ticket-link"
+              data-ticket="${ticket.folio}"
+            >
+              #${ticket.folio}
+            </button>
+          </td>
+
+          <td>${ticket.cliente}</td>
+          <td>${ticket.equipos}</td>
+          <td>${getPriorityBadge(ticket.prioridad)}</td>
+          <td>${getStatusBadge(ticket)}</td>
+          <td>${ticket.responsable}</td>
+          <td>${formatDate(ticket.fecha)}</td>
+          <td>${ticket.actividades}</td>
+        `;
+
+        tableBody.appendChild(row);
+      });
+
+      tableSummary.textContent =
+        `${filteredTickets.length} tickets encontrados`;
+
+      document.querySelectorAll(".ticket-link").forEach((button) => {
+        button.addEventListener("click", () => {
+          showTicketDetail(Number(button.dataset.ticket));
+        });
+      });
+
+      updateKpis();
+      renderPriorityBars();
+    }
+
+    function formatDate(dateValue) {
+      const date = new Date(`${dateValue}T12:00:00`);
+
+      return new Intl.DateTimeFormat("es-MX", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric"
+      }).format(date);
+    }
+
+    function updateKpis() {
+      document.getElementById("totalTickets").textContent =
+        filteredTickets.length;
+
+      document.getElementById("openTickets").textContent =
+        filteredTickets.filter((ticket) =>
+          ["Abierto", "En proceso"].includes(ticket.estado)
+        ).length;
+
+      document.getElementById("closedTickets").textContent =
+        filteredTickets.filter((ticket) =>
+          ticket.estado === "Cerrado"
+        ).length;
+
+      document.getElementById("overdueTickets").textContent =
+        filteredTickets.filter((ticket) =>
+          ticket.vencido && ticket.estado !== "Cerrado"
+        ).length;
+
+      document.getElementById("adminPendingTickets").textContent =
+        filteredTickets.filter((ticket) =>
+          ticket.estado === "Pendiente administrativo"
+        ).length;
+    }
+
+    function renderPriorityBars() {
+      const container = document.getElementById("priorityBars");
+      container.innerHTML = "";
+
+      const total = filteredTickets.length || 1;
+
+      [1, 2, 3, 4].forEach((priority) => {
+        const count = filteredTickets.filter(
+          (ticket) => ticket.prioridad === priority
+        ).length;
+
+        const percentage = Math.round((count / total) * 100);
+
+        container.innerHTML += `
+          <div class="priority-row">
+            <div class="priority-label">
+              Prioridad ${priority}
+            </div>
+
+            <div class="bar-track">
+              <div
+                class="bar-fill p${priority}"
+                style="width:${percentage}%"
+              ></div>
+            </div>
+
+            <strong>${count}</strong>
+          </div>
+        `;
+      });
+    }
+
+    function populateFilters() {
+      const clients = [...new Set(tickets.map((ticket) => ticket.cliente))];
+      const responsibles = [
+        ...new Set(tickets.map((ticket) => ticket.responsable))
+      ];
+
+      clients.forEach((client) => {
+        clientFilter.innerHTML += `
+          <option value="${client}">${client}</option>
+        `;
+      });
+
+      responsibles.forEach((responsible) => {
+        responsibleFilter.innerHTML += `
+          <option value="${responsible}">${responsible}</option>
+        `;
+      });
+    }
+
+    function applyFilters() {
+      const search = searchInput.value.toLowerCase().trim();
+      const client = clientFilter.value;
+      const priority = priorityFilter.value;
+      const status = statusFilter.value;
+      const responsible = responsibleFilter.value;
+      const business = businessFilter.value;
+
+      filteredTickets = tickets.filter((ticket) => {
+        const matchesSearch =
+          !search ||
+          String(ticket.folio).includes(search) ||
+          ticket.cliente.toLowerCase().includes(search) ||
+          ticket.descripcion.toLowerCase().includes(search) ||
+          ticket.equipos.toLowerCase().includes(search);
+
+        const matchesClient =
+          !client || ticket.cliente === client;
+
+        const matchesPriority =
+          !priority || ticket.prioridad === Number(priority);
+
+        const matchesStatus =
+          !status ||
+          ticket.estado === status ||
+          (status === "Vencido" && ticket.vencido);
+
+        const matchesResponsible =
+          !responsible || ticket.responsable === responsible;
+
+        const matchesBusiness =
+          !business || ticket.unidad === business;
+
+        return (
+          matchesSearch &&
+          matchesClient &&
+          matchesPriority &&
+          matchesStatus &&
+          matchesResponsible &&
+          matchesBusiness
+        );
+      });
+
+      renderTickets();
+    }
+
+    function clearFilters() {
+      searchInput.value = "";
+      clientFilter.value = "";
+      priorityFilter.value = "";
+      statusFilter.value = "";
+      responsibleFilter.value = "";
+      businessFilter.value = "";
+      document.getElementById("dateFrom").value = "";
+      document.getElementById("dateTo").value = "";
+
+      filteredTickets = [...tickets];
+      renderTickets();
+    }
+
+    function showTicketDetail(folio) {
+      const ticket = tickets.find((item) => item.folio === folio);
+
+      if (!ticket) {
+        return;
+      }
+
+      const detail = document.getElementById("ticketDetail");
+      const detailTitle = document.getElementById("detailTitle");
+      const detailStatus = document.getElementById("detailStatus");
+      const detailList = document.getElementById("detailList");
+      const timeline = document.getElementById("timeline");
+
+      detailTitle.textContent =
+        `Ticket #${ticket.folio} · ${ticket.cliente}`;
+
+      detailStatus.textContent = ticket.estado;
+
+      detailList.innerHTML = `
+        <div class="detail-item">
+          <span>Cliente</span>
+          <strong>${ticket.cliente}</strong>
+        </div>
+
+        <div class="detail-item">
+          <span>Contacto</span>
+          <strong>${ticket.contacto}</strong>
+        </div>
+
+        <div class="detail-item">
+          <span>Equipos</span>
+          <strong>${ticket.equipos}</strong>
+        </div>
+
+        <div class="detail-item">
+          <span>Ubicación</span>
+          <strong>${ticket.ubicacion}</strong>
+        </div>
+
+        <div class="detail-item">
+          <span>Responsable general</span>
+          <strong>${ticket.responsable}</strong>
+        </div>
+
+        <div class="detail-item">
+          <span>Fecha límite</span>
+          <strong>${formatDate(ticket.fecha)}</strong>
+        </div>
+
+        <div class="detail-item">
+          <span>Canal de entrada</span>
+          <strong>${ticket.canal}</strong>
+        </div>
+
+        <div class="detail-item">
+          <span>Unidad de negocio</span>
+          <strong>${ticket.unidad}</strong>
+        </div>
+
+        <div class="detail-item" style="grid-column:1/-1;">
+          <span>Descripción</span>
+          <strong>${ticket.descripcion}</strong>
+        </div>
+      `;
+
+      timeline.innerHTML = `
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+
+          <div class="timeline-content">
+            <strong>Ticket creado</strong>
+            <p>
+              Solicitud recibida por ${ticket.canal}.
+              Responsable: ${ticket.responsable}.
+            </p>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+
+          <div class="timeline-content">
+            <strong>Información inicial validada</strong>
+            <p>
+              Cliente, contacto, ubicación y equipos asociados confirmados.
+            </p>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+
+          <div class="timeline-content">
+            <strong>Actividades simultáneas creadas</strong>
+            <p>
+              Atención técnica, cotización y seguimiento administrativo.
+            </p>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+
+          <div class="timeline-content">
+            <strong>Última actualización</strong>
+            <p>
+              Estado actual: ${ticket.estado}.
+              Actividades completadas: ${ticket.actividades}.
+            </p>
+          </div>
+        </div>
+      `;
+
+      detail.classList.add("visible");
+      detail.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }
+
+    function showSection(sectionId, button) {
+      document.querySelectorAll(".section").forEach((section) => {
+        section.classList.remove("active");
+      });
+
+      document.querySelectorAll(".nav-button").forEach((navButton) => {
+        navButton.classList.remove("active");
+      });
+
+      const selectedSection = document.getElementById(sectionId);
+
+      if (selectedSection) {
+        selectedSection.classList.add("active");
+      }
+
+      button.classList.add("active");
+
+      const titles = {
+        dashboard: [
+          "Dashboard operativo",
+          "Estado general de tickets, actividades y clientes."
+        ],
+        tickets: [
+          "Tickets",
+          "Creación, seguimiento y cierre de expedientes."
+        ],
+        activities: [
+          "Actividades",
+          "Asignaciones, tiempos, validaciones y subtareas."
+        ],
+        calendar: [
+          "Calendario",
+          "Programación diaria, semanal, mensual y anual."
+        ],
+        clients: [
+          "Clientes",
+          "Sucursales, contactos, contratos y pólizas."
+        ],
+        equipment: [
+          "Equipos",
+          "Inventario instalado e historial de servicios."
+        ],
+        warehouse: [
+          "Almacén",
+          "Refacciones, materiales, entradas y salidas."
+        ],
+        purchases: [
+          "Compras",
+          "Solicitudes, autorizaciones y proveedores."
+        ],
+        billing: [
+          "Facturación y cobranza",
+          "Pendientes administrativos y cédulas mensuales."
+        ],
+        warranties: [
+          "Garantías",
+          "Seguimiento de garantías y comunicación con fábrica."
+        ],
+        settings: [
+          "Configuración",
+          "Usuarios, permisos, estados y plantillas."
+        ]
+      };
+
+      document.getElementById("pageTitle").textContent =
+        titles[sectionId][0];
+
+      document.getElementById("pageSubtitle").textContent =
+        titles[sectionId][1];
+
+      closeMobileMenu();
+    }
+
+    function closeMobileMenu() {
+      document.getElementById("sidebar").classList.remove("open");
+      document.getElementById("mobileOverlay").classList.remove("visible");
+    }
+
+    document
+      .getElementById("applyFiltersButton")
+      .addEventListener("click", applyFilters);
+
+    document
+      .getElementById("clearFiltersButton")
+      .addEventListener("click", clearFilters);
+
+    searchInput.addEventListener("input", applyFilters);
+
+    document.querySelectorAll(".kpi-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        const status = card.dataset.kpiStatus;
+
+        if (status === "Vencido") {
+          statusFilter.value = "";
+          filteredTickets = tickets.filter(
+            (ticket) => ticket.vencido && ticket.estado !== "Cerrado"
+          );
+          renderTickets();
+          return;
+        }
+
+        statusFilter.value = status;
+        applyFilters();
+      });
+    });
+
+    document.querySelectorAll(".nav-button").forEach((button) => {
+      button.addEventListener("click", () => {
+        showSection(button.dataset.section, button);
+      });
+    });
+
+    document
+      .getElementById("menuButton")
+      .addEventListener("click", () => {
+        document.getElementById("sidebar").classList.add("open");
+        document.getElementById("mobileOverlay").classList.add("visible");
+      });
+
+    document
+      .getElementById("mobileOverlay")
+      .addEventListener("click", closeMobileMenu);
+
+    document
+      .getElementById("saveFilterButton")
+      .addEventListener("click", () => {
+        alert("Filtro guardado como demostración.");
+      });
+
+    document
+      .getElementById("newTicketButton")
+      .addEventListener("click", () => {
+        alert(
+          "En la siguiente versión se abrirá el formulario para crear un ticket."
+        );
+      });
+
+    document
+      .getElementById("exportButton")
+      .addEventListener("click", () => {
+        alert(
+          "En la versión funcional se generará un archivo Excel con los resultados filtrados."
+        );
+      });
+
+    populateFilters();
+    renderTickets();
+  </script>
 </body>
 </html>
