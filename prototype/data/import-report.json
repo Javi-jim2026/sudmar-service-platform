@@ -1,0 +1,66 @@
+{
+  "source": {
+    "schemaVersion": 1,
+    "sourceFile": "DASHBOARD OPERACIONES 2026 (1)(1).xlsx",
+    "sourceModifiedAt": "2026-09-21T06:36:11Z",
+    "importedAt": "2026-09-21T08:50:27.963892+00:00",
+    "sourceSha256": "588ba98ee1d36ca8f63123c79e3c5babae1c2b95b9dc767362b2dee9a79ad637",
+    "mode": "snapshot",
+    "counts": {
+      "tickets": 574,
+      "tasks": 3475
+    },
+    "sheets": [
+      {
+        "name": "RESUMEN",
+        "nonemptyRows": 27
+      },
+      {
+        "name": "BITACORA",
+        "nonemptyRows": 16
+      },
+      {
+        "name": "INSTRUCCIONES",
+        "nonemptyRows": 21
+      },
+      {
+        "name": "CLIENTES",
+        "nonemptyRows": 234
+      },
+      {
+        "name": "TICKETS",
+        "nonemptyRows": 576
+      },
+      {
+        "name": "CALENDARIO",
+        "nonemptyRows": 10
+      },
+      {
+        "name": "TAREAS",
+        "nonemptyRows": 3476
+      }
+    ],
+    "quality": {
+      "duplicateTicketFolios": [],
+      "taskFoliosNotInTickets": [],
+      "tasksWithoutTitle": 22
+    }
+  },
+  "statusCounts": {
+    "CERRADO": 432,
+    "ABIERTO": 64,
+    "COBRANZA": 41,
+    "EN ESPERA": 36,
+    "<": 1
+  },
+  "taskStatusCounts": {
+    "COMPLETAS": 3271,
+    "SIN INICIAR": 204
+  },
+  "areaCounts": {
+    "OPERACIONES": 305,
+    "COMERCIAL": 269
+  },
+  "linksRegistered": 7,
+  "note": "Links are preserved, not checked. Cached formulas are read, not recalculated. Historical states are not reconstructed."
+}

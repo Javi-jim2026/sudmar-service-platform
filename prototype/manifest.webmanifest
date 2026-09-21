@@ -1,0 +1,16 @@
+{
+  "id": "./",
+  "name": "SUDMAR Service Platform",
+  "short_name": "SUDMAR",
+  "description": "Consulta de tickets, tareas, clientes y equipos de SUDMAR",
+  "lang": "es-MX",
+  "start_url": "./?source=installed",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f7fa",
+  "theme_color": "#0c2435",
+  "icons": [
+    {"src":"./assets/brand/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
+    {"src":"./assets/brand/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ]
+}
