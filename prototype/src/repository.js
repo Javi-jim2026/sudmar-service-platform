@@ -12,6 +12,11 @@ export class SnapshotRepository {
     if (response && !response.ok) throw new Error('No se pudo cargar el archivo de operación.');
     const data = injected || await response.json();
     if (data.metadata?.schemaVersion!==1 || !Array.isArray(data.tickets) || !Array.isArray(data.tasks)) throw new Error('El archivo de operación no tiene el formato esperado.');
+    if (data.metadata?.taskSource!=='TAREAS_PLATAFORMA') {
+      const archivedTaskCount=data.tasks.length;
+      data.metadata={...data.metadata,taskSource:'TAREAS_PLATAFORMA',archivedTaskCount,counts:{...data.metadata.counts,tasks:0}};
+      data.tasks=[];
+    }
     return data;
   }
   canWrite() {
