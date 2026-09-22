@@ -111,3 +111,12 @@ Para tareas nuevas se debe conservar `taskType`. El dashboard agrupa en:
 - SEGUIMIENTO
 
 Para el histórico sin `taskType`, la interfaz aplica una clasificación por palabras clave únicamente para visualización; no altera el Excel original.
+
+
+## Reinicio operativo de tareas
+
+A partir de 2026-09-21, la hoja histórica `TAREAS` no debe cargarse en la plataforma ni participar en KPIs.
+La fuente operativa vigente es `TAREAS_PLATAFORMA`.
+
+Si `TAREAS_PLATAFORMA` no existe todavía o no contiene registros, la plataforma debe mostrar 0 tareas.
+La hoja `TAREAS` se conserva únicamente como histórico y no se elimina.
