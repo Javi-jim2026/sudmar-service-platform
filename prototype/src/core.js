@@ -73,3 +73,23 @@ export function toCsv(records, columns) {
   };
   return '\ufeff'+[columns.map(c=>cell(c.label)).join(';'),...records.map(r=>columns.map(c=>cell(r[c.key])).join(';'))].join('\r\n');
 }
+
+
+export function taskCategory(task) {
+  const explicit=normalized(task.taskType);
+  if (explicit) {
+    if (['compra','compras'].includes(explicit)) return 'COMPRA';
+    if (['cobranza','cobro'].includes(explicit)) return 'COBRANZA';
+    if (['facturacion','facturación','factura'].includes(explicit)) return 'FACTURACION';
+    if (['visita','diagnostico','diagnóstico','operativa','servicio','campo'].includes(explicit)) return 'CAMPO';
+    if (['cotizacion','cotización'].includes(explicit)) return 'COTIZACION';
+    if (['seguimiento','administrativa','administrativo'].includes(explicit)) return 'SEGUIMIENTO';
+  }
+  const text=normalized([task.title,task.notes,task.reference,task.client].filter(Boolean).join(' '));
+  if (/\b(cobrar|cobranza|cobro|recuperar pago|pago pendiente)\b/.test(text)) return 'COBRANZA';
+  if (/\b(factura|facturar|facturacion|cfdi)\b/.test(text)) return 'FACTURACION';
+  if (/\b(comprar|compra|insumo|proveedor|refaccion|refacciones|material|pedido)\b/.test(text)) return 'COMPRA';
+  if (/\b(cotizar|cotizacion|presupuesto)\b/.test(text)) return 'COTIZACION';
+  if (/\b(visita|servicio|diagnostico|prueba|pruebas|instalacion|instalar|campo|arranque|mantenimiento)\b/.test(text)) return 'CAMPO';
+  return 'SEGUIMIENTO';
+}
