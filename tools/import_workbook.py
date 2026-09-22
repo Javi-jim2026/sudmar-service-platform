@@ -103,6 +103,13 @@ def main():
     sheets, epoch, modified = read_workbook(args.workbook)
     ticket_sheet, task_sheet = sheets['TICKETS'], sheets['TAREAS']
     tickets, tasks = [], []
+    ticket_header = next((r['cells'] for r in ticket_sheet['rows'] if r['row'] == 1), {})
+    task_header = next((r['cells'] for r in task_sheet['rows'] if r['row'] == 1), {})
+    ticket_headers = {text(value).upper(): col for col, value in ticket_header.items()}
+    task_headers = {text(value).upper(): col for col, value in task_header.items()}
+    def named(cells, headers, name):
+        col = headers.get(name.upper())
+        return cells.get(col) if col else None
     for row in ticket_sheet['rows']:
         c = row['cells']
         if row['row'] == 1 or not (c.get('A') or c.get('C')):
@@ -127,9 +134,16 @@ def main():
         # Formula-filled template rows are not tasks. Keep partial tasks that have an ID or description.
         if row['row'] == 1 or not (c.get('A') or c.get('H')):
             continue
+        platform_id = text(named(c, task_headers, 'ID TAREA'))
         tasks.append({
-            'id': 'task-' + str(row['row']), 'sourceRow': row['row'], 'ticketFolio': text(c.get('A')),
-            'title': text(c.get('H')), 'notes': text(c.get('I')), 'owner': text(c.get('J')),
+            'id': platform_id or 'task-' + str(row['row']), 'sourceRow': row['row'], 'platformId': platform_id,
+            'ticketFolio': text(c.get('A')), 'title': text(c.get('H')), 'notes': text(c.get('I')), 'owner': text(c.get('J')),
+            'client': text(c.get('C')), 'businessUnit': text(c.get('D')), 'stage': text(c.get('E')),
+            'area': text(c.get('X')), 'model': text(c.get('S')), 'serial': text(c.get('T')),
+            'ticketStatus': text(c.get('U')), 'taskType': text(named(c, task_headers, 'TIPO TAREA')),
+            'reference': text(named(c, task_headers, 'REFERENCIA')), 'priority': text(named(c, task_headers, 'PRIORIDAD')),
+            'origin': text(named(c, task_headers, 'ORIGEN')), 'createdBy': text(named(c, task_headers, 'CREADO POR')),
+            'createdAt': date_value(named(c, task_headers, 'FECHA CREACION'), epoch),
             'startAt': date_value(c.get('K'), epoch), 'duration': c.get('L'),
             'dueAt': date_value(c.get('M'), epoch), 'completedAt': date_value(c.get('Q'), epoch),
             'status': text(c.get('O')), 'checked': c.get('N') is True or c.get('N') == 1,
