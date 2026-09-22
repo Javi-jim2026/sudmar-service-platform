@@ -35,6 +35,13 @@ export class SnapshotRepository {
   }
   async createTicket(payload) { return this.mutate('tickets', payload); }
   async createTask(payload) { return this.mutate('tasks', payload); }
+  async personnel() {
+    const response=await fetch(config.personnelUrl,{cache:'no-store'});
+    if (!response.ok) throw new Error('No se pudo cargar el catálogo de personal.');
+    const data=await response.json();
+    if (data.schemaVersion!==1 || !Array.isArray(data.people)) throw new Error('El catálogo de personal no tiene el formato esperado.');
+    return data.people.filter(person=>person.active!==false);
+  }
   async references() {
     if (globalThis.__SUDMAR_REFERENCES__) return globalThis.__SUDMAR_REFERENCES__;
     const response=await fetch(config.referenceUrl,{cache:'no-store'});
