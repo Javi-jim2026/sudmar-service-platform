@@ -28,6 +28,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate JavaScript
+        run: |
+          node --check prototype/src/app.js
+          node --check prototype/src/repository.js
+          node --check prototype/src/config.js
+
+      - name: Run core tests
+        run: npm test
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
