@@ -28,3 +28,9 @@ dialog{padding:0;border:1px solid #d8e4eb;border-radius:17px;box-shadow:0 20px 1
 @media(max-width:940px){.heading-actions [data-action="new-task"]{display:inline-flex}.person-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.mobile-nav{grid-template-columns:repeat(6,1fr)}.workload-list{grid-template-columns:1fr}.field-team{grid-template-columns:1fr 1fr}.person-grid{grid-template-columns:1fr 1fr}.heading-actions [data-action="new-task"]{font-size:0;width:44px;height:44px;padding:8px;border-radius:9px}.heading-actions [data-action="new-task"] .icon{width:17px;height:17px}}
 @media(max-width:430px){.field-team,.person-grid{grid-template-columns:1fr}}
+
+/* Critical task control */
+.task-control-panel{margin:0 0 18px}.task-control-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;padding:0 20px 20px}.task-control-card{position:relative;text-align:left;border:1px solid var(--border);background:#fbfdfe;border-radius:11px;padding:14px;min-height:106px;color:var(--text)}.task-control-card:hover{border-color:#86b2c1;background:#f7fbfc}.task-control-card>span{display:flex;align-items:flex-start;justify-content:space-between;gap:9px}.task-control-card small{font-size:9px;color:var(--muted);line-height:1.4}.task-control-card strong{font-size:25px;color:var(--primary);line-height:1}.task-control-card p{font-size:8px;color:#8da0ab;line-height:1.5;margin-top:16px;padding-right:17px}.task-control-card>.icon{position:absolute;right:11px;bottom:12px;width:13px;color:#8aa7b4}
+@media(max-width:1200px){.task-control-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.task-control-grid{grid-template-columns:1fr 1fr;padding:0 15px 15px}.task-control-card{min-height:100px;padding:12px}.local-filters{align-items:stretch}.local-filters label{min-width:calc(50% - 4px)}}
+@media(max-width:430px){.task-control-grid{grid-template-columns:1fr}.local-filters label{min-width:100%}}
