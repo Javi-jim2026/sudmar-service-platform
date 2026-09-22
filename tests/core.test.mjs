@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {blankFilters,filterTickets,linkedTasks,metrics,isOverdue,taskComplete,equipmentGroups,safeEvidenceUrl,toCsv} from '../prototype/src/core.js';
+import {blankFilters,filterTickets,linkedTasks,metrics,isOverdue,taskComplete,taskCategory,equipmentGroups,safeEvidenceUrl,toCsv} from '../prototype/src/core.js';
 const data=JSON.parse(readFileSync(new URL('../prototype/data/operations.json',import.meta.url),'utf8'));
 const today='2026-09-21';
 
@@ -41,4 +41,13 @@ test('Evidence links and CSV output reject executable links and spreadsheet form
  assert.equal(safeEvidenceUrl('https://example.com/a'),'https://example.com/a');
  const csv=toCsv([{v:'=1+1'},{v:'Hola; "mundo"\nsegunda línea'}],[{key:'v',label:'Campo'}]);
  assert.ok(csv.startsWith('\ufeff'));assert.ok(csv.includes("'"+'=1+1'));assert.ok(csv.includes('""mundo""'));
+});
+
+test('Operational task categories keep new task types and classify historical work',()=>{
+ assert.equal(taskCategory({taskType:'COMPRA',title:'Cualquier texto'}),'COMPRA');
+ assert.equal(taskCategory({title:'Cobrar factura 1842'}),'COBRANZA');
+ assert.equal(taskCategory({title:'Generar factura del servicio'}),'FACTURACION');
+ assert.equal(taskCategory({title:'Programar visita y diagnóstico'}),'CAMPO');
+ assert.equal(taskCategory({title:'Cotizar refacciones'}),'COTIZACION');
+ assert.equal(taskCategory({title:'Dar seguimiento al cliente'}),'SEGUIMIENTO');
 });
