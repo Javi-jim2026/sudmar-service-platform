@@ -101,7 +101,9 @@ def main():
     parser.add_argument('--output', type=Path, default=Path('prototype/data'))
     args = parser.parse_args()
     sheets, epoch, modified = read_workbook(args.workbook)
-    ticket_sheet, task_sheet = sheets['TICKETS'], sheets['TAREAS']
+    ticket_sheet = sheets['TICKETS']
+    legacy_task_sheet = sheets.get('TAREAS', {'rows': [], 'links': {}})
+    task_sheet = sheets.get('TAREAS_PLATAFORMA', {'rows': [], 'links': {}})
     tickets, tasks = [], []
     ticket_header = next((r['cells'] for r in ticket_sheet['rows'] if r['row'] == 1), {})
     task_header = next((r['cells'] for r in task_sheet['rows'] if r['row'] == 1), {})
@@ -164,20 +166,22 @@ def main():
         'schemaVersion': 1, 'sourceFile': args.workbook.name, 'sourceModifiedAt': modified,
         'importedAt': dt.datetime.now(dt.timezone.utc).isoformat(),
         'sourceSha256': hashlib.sha256(args.workbook.read_bytes()).hexdigest(),
-        'mode': 'snapshot', 'counts': {'tickets': len(tickets), 'tasks': len(tasks)},
+        'mode': 'snapshot', 'taskSource': 'TAREAS_PLATAFORMA',
+        'archivedTaskCount': max(0, len(legacy_task_sheet.get('rows', [])) - 1),
+        'counts': {'tickets': len(tickets), 'tasks': len(tasks)},
         'sheets': [{'name': name, 'nonemptyRows': len(sheet['rows'])} for name, sheet in sheets.items()],
         'quality': issues,
     }
     args.output.mkdir(parents=True, exist_ok=True)
     for filename, payload in [('operations.json', {'metadata': metadata, 'tickets': tickets, 'tasks': tasks}),
-                              ('workbook-reference.json', {name: sheet for name, sheet in sheets.items() if name not in ('TICKETS', 'TAREAS')})]:
+                              ('workbook-reference.json', {name: sheet for name, sheet in sheets.items() if name not in ('TICKETS', 'TAREAS', 'TAREAS_PLATAFORMA')})]:
         (args.output / filename).write_text(json.dumps(payload, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
     report = {
         'source': metadata, 'statusCounts': dict(collections.Counter(t['status'] for t in tickets)),
         'taskStatusCounts': dict(collections.Counter(t['status'] for t in tasks)),
         'areaCounts': dict(collections.Counter(t['area'] for t in tickets)),
         'linksRegistered': sum(bool(t['evidenceUrl']) for t in tickets),
-        'note': 'Links are preserved, not checked. Cached formulas are read, not recalculated. Historical states are not reconstructed.',
+        'note': 'TAREAS is treated as archived history. Only TAREAS_PLATAFORMA is imported as current operational tasks. Links are preserved, not checked.',
     }
     (args.output / 'import-report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps(report, ensure_ascii=False, indent=2))
