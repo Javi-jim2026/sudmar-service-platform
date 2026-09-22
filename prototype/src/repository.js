@@ -14,6 +14,27 @@ export class SnapshotRepository {
     if (data.metadata?.schemaVersion!==1 || !Array.isArray(data.tickets) || !Array.isArray(data.tasks)) throw new Error('El archivo de operación no tiene el formato esperado.');
     return data;
   }
+  canWrite() {
+    return Boolean(config.features.editing && config.writeApiUrl);
+  }
+  async mutate(resource, payload) {
+    if (!this.canWrite()) throw new Error('La conexión segura de escritura con OneDrive todavía no está configurada.');
+    const base=config.writeApiUrl.replace(/\/$/,'');
+    const response=await fetch(base+'/'+resource,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload),
+      credentials:'omit',
+    });
+    if (!response.ok) {
+      let message='No se pudo guardar la información.';
+      try { const body=await response.json(); if(body?.message) message=body.message; } catch {}
+      throw new Error(message);
+    }
+    return response.json();
+  }
+  async createTicket(payload) { return this.mutate('tickets', payload); }
+  async createTask(payload) { return this.mutate('tasks', payload); }
   async references() {
     if (globalThis.__SUDMAR_REFERENCES__) return globalThis.__SUDMAR_REFERENCES__;
     const response=await fetch(config.referenceUrl,{cache:'no-store'});
