@@ -52,6 +52,8 @@
 <dialog id="newTaskDialog" class="filters-dialog write-dialog" aria-labelledby="newTaskTitle"><form id="newTaskForm"><div class="dialog-header"><div><span class="eyebrow">TRABAJO ASIGNADO</span><h2 id="newTaskTitle">Crear tarea</h2></div><button type="button" class="icon-button" data-action="close-dialog" aria-label="Cerrar" data-icon="close"></button></div><div class="filter-fields">
 <label class="field">Ticket relacionado<input name="ticketFolio" inputmode="numeric" placeholder="Opcional · Ej. 2643"></label>
 <label class="field">Tipo de tarea<select name="taskType"><option>OPERATIVA</option><option>COMPRA</option><option>COBRANZA</option><option>FACTURACION</option><option>VISITA</option><option>DIAGNOSTICO</option><option>COTIZACION</option><option>SEGUIMIENTO</option><option>ADMINISTRATIVA</option></select></label>
+<label class="field">Cliente / tercero<input name="client" maxlength="120" placeholder="Opcional si no hay ticket"></label>
+<label class="field">Referencia<input name="reference" maxlength="100" placeholder="Factura, OC, cotización, pedido…"></label>
 <label class="field full-width">Tarea<input name="title" required maxlength="180" placeholder="Ej. Comprar relevador para tablero ATS"></label>
 <label class="field">Responsable<select name="owner" id="newTaskOwner" required></select></label>
 <label class="field">Área responsable<input name="area" id="newTaskArea" readonly placeholder="Se asigna según la persona"></label>
