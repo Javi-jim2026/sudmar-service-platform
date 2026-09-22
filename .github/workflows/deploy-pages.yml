@@ -28,11 +28,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate JavaScript
+      - name: Validate application code
         run: |
           node --check prototype/src/app.js
           node --check prototype/src/repository.js
           node --check prototype/src/config.js
+          python -m py_compile tools/import_workbook.py
 
       - name: Run core tests
         run: npm test
