@@ -88,8 +88,8 @@ export function taskCategory(task) {
   const text=normalized([task.title,task.notes,task.reference,task.client].filter(Boolean).join(' '));
   if (/\b(cobrar|cobranza|cobro|recuperar pago|pago pendiente)\b/.test(text)) return 'COBRANZA';
   if (/\b(factura|facturar|facturacion|cfdi)\b/.test(text)) return 'FACTURACION';
-  if (/\b(comprar|compra|insumo|proveedor|refaccion|refacciones|material|pedido)\b/.test(text)) return 'COMPRA';
   if (/\b(cotizar|cotizacion|presupuesto)\b/.test(text)) return 'COTIZACION';
+  if (/\b(comprar|compra|insumo|proveedor|refaccion|refacciones|material|pedido)\b/.test(text)) return 'COMPRA';
   if (/\b(visita|servicio|diagnostico|prueba|pruebas|instalacion|instalar|campo|arranque|mantenimiento)\b/.test(text)) return 'CAMPO';
   return 'SEGUIMIENTO';
 }
