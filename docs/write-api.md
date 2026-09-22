@@ -64,8 +64,11 @@ Ejemplo:
 {
   "ticketFolio": "2644",
   "taskType": "COMPRA",
+  "client": "SECBA",
+  "reference": "OTM ABB / refacción",
   "title": "Comprar relevador para tablero ATS",
-  "owner": "Dulce Flores",
+  "owner": "Manuel Cervantes",
+  "area": "Compras",
   "priority": "1",
   "startAt": "2026-09-21",
   "dueAt": "2026-09-22",
@@ -74,7 +77,7 @@ Ejemplo:
 }
 ```
 
-`ticketFolio` puede quedar vacío para tareas administrativas independientes como cobranza, compras internas o seguimientos generales.
+`ticketFolio` puede quedar vacío para tareas administrativas independientes como cobranza, compras internas o seguimientos generales. En esos casos `client` y/o `reference` conservan el contexto de la actividad.
 
 ## Reglas mínimas antes de habilitar escritura
 
@@ -89,3 +92,22 @@ Ejemplo:
 ## Estado actual
 
 La interfaz de **Nuevo ticket** y **Nueva tarea** ya está preparada. Mientras `writeApiUrl` esté vacío en `prototype/src/config.js`, los formularios no realizan modificaciones y muestran un mensaje de conexión pendiente.
+
+
+## Catálogo de personal
+
+Los campos de responsable deben validar contra el catálogo publicado por la plataforma. El área se deriva automáticamente de la persona seleccionada.
+
+La primera versión utiliza nombres completos como clave de integración. En la fase de autenticación se sustituirá por un identificador estable de usuario.
+
+## Categorías operativas
+
+Para tareas nuevas se debe conservar `taskType`. El dashboard agrupa en:
+- COMPRA
+- COBRANZA
+- FACTURACION
+- COTIZACION
+- CAMPO
+- SEGUIMIENTO
+
+Para el histórico sin `taskType`, la interfaz aplica una clasificación por palabras clave únicamente para visualización; no altera el Excel original.
