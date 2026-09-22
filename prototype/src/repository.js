@@ -14,7 +14,7 @@ export class SnapshotRepository {
     if (data.metadata?.schemaVersion!==1 || !Array.isArray(data.tickets) || !Array.isArray(data.tasks)) throw new Error('El archivo de operación no tiene el formato esperado.');
     if (data.metadata?.taskSource!=='TAREAS_PLATAFORMA') {
       const archivedTaskCount=data.tasks.length;
-      data.metadata={...data.metadata,taskSource:'TAREAS_PLATAFORMA',archivedTaskCount,counts:{...data.metadata.counts,tasks:0}};
+      data.metadata={...data.metadata,taskSource:'TAREAS_PLATAFORMA',archivedTaskCount,counts:{...data.metadata.counts,tasks:0},quality:{...data.metadata.quality,tasksWithoutTitle:0,taskFoliosNotInTickets:[]}};
       data.tasks=[];
     }
     return data;
