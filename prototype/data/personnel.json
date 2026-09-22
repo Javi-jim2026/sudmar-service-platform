@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-09-21",
+  "people": [
+    {
+      "id": "rodolfo-martinez",
+      "name": "Rodolfo Martinez",
+      "title": "Director General",
+      "area": "Dirección General",
+      "parentArea": "",
+      "fieldTechnician": false,
+      "fieldLead": false,
+      "active": true
+    },
+    {
+      "id": "saul-gonzalez",
+      "name": "Saul Gonzalez",
+      "title": "Gerencia Administrativa",
+      "area": "Administración",
+      "parentArea": "",
+      "fieldTechnician": false,
+      "fieldLead": false,
+      "active": true
+    },
+    {
+      "id": "javier-jimenez",
+      "name": "Javier Jimenez",
+      "title": "Gerente Operativo",
+      "area": "Operaciones",
+      "parentArea": "",
+      "fieldTechnician": true,
+      "fieldLead": true,
+      "fieldRole": "Técnico de campo · Responsable operativo de campo",
+      "active": true
+    },
+    {
+      "id": "dulce-flores",
+      "name": "Dulce Flores",
+      "title": "Ventas",
+      "area": "Ventas",
+      "parentArea": "",
+      "fieldTechnician": false,
+      "fieldLead": false,
+      "active": true
+    },
+    {
+      "id": "manuel-cervantes",
+      "name": "Manuel Cervantes",
+      "title": "Compras",
+      "area": "Compras",
+      "parentArea": "",
+      "fieldTechnician": false,
+      "fieldLead": false,
+      "active": true
+    },
+    {
+      "id": "raul-mariano",
+      "name": "Raul Mariano",
+      "title": "Marketing",
+      "area": "Marketing",
+      "parentArea": "",
+      "fieldTechnician": false,
+      "fieldLead": false,
+      "active": true
+    },
+    {
+      "id": "enrique-gonzalez",
+      "name": "Enrique Gonzalez",
+      "title": "Proyectos",
+      "area": "Proyectos",
+      "parentArea": "",
+      "fieldTechnician": true,
+      "fieldLead": false,
+      "fieldRole": "Técnico de campo",
+      "active": true
+    },
+    {
+      "id": "hernan-reyes",
+      "name": "Hernan Reyes",
+      "title": "Técnico responsable",
+      "area": "Almacén Fiscal",
+      "parentArea": "Operaciones",
+      "fieldTechnician": true,
+      "fieldLead": false,
+      "fieldRole": "Técnico de campo",
+      "active": true
+    },
+    {
+      "id": "daniel-hernandez",
+      "name": "Daniel Hernandez",
+      "title": "Técnico",
+      "area": "Servicios Especializados",
+      "parentArea": "Operaciones",
+      "fieldTechnician": true,
+      "fieldLead": false,
+      "fieldRole": "Técnico de campo",
+      "active": true
+    }
+  ]
+}
