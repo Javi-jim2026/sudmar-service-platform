@@ -49,20 +49,20 @@
 <label class="field">Número de serie<input name="serial" maxlength="100"></label>
 <label class="field full-width">Descripción / contexto<textarea name="description" rows="4" maxlength="2000" placeholder="Describe la solicitud, falla o trabajo requerido."></textarea></label>
 </div><div id="newTicketError" class="form-error" role="alert"></div><div class="dialog-footer"><button type="button" class="button ghost" data-action="close-dialog">Cancelar</button><button class="button primary" type="submit">Guardar ticket</button></div></form></dialog>
-<dialog id="newTaskDialog" class="filters-dialog write-dialog" aria-labelledby="newTaskTitle"><form id="newTaskForm"><div class="dialog-header"><div><span class="eyebrow">TRABAJO ASIGNADO</span><h2 id="newTaskTitle">Crear tarea</h2></div><button type="button" class="icon-button" data-action="close-dialog" aria-label="Cerrar" data-icon="close"></button></div><div class="filter-fields">
-<label class="field">Ticket relacionado<input name="ticketFolio" inputmode="numeric" placeholder="Opcional · Ej. 2643"></label>
-<label class="field">Tipo de tarea<select name="taskType"><option>OPERATIVA</option><option>COMPRA</option><option>COBRANZA</option><option>FACTURACION</option><option>VISITA</option><option>DIAGNOSTICO</option><option>COTIZACION</option><option>SEGUIMIENTO</option><option>ADMINISTRATIVA</option></select></label>
-<label class="field">Cliente / tercero<input name="client" maxlength="120" placeholder="Opcional si no hay ticket"></label>
-<label class="field">Referencia<input name="reference" maxlength="100" placeholder="Factura, OC, cotización, pedido…"></label>
-<label class="field full-width">Tarea<input name="title" required maxlength="180" placeholder="Ej. Comprar relevador para tablero ATS"></label>
+<dialog id="newTaskDialog" class="filters-dialog write-dialog" aria-labelledby="newTaskTitle"><form id="newTaskForm"><div class="dialog-header"><div><span class="eyebrow">ACTIVIDAD DEL TICKET</span><h2 id="newTaskTitle">Crear actividad</h2></div><button type="button" class="icon-button" data-action="close-dialog" aria-label="Cerrar" data-icon="close"></button></div><div class="filter-fields">
+<label class="field full-width">Ticket relacionado<select name="ticketFolio" id="newTaskTicket" required></select></label>
+<label class="field">Tipo de actividad<input name="taskType" list="activityTypeList" required maxlength="80" placeholder="Ej. REPARACIÓN"></label>
+<datalist id="activityTypeList"><option value="DIAGNÓSTICO"></option><option value="REPARACIÓN"></option><option value="MANTENIMIENTO"></option><option value="INSTALACIÓN"></option><option value="PRUEBAS"></option><option value="VISITA"></option><option value="COMPRA"></option><option value="COTIZACIÓN"></option><option value="SEGUIMIENTO"></option><option value="FACTURACIÓN"></option><option value="COBRANZA"></option><option value="REPORTE"></option><option value="ADMINISTRATIVO"></option><option value="OTRO"></option></datalist>
+<label class="field">Referencia<input name="reference" maxlength="100" placeholder="OC, cotización, reporte, pedido…"></label>
+<label class="field full-width">Actividad<input name="title" required maxlength="180" placeholder="Ej. Reparar soporte del inverter"></label>
 <label class="field">Responsable<select name="owner" id="newTaskOwner" required></select></label>
 <label class="field">Área responsable<input name="area" id="newTaskArea" readonly placeholder="Se asigna según la persona"></label>
 <label class="field">Prioridad<select name="priority"><option value="">Normal</option><option value="1">Alta</option><option value="2">Media</option><option value="3">Baja</option></select></label>
 <label class="field">Fecha de inicio<input type="date" name="startAt" required></label>
 <label class="field">Fecha compromiso<input type="date" name="dueAt"></label>
-<label class="field">Estado<select name="status"><option>SIN INICIAR</option><option>EN PROCESO</option><option>EN ESPERA</option><option>COMPLETAS</option></select></label>
+<label class="field">Estado<select name="status"><option>SIN INICIAR</option><option>EN PROCESO</option><option>EN ESPERA</option><option>BLOQUEADA</option><option>COMPLETADA</option><option>CANCELADA</option></select></label>
 <label class="field full-width">Observaciones<textarea name="notes" rows="4" maxlength="2000" placeholder="Información necesaria para ejecutar o dar seguimiento."></textarea></label>
-</div><div id="newTaskError" class="form-error" role="alert"></div><div class="dialog-footer"><button type="button" class="button ghost" data-action="close-dialog">Cancelar</button><button class="button primary" type="submit">Guardar tarea</button></div></form></dialog>
+</div><div id="newTaskError" class="form-error" role="alert"></div><div class="dialog-footer"><button type="button" class="button ghost" data-action="close-dialog">Cancelar</button><button class="button primary" type="submit">Guardar actividad</button></div></form></dialog>
 <div id="toast" class="toast" role="status" hidden></div><noscript><p class="noscript">Activa JavaScript para consultar el dashboard.</p></noscript>
 <script type="module" src="./src/app.js"></script>
 </body></html>
