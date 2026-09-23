@@ -2,8 +2,8 @@
 export const normalized = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 export const clean = value => String(value ?? '').trim();
 export const blankFilters = () => ({ q: '', folio: '', priority: '', client: '', businessUnit: '', area: '', stage: '', owner: '', status: '', model: '', serial: '', from: '', to: '', dateField: 'openedAt', overdue: false, activeOnly: false });
-const terminal = new Set(['cerrado', 'cancelado', 'cancelada']);
-const known = new Set(['abierto', 'cerrado', 'cancelado', 'cancelada', 'en espera', 'cobranza', 'inactivo', 'consigna']);
+const terminal = new Set(['cerrado', 'cancelado', 'cancelada', 'aprobada', 'aprobado']);
+const known = new Set(['abierto', 'cerrado', 'cancelado', 'cancelada', 'en espera', 'cobranza', 'inactivo', 'consigna', 'nueva', 'asignada', 'aceptada', 'en proceso', 'pausada', 'esperando info', 'bloqueada', 'pendiente validacion', 'pendiente validación', 'aprobada', 'aprobado']);
 export const isKnownStatus = t => known.has(normalized(t.status));
 export const isClosed = t => terminal.has(normalized(t.status));
 export const isActive = t => isKnownStatus(t) && !isClosed(t);
