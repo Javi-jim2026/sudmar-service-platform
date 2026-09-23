@@ -219,15 +219,11 @@ export class SnapshotRepository {
   }
 
   async createTask(payload) {
-    let ticketId=null,clientId=null;
-    if (payload.ticketFolio) {
-      const tickets=await supabaseRequest(`/rest/v1/tickets?select=id,client_id&folio=${exact(payload.ticketFolio)}&limit=1`);
-      if (!tickets?.[0]) throw new Error('El ticket relacionado no existe.');
-      ticketId=tickets[0].id;
-      clientId=tickets[0].client_id;
-    } else if (payload.client) {
-      clientId=await this.lookupId('clients','name',payload.client);
-    }
+    if (!payload.ticketFolio) throw new Error('Toda actividad debe estar ligada a un ticket.');
+    const tickets=await supabaseRequest(`/rest/v1/tickets?select=id,client_id&folio=${exact(payload.ticketFolio)}&limit=1`);
+    if (!tickets?.[0]) throw new Error('El ticket relacionado no existe.');
+    const ticketId=tickets[0].id;
+    const clientId=tickets[0].client_id;
     const assigneeId=await this.lookupId('personnel','name',payload.owner);
     if (!assigneeId) throw new Error('El responsable seleccionado no existe en Supabase.');
     const rows=await supabaseRequest('/rest/v1/tasks',{
@@ -237,7 +233,7 @@ export class SnapshotRepository {
         ticket_id:ticketId,
         client_id:clientId,
         assignee_id:assigneeId,
-        task_type:payload.taskType||null,
+        task_type:payload.taskType||'SEGUIMIENTO',
         title:payload.title,
         reference:payload.reference||null,
         area:payload.area||null,
@@ -248,6 +244,30 @@ export class SnapshotRepository {
         notes:payload.notes||null,
         created_by:'Plataforma SUDMAR',
       })
+    });
+    return rows?.[0]??null;
+  }
+
+  async updateTask(id, changes) {
+    const body={updated_at:new Date().toISOString()};
+    if (changes.owner!==undefined) body.assignee_id=changes.owner ? await this.lookupId('personnel','name',changes.owner) : null;
+    if (changes.taskType!==undefined) body.task_type=changes.taskType||null;
+    if (changes.title!==undefined) body.title=changes.title||null;
+    if (changes.reference!==undefined) body.reference=changes.reference||null;
+    if (changes.area!==undefined) body.area=changes.area||null;
+    if (changes.priority!==undefined) body.priority=changes.priority||null;
+    if (changes.status!==undefined) {
+      body.status=changes.status||'SIN INICIAR';
+      if (String(body.status).toUpperCase()==='COMPLETADA') body.completed_at=new Date().toISOString();
+      else body.completed_at=null;
+    }
+    if (changes.startAt!==undefined) body.start_at=changes.startAt||null;
+    if (changes.dueAt!==undefined) body.due_at=changes.dueAt||null;
+    if (changes.notes!==undefined) body.notes=changes.notes||null;
+    const rows=await supabaseRequest(`/rest/v1/tasks?id=${exact(id)}&select=*`,{
+      method:'PATCH',
+      headers:{Prefer:'return=representation'},
+      body:JSON.stringify(body)
     });
     return rows?.[0]??null;
   }
