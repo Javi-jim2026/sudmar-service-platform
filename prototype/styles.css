@@ -60,3 +60,9 @@ dialog{padding:0;border:1px solid #d8e4eb;border-radius:17px;box-shadow:0 20px 1
   .detail-tasks .task-row>.avatar-owner{display:none}
   .activity-progress-top{align-items:flex-start}
 }
+
+/* Activity requirement vs. resolution */
+.activity-requirement{border-left:4px solid #2f80ed;padding-left:16px}
+.activity-resolution{border-left:4px solid #98a2b3;padding-left:16px;background:#fafbfc}
+.activity-resolution.has-resolution{border-left-color:#16835f;background:#f5fbf8}
+.activity-resolution .note-text,.activity-requirement .note-text{white-space:pre-wrap}
