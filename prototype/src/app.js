@@ -60,6 +60,14 @@ const activityTypeTone=task=>{
  if(type.includes('administr')) return 'slate';
  return 'slate';
 };
+const activityOutcomeTone=value=>{
+ const v=normalized(value);
+ if(v==='realizada') return 'green';
+ if(v.includes('cliente')) return 'slate';
+ if(v.includes('tecnico')||v.includes('no realizada')) return 'red';
+ if(v.includes('reprogramada')) return 'amber';
+ return 'slate';
+};
 const activityStatusTone=task=>{
  if(taskComplete(task)) return 'green';
  if(['cancelada','cancelado'].includes(normalized(task.status))) return 'slate';
@@ -271,9 +279,14 @@ function showTaskDetail(id){
  const ownerOptions=state.personnel.map(p=>`<option value="${e(p.name)}" ${normalized(p.name)===normalized(task.owner)?'selected':''}>${e(p.name)}</option>`).join('');
  const statuses=['SIN INICIAR','EN PROCESO','EN ESPERA','BLOQUEADA','COMPLETADA','CANCELADA'];
  const statusOptions=unique([task.status,...statuses]).map(value=>`<option value="${e(value)}" ${normalized(value)===normalized(task.status)?'selected':''}>${e(value)}</option>`).join('');
+ const outcomes=['','REALIZADA','NO REALIZADA','CANCELADA POR CLIENTE','TÉCNICO NO PUDO ACUDIR','REPROGRAMADA','OTRO'];
+ const outcomeOptions=unique([task.outcome,...outcomes]).map(value=>`<option value="${e(value)}" ${normalized(value)===normalized(task.outcome)?'selected':''}>${e(value||'Seleccionar resultado')}</option>`).join('');
+ const resolutionBadge=task.outcome?`<span class="badge ${activityOutcomeTone(task.outcome)}">${e(task.outcome)}</span>`:'';
  openDetail(detailHeader('ACTIVIDAD DEL TICKET','Ticket #'+task.ticketFolio)+
- `<div class="detail-heading-title"><h3>${e(task.title||'Actividad sin descripción')}</h3><div class="detail-badges"><span class="badge ${activityStatusTone(task)}">${e(taskComplete(task)?'COMPLETADA':(task.status||'SIN INICIAR'))}</span><span class="badge ${activityTypeTone(task)}">${e(activityType(task))}</span></div></div>
+ `<div class="detail-heading-title"><h3>${e(task.title||'Actividad sin descripción')}</h3><div class="detail-badges"><span class="badge ${activityStatusTone(task)}">${e(taskComplete(task)?'COMPLETADA':(task.status||'SIN INICIAR'))}</span><span class="badge ${activityTypeTone(task)}">${e(activityType(task))}</span>${resolutionBadge}</div></div>
  <div class="detail-grid">${[['Ticket','#'+task.ticketFolio],['Cliente',ticket.client],['Responsable',task.owner],['Área',task.area],['Tipo',activityType(task)],['Referencia',task.reference],['Inicio',fmt(task.startAt,true)],['Fecha compromiso',fmt(task.dueAt,true)],['Realización',fmt(task.completedAt,true)],['Estado',task.status]].map(([l,v])=>detailField(l,v)).join('')}</div>
+ <section class="detail-section activity-requirement"><h3>Requerimiento / observaciones</h3><p class="note-text">${e(task.notes||'No hay observaciones registradas.')}</p><p class="definition-note">Aquí se conserva lo que se solicitó hacer y las indicaciones originales de la actividad.</p></section>
+ <section class="detail-section activity-resolution ${task.resolution?'has-resolution':''}"><div class="detail-section-actions"><h3>Resolución / resultado</h3>${task.outcome?`<span class="badge ${activityOutcomeTone(task.outcome)}">${e(task.outcome)}</span>`:''}</div><p class="note-text">${e(task.resolution||'La actividad todavía no tiene una resolución registrada.')}</p><p class="definition-note">Este apartado describe qué ocurrió realmente al ejecutar o cerrar la actividad.</p></section>
  <section class="detail-section"><div class="detail-section-actions"><h3>Actualizar actividad</h3><span class="number-badge">${e(task.platformId||'Supabase')}</span></div>
  <div class="filter-fields">
    <label class="field full-width">Actividad<input id="taskEditTitle" value="${e(task.title)}" maxlength="180"></label>
@@ -284,8 +297,11 @@ function showTaskDetail(id){
    <label class="field">Fecha de inicio<input id="taskEditStart" type="date" value="${e(task.startAt||'')}"></label>
    <label class="field">Fecha compromiso<input id="taskEditDue" type="date" value="${e(task.dueAt||'')}"></label>
    <label class="field">Referencia<input id="taskEditReference" value="${e(task.reference||'')}" maxlength="100"></label>
-   <label class="field full-width">Observaciones<textarea id="taskEditNotes" rows="4" maxlength="2000">${e(task.notes||'')}</textarea></label>
+   <label class="field full-width">Observaciones / requerimiento<textarea id="taskEditNotes" rows="4" maxlength="2000" placeholder="Qué se requiere hacer, alcance, indicaciones...">${e(task.notes||'')}</textarea></label>
+   <label class="field">Resultado de la actividad<select id="taskEditOutcome">${outcomeOptions}</select></label>
+   <label class="field full-width">Resolución<textarea id="taskEditResolution" rows="5" maxlength="3000" placeholder="Qué se hizo, qué se encontró, por qué no se realizó, cancelación del cliente, reprogramación, etc.">${e(task.resolution||'')}</textarea></label>
  </div>
+ <p class="definition-note">Al marcar una actividad como COMPLETADA o CANCELADA, registra también su resultado y resolución para conservar la trazabilidad.</p>
  <div class="detail-section-actions" style="margin-top:14px"><button class="button secondary" data-action="ticket" data-id="${e(ticket.id)}">Volver al ticket #${e(ticket.folio)}</button><button class="button small primary" data-action="save-task-update" data-id="${e(task.id)}">Guardar actividad</button></div></section>`);
 }
 function showEquipment(serial){const list=state.data.tickets.filter(t=>normalized(t.serial)===normalized(serial));const models=unique(list.map(t=>t.model));openDetail(detailHeader('SERVICIOS REGISTRADOS','Serie '+serial)+`<div class="detail-heading-title"><h3>${models.map(e).join(' · ')||'Modelo sin registrar'}</h3><p class="definition-note">Modelos tal como figuran en los tickets. El Excel no documenta necesariamente el motivo de sus diferencias.</p></div><div class="detail-section"><h3>${list.length} tickets asociados</h3>${sortRecent(list).map(t=>`<button class="task-row" data-action="ticket" data-id="${t.id}"><span class="entity-icon">${icon('ticket')}</span><span class="task-row-title">#${e(t.folio)} · ${e(t.title)}<small>${fmt(t.openedAt,true)} · ${e(t.client)}</small></span><span>${badge(t)}</span></button>`).join('')}</div>`);}
@@ -293,7 +309,7 @@ function showSource(){const m=state.data.metadata;openDetail(detailHeader('INFOR
 
 function getSavedViews(){try{const data=JSON.parse(localStorage.getItem(config.storageKey)||'[]');return Array.isArray(data)?data.filter(v=>typeof v.name==='string'&&v.filters&&typeof v.filters==='object').slice(0,10):[];}catch{return [];}}
 function renderSavedViews(){const list=getSavedViews();$('savedViews').innerHTML='<option value="">Mis vistas</option>'+list.map((v,i)=>`<option value="${i}">${e(v.name)}</option>`).join('');}
-function exportView(){let records,columns,label;if(state.view==='tasks'){records=currentTasks().map(task=>({...task,category:taskCategoryLabel(taskCategory(task))}));columns=[['ticketFolio','Ticket'],['category','Tipo'],['title','Actividad'],['client','Cliente / tercero'],['reference','Referencia'],['owner','Responsable'],['area','Área'],['startAt','Inicio'],['dueAt','Fin programado'],['status','Estado'],['completedAt','Realización'],['notes','Observaciones']];label='actividades';}else if(state.view==='team'){records=state.personnel.map(p=>{const w=personWorkload(p);return {...p,pendingTasks:w.pending.length,overdueTasks:w.overdue.length,assignedTasks:w.assignedTasks.length,ownedTickets:w.ownedTickets.length};});columns=[['name','Nombre'],['title','Cargo'],['area','Área'],['parentArea','Área principal'],['fieldRole','Rol de campo'],['ownedTickets','Tickets'],['assignedTasks','Tareas'],['pendingTasks','Pendientes'],['overdueTasks','Vencidas']];label='personal';}else if(state.view==='clients'&&state.clientTab==='directory'){records=selectedContacts();columns=[['name','Contacto'],['company','Compañía'],['role','Cargo'],['email','Correo'],['phone','Teléfono'],['address','Dirección'],['city','Ciudad'],['region','Estado']];label='contactos';}else{records=filtered();columns=[['folio','Folio'],['priority','Nivel SLA'],['title','Título'],['client','Cliente'],['businessUnit','Unidad de negocio'],['area','Área'],['stage','Etapa'],['owner','Responsable'],['openedAt','Inicio'],['dueAt','Meta de cierre'],['closedAt','Cierre real'],['model','Modelo'],['serial','Serie'],['status','Estado'],['log','Bitácora'],['diagnosis','Diagnóstico'],['evidenceUrl','Carpeta']];label='tickets';}const blob=new Blob([toCsv(records,columns.map(([key,label])=>({key,label})))],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`SUDMAR_${label}_${today}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast(`${n(records.length)} registros exportados a CSV.`);}
+function exportView(){let records,columns,label;if(state.view==='tasks'){records=currentTasks().map(task=>({...task,category:taskCategoryLabel(taskCategory(task))}));columns=[['ticketFolio','Ticket'],['category','Tipo'],['title','Actividad'],['client','Cliente / tercero'],['reference','Referencia'],['owner','Responsable'],['area','Área'],['startAt','Inicio'],['dueAt','Fin programado'],['status','Estado'],['completedAt','Realización'],['notes','Observaciones / requerimiento'],['outcome','Resultado'],['resolution','Resolución']];label='actividades';}else if(state.view==='team'){records=state.personnel.map(p=>{const w=personWorkload(p);return {...p,pendingTasks:w.pending.length,overdueTasks:w.overdue.length,assignedTasks:w.assignedTasks.length,ownedTickets:w.ownedTickets.length};});columns=[['name','Nombre'],['title','Cargo'],['area','Área'],['parentArea','Área principal'],['fieldRole','Rol de campo'],['ownedTickets','Tickets'],['assignedTasks','Tareas'],['pendingTasks','Pendientes'],['overdueTasks','Vencidas']];label='personal';}else if(state.view==='clients'&&state.clientTab==='directory'){records=selectedContacts();columns=[['name','Contacto'],['company','Compañía'],['role','Cargo'],['email','Correo'],['phone','Teléfono'],['address','Dirección'],['city','Ciudad'],['region','Estado']];label='contactos';}else{records=filtered();columns=[['folio','Folio'],['priority','Nivel SLA'],['title','Título'],['client','Cliente'],['businessUnit','Unidad de negocio'],['area','Área'],['stage','Etapa'],['owner','Responsable'],['openedAt','Inicio'],['dueAt','Meta de cierre'],['closedAt','Cierre real'],['model','Modelo'],['serial','Serie'],['status','Estado'],['log','Bitácora'],['diagnosis','Diagnóstico'],['evidenceUrl','Carpeta']];label='tickets';}const blob=new Blob([toCsv(records,columns.map(([key,label])=>({key,label})))],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`SUDMAR_${label}_${today}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast(`${n(records.length)} registros exportados a CSV.`);}
 async function install(){if(installEvent){await installEvent.prompt();installEvent=null;return;}openDetail(detailHeader('ACCESO DESDE EL TELÉFONO','Instalar SUDMAR')+`<div class="dialog-body"><p>Cuando la plataforma esté disponible en una dirección HTTPS, podrás añadirla a la pantalla de inicio.</p><div class="source-list"><div class="source-item"><span>Android</span><strong>Menú del navegador → Instalar app o Añadir a pantalla de inicio.</strong></div><div class="source-item"><span>iPhone / iPad</span><strong>Safari → Compartir → Añadir a pantalla de inicio.</strong></div></div><p class="definition-note">Un archivo descargado o una vista previa local no permite la instalación completa. La consulta de datos requiere conexión; esta versión no permite editar sin conexión.</p></div>`);}
 
 document.addEventListener('click',event=>{const b=event.target.closest('[data-action]');if(!b)return;const a=b.dataset.action;if(!state.data&&!['close-dialog'].includes(a))return;
@@ -308,7 +324,38 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
  if(a==='ticket')showTicketDetail(b.dataset.id);
  if(a==='save-ticket-update'){(async()=>{b.disabled=true;try{await repository.updateTicket(b.dataset.id,{status:$('ticketEditStatus')?.value||'',stage:$('ticketEditStage')?.value||'',priority:$('ticketEditPriority')?.value||'',owner:$('ticketEditOwner')?.value||''});await refreshOperationalData();showTicketDetail(b.dataset.id);toast('Ticket actualizado en Supabase.');}catch(err){toast(err.message||'No se pudo actualizar el ticket.');}finally{b.disabled=false;}})();}
  if(a==='task')showTaskDetail(b.dataset.id);
- if(a==='save-task-update'){(async()=>{b.disabled=true;try{const task=state.data.tasks.find(t=>t.id===b.dataset.id);const selectedOwner=$('taskEditOwner')?.value||'';const person=state.personnel.find(p=>normalized(p.name)===normalized(selectedOwner));await repository.updateTask(b.dataset.id,{title:$('taskEditTitle')?.value||'',taskType:$('taskEditType')?.value||'',owner:selectedOwner,area:person?.area||task?.area||'',status:$('taskEditStatus')?.value||'SIN INICIAR',priority:$('taskEditPriority')?.value||'',startAt:$('taskEditStart')?.value||'',dueAt:$('taskEditDue')?.value||'',reference:$('taskEditReference')?.value||'',notes:$('taskEditNotes')?.value||''});await refreshOperationalData();showTaskDetail(b.dataset.id);toast('Actividad actualizada en Supabase.');}catch(err){toast(err.message||'No se pudo actualizar la actividad.');}finally{b.disabled=false;}})();}
+ if(a==='save-task-update'){(async()=>{
+  b.disabled=true;
+  try{
+    const task=state.data.tasks.find(t=>t.id===b.dataset.id);
+    const selectedOwner=$('taskEditOwner')?.value||'';
+    const selectedStatus=$('taskEditStatus')?.value||'SIN INICIAR';
+    const outcome=$('taskEditOutcome')?.value||'';
+    const resolution=clean($('taskEditResolution')?.value||'');
+    const closing=['COMPLETADA','CANCELADA'].includes(selectedStatus.toUpperCase());
+    if(closing&&!outcome) throw new Error('Selecciona el resultado de la actividad antes de cerrarla.');
+    if(closing&&!resolution) throw new Error('Registra la resolución de la actividad antes de cerrarla.');
+    const person=state.personnel.find(p=>normalized(p.name)===normalized(selectedOwner));
+    await repository.updateTask(b.dataset.id,{
+      title:$('taskEditTitle')?.value||'',
+      taskType:$('taskEditType')?.value||'',
+      owner:selectedOwner,
+      area:person?.area||task?.area||'',
+      status:selectedStatus,
+      priority:$('taskEditPriority')?.value||'',
+      startAt:$('taskEditStart')?.value||'',
+      dueAt:$('taskEditDue')?.value||'',
+      reference:$('taskEditReference')?.value||'',
+      notes:$('taskEditNotes')?.value||'',
+      outcome,
+      resolution
+    });
+    await refreshOperationalData();
+    showTaskDetail(b.dataset.id);
+    toast('Actividad actualizada con su resolución.');
+  }catch(err){toast(err.message||'No se pudo actualizar la actividad.');}
+  finally{b.disabled=false;}
+ })();}
  if(a==='equipment')showEquipment(b.dataset.value);
  if(a==='team-person'){state.taskOwner=b.dataset.person;state.taskStatus='pending';state.taskCategory='';navigate('tasks');}
  if(a==='task-category'){state.taskCategory=b.dataset.category||'';state.taskStatus='pending';state.taskOwner='';navigate('tasks');}
