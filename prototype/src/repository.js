@@ -59,7 +59,7 @@ export class SnapshotRepository {
   async loadSupabase() {
     const [tickets, clients, equipment, personnel, tasks] = await Promise.all([
       fetchSupabaseTable('tickets',
-        'id,folio,client_id,equipment_id,owner_id,area,business_unit,stage,title,description,priority,status,opened_at,due_at,closed_at,logbook,diagnosis,folder_url',
+        'id,folio,client_id,equipment_id,owner_id,area,business_unit,stage,title,description,priority,status,opened_at,due_at,closed_at,logbook,diagnosis,folder_url,source_model,source_serial,source_row',
         '&order=folio.desc'),
       fetchSupabaseTable('clients','id,name'),
       fetchSupabaseTable('equipment','id,client_id,model,serial_number'),
@@ -91,14 +91,14 @@ export class SnapshotRepository {
         openedAt: dateOnly(row.opened_at),
         dueAt: dateOnly(row.due_at),
         closedAt: dateOnly(row.closed_at),
-        model: unit?.model??'',
-        serial: unit?.serial_number??'',
+        model: row.source_model??unit?.model??'',
+        serial: row.source_serial??unit?.serial_number??'',
         status: row.status??'',
         log: row.logbook??'',
         diagnosis: row.diagnosis??row.description??'',
         evidenceUrl: row.folder_url??null,
         evidenceLabel: row.folder_url?'Abrir carpeta':'',
-        sourceRow: null,
+        sourceRow: row.source_row??null,
         sourceExtra: {},
       };
     });
