@@ -65,7 +65,7 @@ export class SnapshotRepository {
       fetchSupabaseTable('equipment','id,client_id,model,serial_number'),
       fetchSupabaseTable('personnel','id,name,role,area'),
       fetchSupabaseTable('tasks',
-        'id,task_code,ticket_id,client_id,assignee_id,task_type,title,reference,area,priority,status,start_at,due_at,completed_at,notes,created_by,created_at',
+        'id,task_code,ticket_id,client_id,assignee_id,task_type,title,reference,area,priority,status,start_at,due_at,completed_at,notes,resolution,outcome,created_by,created_at',
         '&order=created_at.desc')
     ]);
 
@@ -113,6 +113,8 @@ export class SnapshotRepository {
         ticketFolio: ticket?.folio ? String(ticket.folio) : '',
         title: row.title??'',
         notes: row.notes??'',
+        resolution: row.resolution??'',
+        outcome: row.outcome??'',
         owner: assignee?.name??'',
         client: client?.name??'',
         businessUnit: '',
@@ -264,6 +266,8 @@ export class SnapshotRepository {
     if (changes.startAt!==undefined) body.start_at=changes.startAt||null;
     if (changes.dueAt!==undefined) body.due_at=changes.dueAt||null;
     if (changes.notes!==undefined) body.notes=changes.notes||null;
+    if (changes.resolution!==undefined) body.resolution=changes.resolution||null;
+    if (changes.outcome!==undefined) body.outcome=changes.outcome||null;
     const rows=await supabaseRequest(`/rest/v1/tasks?id=${exact(id)}&select=*`,{
       method:'PATCH',
       headers:{Prefer:'return=representation'},
