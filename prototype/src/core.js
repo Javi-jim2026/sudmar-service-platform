@@ -2,13 +2,14 @@
 export const normalized = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 export const clean = value => String(value ?? '').trim();
 export const blankFilters = () => ({ q: '', folio: '', priority: '', client: '', businessUnit: '', area: '', stage: '', owner: '', status: '', model: '', serial: '', from: '', to: '', dateField: 'openedAt', overdue: false, activeOnly: false });
-const terminal = new Set(['cerrado', 'cancelado', 'cancelada', 'aprobada', 'aprobado']);
-const known = new Set(['abierto', 'cerrado', 'cancelado', 'cancelada', 'en espera', 'cobranza', 'inactivo', 'consigna', 'nueva', 'asignada', 'aceptada', 'en proceso', 'pausada', 'esperando info', 'bloqueada', 'pendiente validacion', 'pendiente validación', 'aprobada', 'aprobado']);
+const terminal = new Set(['cerrado', 'cancelado', 'cancelada', 'aprobada', 'aprobado', 'concluida', 'concluido']);
+const known = new Set(['abierto', 'cerrado', 'cancelado', 'cancelada', 'en espera', 'cobranza', 'inactivo', 'consigna', 'nueva', 'asignada', 'aceptada', 'en proceso', 'pausada', 'esperando info', 'bloqueada', 'pendiente validacion', 'pendiente validación', 'aprobada', 'aprobado', 'concluida', 'concluido']);
 export const isKnownStatus = t => known.has(normalized(t.status));
 export const isClosed = t => terminal.has(normalized(t.status));
 export const isActive = t => isKnownStatus(t) && !isClosed(t);
 export const isOverdue = (t, today) => isActive(t) && Boolean(t.dueAt) && t.dueAt < today;
 export const taskComplete = t => t.checked === true || ['completas', 'completa', 'completada', 'concluida'].includes(normalized(t.status));
+export const taskClosed = t => taskComplete(t) || ['cancelada','cancelado'].includes(normalized(t.status));
 export const validSerial = value => !['', '-', 'na', 'n/a', 's/n', 'sn', 'no aplica', 'sin serie', 'sin numero de serie', 'pendiente', 'varios', '#n/a'].includes(normalized(value));
 export const unique = items => [...new Set(items.filter(v => v !== null && v !== undefined && clean(v) !== '').map(clean))].sort((a,b) => a.localeCompare(b,'es',{numeric:true}));
 
@@ -39,7 +40,7 @@ export function metrics(tickets, tasks, today) {
   return {total:tickets.length, active:tickets.filter(isActive).length,
     closed:tickets.filter(isClosed).length, overdue:tickets.filter(t=>isOverdue(t,today)).length,
     priority1:tickets.filter(t=>isActive(t)&&t.priority==='1').length,
-    pendingTasks:associated.filter(t=>!taskComplete(t)).length, tasks:associated.length,
+    pendingTasks:associated.filter(t=>!taskClosed(t)).length, tasks:associated.length,
     unknown:tickets.filter(t=>!isKnownStatus(t)).length};
 }
 
