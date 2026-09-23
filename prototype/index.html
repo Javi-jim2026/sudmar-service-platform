@@ -43,7 +43,7 @@
 <label class="field">Nivel de atención<select name="priority"><option value="">Sin nivel</option><option value="1">1 · Urgente / importante</option><option value="2">2 · Urgente / no importante</option><option value="3">3 · No urgente / importante</option><option value="4">4 · No urgente / no importante</option></select></label>
 <label class="field">Área<select name="area" id="newTicketArea"></select></label>
 <label class="field">Responsable<select name="owner" id="newTicketOwner"></select></label>
-<label class="field">Fecha de inicio<input type="date" name="openedAt" required></label>
+<label class="field">Fecha de solicitud / inicio<input type="date" name="openedAt" required></label>
 <label class="field">Meta de cierre<input type="date" name="dueAt"></label>
 <label class="field">Modelo<input name="model" maxlength="80" placeholder="Ej. ESE 560 CW/AS"></label>
 <label class="field">Número de serie<input name="serial" maxlength="100"></label>
@@ -58,7 +58,7 @@
 <label class="field">Responsable<select name="owner" id="newTaskOwner" required></select></label>
 <label class="field">Área responsable<input name="area" id="newTaskArea" readonly placeholder="Se asigna según la persona"></label>
 <label class="field">Prioridad<select name="priority"><option value="">Normal</option><option value="1">Alta</option><option value="2">Media</option><option value="3">Baja</option></select></label>
-<label class="field">Fecha de inicio<input type="date" name="startAt" required></label>
+<label class="field">Fecha de inicio de actividad<input type="date" name="startAt" required></label>
 <label class="field">Fecha compromiso<input type="date" name="dueAt"></label>
 <label class="field">Estado<select name="status"><option>SIN INICIAR</option><option>EN PROCESO</option><option>EN ESPERA</option><option>BLOQUEADA</option><option>COMPLETADA</option><option>CANCELADA</option></select></label>
 <label class="field full-width">Observaciones<textarea name="notes" rows="4" maxlength="2000" placeholder="Información necesaria para ejecutar o dar seguimiento."></textarea></label>
