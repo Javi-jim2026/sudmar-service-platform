@@ -50,6 +50,10 @@
 <label class="field full-width">Descripción / contexto<textarea name="description" rows="4" maxlength="2000" placeholder="Describe la solicitud, falla o trabajo requerido."></textarea></label>
 </div><div id="newTicketError" class="form-error" role="alert"></div><div class="dialog-footer"><button type="button" class="button ghost" data-action="close-dialog">Cancelar</button><button class="button primary" type="submit">Guardar ticket</button></div></form></dialog>
 <dialog id="newTaskDialog" class="filters-dialog write-dialog" aria-labelledby="newTaskTitle"><form id="newTaskForm"><div class="dialog-header"><div><span class="eyebrow">ACTIVIDAD DEL TICKET</span><h2 id="newTaskTitle">Crear actividad</h2></div><button type="button" class="icon-button" data-action="close-dialog" aria-label="Cerrar" data-icon="close"></button></div><div class="filter-fields">
+<label class="field full-width">Buscar ticket
+  <input id="newTaskTicketSearch" autocomplete="off" placeholder="Escribe folio, cliente, título, modelo o serie…">
+  <small class="field-help">La lista se filtra mientras escribes.</small>
+</label>
 <label class="field full-width">Ticket relacionado<select name="ticketFolio" id="newTaskTicket" required></select></label>
 <label class="field">Tipo de actividad<input name="taskType" list="activityTypeList" required maxlength="80" placeholder="Ej. REPARACIÓN"></label>
 <datalist id="activityTypeList"><option value="DIAGNÓSTICO"></option><option value="REPARACIÓN"></option><option value="MANTENIMIENTO"></option><option value="INSTALACIÓN"></option><option value="PRUEBAS"></option><option value="VISITA"></option><option value="COMPRA"></option><option value="COTIZACIÓN"></option><option value="SEGUIMIENTO"></option><option value="FACTURACIÓN"></option><option value="COBRANZA"></option><option value="REPORTE"></option><option value="ADMINISTRATIVO"></option><option value="OTRO"></option></datalist>
