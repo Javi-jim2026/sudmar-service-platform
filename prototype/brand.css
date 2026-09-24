@@ -1,0 +1,81 @@
+/* Sudmar Energy identity: official supplied logo, deep blue and cyan accents. */
+:root{--navy:#030b38;--bg:#f3f5fb;--text:#17213b;--muted:#64708a;--border:#e0e5f0;--soft:#edf0fb;--shadow:0 6px 24px #08144306;--radius:14px}
+body{background:var(--bg)}
+.sidebar{background:linear-gradient(168deg,#030a35 0%,#080e2a 70%,#080a19 100%);border-right:1px solid #192146;padding-top:24px}
+.brand.brand-official{display:flex;flex-direction:column;align-items:stretch;gap:12px;padding:0 4px;color:white}
+.brand-official img{display:block;width:100%;height:auto;border-radius:9px;background:white}
+.brand-official .brand-caption{font-size:9px;font-weight:550;letter-spacing:2.2px;text-align:center;color:#bcc9ee}
+.workspace-label{color:#a9b6d6;margin-top:35px;letter-spacing:1.25px}
+.nav-button{color:#b8c4e1;border-radius:9px;font-weight:500}
+.nav-button:hover{background:#ffffff0a}
+.nav-button.active{background:linear-gradient(90deg,#182878,#17204c);box-shadow:inset 0 0 0 1px #758bec25}
+.nav-button.active:before{background:#58daf2}
+.nav-button.active .icon{color:#8ee8ff}
+.nav-count{color:#d0daf2;background:#ffffff0c}
+.sidebar-note p{color:#dce4fb;font-size:18px}
+.tiny-label,.sidebar-version{color:#9bafd6}
+.circuit-line{border-color:#4bcbe177}.circuit-line:after{background:#79dff1}
+.sidebar-source{background:#ffffff06;border-color:#8293c42b;color:#d0dcf3}
+.sidebar-source small{color:#98aace}.source-icon{color:#82ddf0}
+.topbar{height:70px;background:#fff;border-bottom-color:#e1e6f1}
+.breadcrumb{color:#697492}.breadcrumb strong{color:#1b2851}
+.snapshot-badge{background:#edf7fb;color:#20506c;border-color:#d4eaf4}
+.status-dot{background:#45b6d1}
+.page-heading{position:relative;isolation:isolate;overflow:hidden;min-height:190px;padding:29px 30px;border:1px solid #1c2c64;border-radius:17px;align-items:flex-end;gap:26px;box-shadow:0 12px 28px #10184312;background:radial-gradient(circle at 86% 12%,transparent 0 87px,#43cee21b 88px 89px,transparent 90px 119px,#52baff15 120px 121px,transparent 122px 162px,#52baff12 163px 164px,transparent 165px),linear-gradient(112deg,#050d42 0%,#0a1233 56%,#0b0c16 100%)}
+.page-heading>div:first-child{flex:1;min-width:0}
+.page-heading .eyebrow{color:#8ad9ef;letter-spacing:2px;font-size:9px;margin-bottom:13px}
+.page-heading h1{color:#fff;letter-spacing:-1px;font-weight:600;font-size:clamp(27px,2.5vw,37px)}
+.page-heading p{color:#c2cbe2;line-height:1.7;max-width:430px}
+.heading-actions{max-width:410px;gap:9px;flex-shrink:0}
+.page-heading .button{min-height:38px;border-radius:7px;font-weight:550}
+.page-heading .button.secondary{color:#e5edff;background:#ffffff08;border-color:#8c9ecc63}
+.page-heading .button.secondary:hover{background:#ffffff18;border-color:#c0d8f5}
+.page-heading .button.primary{color:#090b6e;background:#fff;border-color:#fff;box-shadow:0 4px 14px #0002}
+.page-heading .button.primary:hover{background:#edf4ff;filter:none}
+.source-line{margin:16px 2px 20px;color:#6d7690}
+.filter-toolbar{border-radius:11px;padding:10px 12px;box-shadow:0 3px 12px #15224b04}
+.filter-button{background:#f4f5fd;border-color:#e2e5f3;color:#182581}
+.filter-chip{background:#eef0fc;border-color:#ccd4ed;color:#253681}
+.panel-header{border-bottom:1px solid #edf0f7;margin-bottom:14px}
+.panel-header h2,.overview-label h2{color:#17244a;font-weight:650}
+.panel,.kpi-card{box-shadow:0 5px 19px #14214705}
+.kpi-card{position:relative;border-top:3px solid #101183;border-radius:12px}
+.kpi-card:nth-child(2){border-top-color:#16836a}.kpi-card:nth-child(3){border-top-color:#c77c35}.kpi-card:nth-child(4){border-top-color:#7161b1}
+.kpi-number{color:#111c44;font-weight:650;font-size:36px}
+.kpi-label{color:#586580}
+.kpi-icon{background:#eeeffe;color:#17148f}
+.task-control-card{background:#fafbff}.task-control-card:hover{background:#f2f5fd;border-color:#a8b5d7}
+.task-control-card strong{color:#111987}
+.button.primary{box-shadow:0 3px 9px #10128418}
+.button.secondary:hover{background:#eef1fb}
+.dialog-header{background:linear-gradient(110deg,#050d42,#10162c);color:#fff;border-bottom:1px solid #243261}
+.dialog-header h2{color:#fff}.dialog-header .eyebrow{color:#8ad9ef}.dialog-header .icon-button{color:#d6e2ff}
+.dialog-header .icon-button:hover{background:#ffffff14}
+.field input:focus,.field select:focus,.field textarea:focus,.work-text:focus{border-color:#596dc7;outline-color:#586ece}
+.calendar-heading{background:#f7f8fe;border-bottom:1px solid #e5e9f3}
+.calendar-day.today{background:#f0f5ff}.calendar-day.today .calendar-date>span{background:#101183}
+.work-editor{background:#fafbff;border-color:#dce2f3}
+.work-completed{accent-color:#15118e}
+.work-progress progress{accent-color:#12118c}
+.mobile-nav{border-top-color:#dce2f1}.mobile-nav button.active{color:#111183}
+.page-footer{color:#6c7893}
+.mobile-brand{background:white;box-shadow:none;border-radius:0;width:114px;height:auto;min-width:114px}
+.mobile-brand img{width:114px;height:auto;display:block}
+@media(min-width:1600px){.heading-actions{max-width:500px}.page-heading{min-height:200px}}
+@media(min-width:701px) and (max-width:940px){.brand-official img{content:url('./assets/brand/mark.svg');width:44px;height:44px}.brand.brand-official{padding:0}}
+@media(max-width:940px){.page-heading .heading-actions .button[data-action="new-task"]{display:inline-flex}}
+@media(max-width:1200px){.page-heading{align-items:flex-start;flex-direction:column;gap:22px}.heading-actions{max-width:none;justify-content:flex-start}.page-heading p{max-width:none}}
+@media(max-width:700px){
+ .topbar{height:62px;padding-left:17px;padding-right:17px}
+ .breadcrumb>span:not(.mobile-brand){display:none}.breadcrumb strong{font-size:11px}
+ .page-heading{padding:24px 20px;min-height:0;border-radius:13px;gap:21px}
+ .page-heading h1{font-size:28px;line-height:1.2}.page-heading p{font-size:12px;line-height:1.65}
+ .page-heading .eyebrow{font-size:8px;letter-spacing:1.65px}
+ .heading-actions{width:100%;gap:8px;justify-content:flex-start}
+ .heading-actions [data-action="new-task"]{font-size:11px;width:auto;height:auto;padding:9px 12px}
+ .heading-actions [data-action="new-ticket"]{font-size:11px;width:auto;height:auto;padding:9px 12px}
+ .kpi-number{font-size:29px}.source-line{font-size:9px;gap:6px;flex-wrap:wrap}
+ .panel-header{margin-bottom:10px}
+ .mobile-nav{grid-template-columns:repeat(7,minmax(0,1fr))}
+}
+@media(prefers-reduced-motion:reduce){.kpi-card{transition:none}}

@@ -3,7 +3,7 @@ export const config = Object.freeze({
   brand: {
     name: 'SUDMAR', tagline: 'SERVICE PLATFORM', initials: 'S',
     logoUrl: '', // e.g. './assets/brand/logo.svg'
-    accent: '#087f8c', primary: '#075985',
+    accent: '#167d9b', primary: '#111183',
   },
   dataUrl: './data/operations.json',
   referenceUrl: './data/workbook-reference.json',
