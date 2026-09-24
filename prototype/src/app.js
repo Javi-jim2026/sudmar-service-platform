@@ -8,7 +8,7 @@ const e=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;',
 const n=value=>new Intl.NumberFormat('es-MX').format(value);
 const fmt=(value,full=false)=>value ? new Intl.DateTimeFormat('es-MX',{day:'2-digit',month:'short',...(full?{year:'numeric'}:{})}).format(new Date(value.slice(0,10)+'T12:00:00')) : 'Sin fecha';
 const today=new Intl.DateTimeFormat('en-CA',{timeZone:config.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-const views={dashboard:{label:'Resumen',icon:'grid',title:'Centro de operaciones',subtitle:'La información de tu operación, en un solo lugar.'},tickets:{label:'Tickets',icon:'ticket',title:'Control de tickets',subtitle:'Consulta, filtra y sigue cada solicitud de servicio.'},tasks:{label:'Actividades',icon:'tasks',title:'Actividades de los tickets',subtitle:'Cada actividad ligada a un ticket, con responsable, estado y fecha compromiso.'},team:{label:'Personal',icon:'users',title:'Personal y responsabilidades',subtitle:'Carga de trabajo, áreas, cargos y capacidad de atención en campo.'},equipment:{label:'Equipos',icon:'engine',title:'Equipos y servicios',subtitle:'Consulta los servicios registrados para cada número de serie.'},clients:{label:'Clientes',icon:'users',title:'Clientes y contactos',subtitle:'La operación por cliente y el directorio del Excel.'}};
+const views={dashboard:{label:'Resumen',icon:'grid',title:'Centro de operaciones',subtitle:'La información de tu operación, en un solo lugar.'},tickets:{label:'Tickets',icon:'ticket',title:'Control de tickets',subtitle:'Consulta, filtra y sigue cada solicitud de servicio.'},tasks:{label:'Actividades',icon:'tasks',title:'Actividades de los tickets',subtitle:'Cada actividad ligada a un ticket, con responsable, estado y fecha compromiso.'},calendar:{label:'Calendario',icon:'calendar',title:'Calendario operativo',subtitle:'Planea aperturas de tickets y actividades por fecha, responsable y duración.'},team:{label:'Personal',icon:'users',title:'Personal y responsabilidades',subtitle:'Carga de trabajo, áreas, cargos y capacidad de atención en campo.'},equipment:{label:'Equipos',icon:'engine',title:'Equipos y servicios',subtitle:'Consulta los servicios registrados para cada número de serie.'},clients:{label:'Clientes',icon:'users',title:'Clientes y contactos',subtitle:'La operación por cliente y el directorio del Excel.'}};
 const filterLabels={q:'Búsqueda',folio:'Folio',priority:'Nivel de atención',client:'Cliente',businessUnit:'Unidad de negocio',area:'Área',stage:'Etapa',owner:'Responsable del ticket',status:'Estado',model:'Modelo',serial:'Serie',from:'Desde',to:'Hasta',overdue:'Fuera de plazo',activeOnly:'Tickets activos'};
 const statusStyle={
   abierto:{label:'Abierto',tone:'blue',color:'#2f80ed'},
@@ -33,7 +33,7 @@ const statusStyle={
   concluida:{label:'Concluida',tone:'green',color:'#16835f'},
   concluido:{label:'Concluido',tone:'green',color:'#16835f'}
 };
-const state={data:null,personnel:[],view:'dashboard',filters:blankFilters(),page:1,taskStatus:'all',taskOwner:'',taskCategory:'',clientTab:'operations',contactQuery:'',references:null,referenceError:false};
+const state={data:null,personnel:[],view:'dashboard',filters:blankFilters(),page:1,taskStatus:'all',taskOwner:'',taskCategory:'',calendarMonth:today.slice(0,7),calendarOwner:'',calendarClient:'',calendarKind:'all',calendarActivityStatus:'pending',clientTab:'operations',contactQuery:'',references:null,referenceError:false};
 let installEvent=null,toastTimer,searchTimer;
 const statusInfo=t=>statusStyle[normalized(t.status)]||{label:'Sin clasificar',tone:'red',color:'#d78883'};
 const badge=t=>`<span class="badge ${statusInfo(t).tone}" title="Estado del ticket: ${e(t.status||'Sin registrar')}">${statusInfo(t).label}</span>`;
@@ -145,6 +145,143 @@ function operationalTaskPanel(){
  ];
  return `<section class="panel task-control-panel"><div class="panel-header"><div><h2>Pendientes críticos</h2><p>Actividades que requieren seguimiento operativo</p></div><button class="text-action" data-action="navigate" data-view="tasks">Ver todas ${icon('arrow')}</button></div><div class="task-control-grid">${cards.map(([key,label,value,note])=>`<button class="task-control-card" data-action="task-category" data-category="${key}"><span><small>${label}</small><strong>${n(value)}</strong></span><p>${note}</p>${icon('arrow')}</button>`).join('')}</div></section>`;
 }
+
+const isoParts=iso=>{const [y,m,d]=String(iso||'').slice(0,10).split('-').map(Number);return {y,m,d};};
+const isoUtc=iso=>{const {y,m,d}=isoParts(iso);return new Date(Date.UTC(y,m-1,d));};
+const isoFromUtc=date=>date.toISOString().slice(0,10);
+const addDays=(iso,days)=>{const d=isoUtc(iso);d.setUTCDate(d.getUTCDate()+days);return isoFromUtc(d);};
+const daysInclusive=(from,to)=>{
+ if(!from)return 0;
+ const end=to&&to>=from?to:from;
+ return Math.floor((isoUtc(end)-isoUtc(from))/86400000)+1;
+};
+const shiftMonth=(month,delta)=>{
+ const [y,m]=month.split('-').map(Number);
+ const d=new Date(Date.UTC(y,m-1+delta,1));
+ return d.toISOString().slice(0,7);
+};
+const monthRange=month=>{
+ const [y,m]=month.split('-').map(Number);
+ const first=`${month}-01`;
+ const last=isoFromUtc(new Date(Date.UTC(y,m,0)));
+ return {first,last};
+};
+const monthLabel=month=>{
+ const [y,m]=month.split('-').map(Number);
+ return new Intl.DateTimeFormat('es-MX',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(y,m-1,1)));
+};
+const shortDate=iso=>iso?new Intl.DateTimeFormat('es-MX',{day:'numeric',month:'short',timeZone:'UTC'}).format(isoUtc(iso)):'';
+function calendarActivityTasks(tickets){
+ const ticketIds=new Set(tickets.map(t=>t.folio));
+ let tasks=state.data.tasks.filter(t=>ticketIds.has(t.ticketFolio));
+ if(state.calendarOwner) tasks=tasks.filter(t=>normalized(t.owner)===normalized(state.calendarOwner));
+ if(state.calendarClient) tasks=tasks.filter(t=>{
+   const ticket=state.data.tickets.find(x=>x.folio===t.ticketFolio);
+   return normalized(ticket?.client)===normalized(state.calendarClient);
+ });
+ if(state.calendarActivityStatus==='pending') tasks=tasks.filter(t=>!taskClosed(t));
+ if(state.calendarActivityStatus==='complete') tasks=tasks.filter(taskComplete);
+ if(state.calendarActivityStatus==='cancelled') tasks=tasks.filter(t=>['cancelada','cancelado'].includes(normalized(t.status)));
+ return tasks;
+}
+function calendarTicketSet(tickets){
+ let list=tickets;
+ if(state.calendarOwner) list=list.filter(t=>normalized(t.owner)===normalized(state.calendarOwner));
+ if(state.calendarClient) list=list.filter(t=>normalized(t.client)===normalized(state.calendarClient));
+ return list;
+}
+function activityCalendarClass(task){
+ if(taskComplete(task)) return 'complete';
+ if(['cancelada','cancelado'].includes(normalized(task.status))) return 'cancelled';
+ if(normalized(task.status)==='bloqueada') return 'blocked';
+ if(task.dueAt&&task.dueAt<today) return 'overdue';
+ if(normalized(task.status)==='en espera') return 'waiting';
+ return 'planned';
+}
+function renderCalendar(tickets){
+ const month=state.calendarMonth||today.slice(0,7);
+ const {first,last}=monthRange(month);
+ const ticketSet=calendarTicketSet(tickets);
+ const tasks=calendarActivityTasks(tickets);
+ const opened=ticketSet.filter(t=>t.openedAt>=first&&t.openedAt<=last);
+ const starts=tasks.filter(t=>t.startAt>=first&&t.startAt<=last);
+ const due=tasks.filter(t=>t.dueAt>=first&&t.dueAt<=last);
+ const overlap=tasks.filter(t=>{
+   if(!t.startAt)return false;
+   const end=t.dueAt&&t.dueAt>=t.startAt?t.dueAt:t.startAt;
+   return t.startAt<=last&&end>=first;
+ });
+ const plannedDays=overlap.reduce((sum,t)=>{
+   const end=t.dueAt&&t.dueAt>=t.startAt?t.dueAt:t.startAt;
+   const clippedStart=t.startAt<first?first:t.startAt;
+   const clippedEnd=end>last?last:end;
+   return sum+daysInclusive(clippedStart,clippedEnd);
+ },0);
+ const owners=unique([...state.personnel.map(p=>p.name),...state.data.tasks.map(t=>t.owner),...state.data.tickets.map(t=>t.owner)]);
+ const clients=unique(tickets.map(t=>t.client));
+ const firstDate=isoUtc(first);
+ const mondayOffset=(firstDate.getUTCDay()+6)%7;
+ const gridStart=addDays(first,-mondayOffset);
+ const lastDate=isoUtc(last);
+ const sundayOffset=6-((lastDate.getUTCDay()+6)%7);
+ const gridEnd=addDays(last,sundayOffset);
+ const days=[];
+ for(let d=gridStart;d<=gridEnd;d=addDays(d,1)) days.push(d);
+ const weekdayNames=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+ const kind=state.calendarKind;
+ const eventCells=days.map(date=>{
+   const inMonth=date.slice(0,7)===month;
+   const isToday=date===today;
+   const ticketEvents=(kind==='all'||kind==='tickets')?ticketSet.filter(t=>t.openedAt===date):[];
+   const activityEvents=(kind==='all'||kind==='activities')?tasks.filter(t=>{
+     if(!t.startAt)return false;
+     const end=t.dueAt&&t.dueAt>=t.startAt?t.dueAt:t.startAt;
+     return t.startAt<=date&&end>=date;
+   }):[];
+   const allEvents=[
+     ...ticketEvents.map(t=>({sort:'0'+t.folio,html:`<button class="calendar-event ticket-open" data-action="ticket" data-id="${e(t.id)}" title="Ticket #${e(t.folio)} abierto el ${e(fmt(t.openedAt,true))}"><strong>#${e(t.folio)}</strong><span>${e(t.client||'Sin cliente')}</span><small>${e(t.title||'Sin título')}</small></button>`})),
+     ...activityEvents.map(t=>{
+       const end=t.dueAt&&t.dueAt>=t.startAt?t.dueAt:t.startAt;
+       const duration=daysInclusive(t.startAt,end);
+       const start=date===t.startAt,endHere=date===end;
+       const range=start?(duration>1?`${shortDate(t.startAt)}–${shortDate(end)} · ${duration} días`:'1 día'):(endHere?'Vence hoy':`En curso · ${duration} días`);
+       return {sort:'1'+(t.dueAt||'9999')+t.title,html:`<button class="calendar-event activity-event ${activityCalendarClass(t)} ${start?'activity-start':''} ${endHere?'activity-end':''}" data-action="task" data-id="${e(t.id)}" title="${e(t.title)} · ${e(t.owner||'Sin asignar')} · ${e(range)}"><strong>${e(activityType(t))}</strong><span>${e(t.title||'Actividad')}</span><small>${e(range)} · ${e(t.owner||'Sin asignar')}</small></button>`};
+     })
+   ].sort((a,b)=>a.sort.localeCompare(b.sort,'es',{numeric:true}));
+   const visible=allEvents.slice(0,5);
+   const hidden=allEvents.length-visible.length;
+   return `<div class="calendar-day ${inMonth?'':'outside'} ${isToday?'today':''}"><div class="calendar-date"><strong>${Number(date.slice(8,10))}</strong>${isToday?'<span>HOY</span>':''}</div><div class="calendar-day-events">${visible.map(x=>x.html).join('')}${hidden?'<span class="calendar-more">+'+hidden+' más</span>':''}</div></div>`;
+ }).join('');
+ return `<section class="calendar-controls panel">
+   <div class="calendar-month-nav">
+     <button class="button secondary small" data-action="calendar-month-shift" data-delta="-1">‹ Anterior</button>
+     <label class="calendar-month-picker"><span>Mes</span><input id="calendarMonthPicker" type="month" value="${e(month)}"></label>
+     <button class="button secondary small" data-action="calendar-month-shift" data-delta="1">Siguiente ›</button>
+     <button class="button ghost small" data-action="calendar-today">Hoy</button>
+   </div>
+   <div class="calendar-filters">
+     <label>Responsable<select id="calendarOwner">${options(owners,state.calendarOwner,'Todos')}</select></label>
+     <label>Cliente<select id="calendarClient">${options(clients,state.calendarClient,'Todos')}</select></label>
+     <label>Mostrar<select id="calendarKind"><option value="all" ${state.calendarKind==='all'?'selected':''}>Tickets + actividades</option><option value="tickets" ${state.calendarKind==='tickets'?'selected':''}>Solo aperturas de tickets</option><option value="activities" ${state.calendarKind==='activities'?'selected':''}>Solo actividades</option></select></label>
+     <label>Actividades<select id="calendarActivityStatus"><option value="pending" ${state.calendarActivityStatus==='pending'?'selected':''}>Pendientes / planeadas</option><option value="all" ${state.calendarActivityStatus==='all'?'selected':''}>Todas</option><option value="complete" ${state.calendarActivityStatus==='complete'?'selected':''}>Completadas</option><option value="cancelled" ${state.calendarActivityStatus==='cancelled'?'selected':''}>Canceladas</option></select></label>
+   </div>
+ </section>
+ <div class="calendar-summary">
+   <article><span>Tickets abiertos</span><strong>${n(opened.length)}</strong><small>durante ${e(monthLabel(month))}</small></article>
+   <article><span>Actividades iniciadas</span><strong>${n(starts.length)}</strong><small>fecha de inicio en el mes</small></article>
+   <article><span>Actividades por vencer</span><strong>${n(due.length)}</strong><small>fecha compromiso en el mes</small></article>
+   <article><span>Días planificados</span><strong>${n(plannedDays)}</strong><small>suma de duración dentro del mes</small></article>
+ </div>
+ <section class="panel calendar-panel">
+   <div class="calendar-heading"><div><span class="eyebrow">PLANEACIÓN OPERATIVA</span><h2>${e(monthLabel(month))}</h2></div><div class="calendar-legend"><span><i class="legend-ticket"></i>Inicio de ticket</span><span><i class="legend-activity"></i>Actividad</span><span><i class="legend-overdue"></i>Vencida/bloqueada</span></div></div>
+   <div class="calendar-scroll">
+     <div class="calendar-weekdays">${weekdayNames.map(x=>'<span>'+x+'</span>').join('')}</div>
+     <div class="calendar-grid">${eventCells}</div>
+   </div>
+ </section>
+ <p class="definition-note">La duración de una actividad se calcula desde su fecha de inicio hasta su fecha compromiso, incluyendo ambos días. Las actividades sin fecha compromiso se muestran como una actividad de un día.</p>`;
+}
+
 function personWorkload(person,tickets=filtered(),tasks=tasksInScope()){
  const personName=normalized(person.name);
  const ownedTickets=tickets.filter(t=>normalized(t.owner)===personName);
@@ -255,6 +392,7 @@ function render(){if(!state.data)return;const tickets=filtered();const view=view
  if(state.view==='dashboard')$('content').innerHTML=kpis(tickets)+operationalTaskPanel()+`<div class="grid-main">${statusPanel(tickets)}${trendPanel(tickets)}</div>`+teamWorkloadPanel(tickets)+renderTickets(tickets,true)+`<div class="grid-even" style="margin-top:18px">${barsPanel(tickets,'stage','Etapas de atención','Las 6 etapas con más tickets en esta vista')}${barsPanel(tickets,'businessUnit','Unidades de negocio','Participación dentro de la vista actual')}</div>`;
  if(state.view==='tickets')$('content').innerHTML=renderTickets(tickets);
  if(state.view==='tasks')$('content').innerHTML=renderTasks();
+ if(state.view==='calendar')$('content').innerHTML=renderCalendar(tickets);
  if(state.view==='team')$('content').innerHTML=renderTeam(tickets);
  if(state.view==='equipment')$('content').innerHTML=renderEquipment(tickets);
  if(state.view==='clients')$('content').innerHTML=renderClients(tickets);
@@ -334,7 +472,7 @@ function showSource(){const m=state.data.metadata;openDetail(detailHeader('INFOR
 
 function getSavedViews(){try{const data=JSON.parse(localStorage.getItem(config.storageKey)||'[]');return Array.isArray(data)?data.filter(v=>typeof v.name==='string'&&v.filters&&typeof v.filters==='object').slice(0,10):[];}catch{return [];}}
 function renderSavedViews(){const list=getSavedViews();$('savedViews').innerHTML='<option value="">Mis vistas</option>'+list.map((v,i)=>`<option value="${i}">${e(v.name)}</option>`).join('');}
-function exportView(){let records,columns,label;if(state.view==='tasks'){records=currentTasks().map(task=>({...task,category:taskCategoryLabel(taskCategory(task))}));columns=[['ticketFolio','Ticket'],['category','Tipo'],['title','Actividad'],['client','Cliente / tercero'],['reference','Referencia'],['owner','Responsable'],['area','Área'],['startAt','Inicio'],['dueAt','Fin programado'],['status','Estado'],['completedAt','Realización'],['notes','Observaciones / requerimiento'],['outcome','Resultado'],['resolution','Resolución']];label='actividades';}else if(state.view==='team'){records=state.personnel.map(p=>{const w=personWorkload(p);return {...p,pendingTasks:w.pending.length,overdueTasks:w.overdue.length,assignedTasks:w.assignedTasks.length,ownedTickets:w.ownedTickets.length};});columns=[['name','Nombre'],['title','Cargo'],['area','Área'],['parentArea','Área principal'],['fieldRole','Rol de campo'],['ownedTickets','Tickets'],['assignedTasks','Tareas'],['pendingTasks','Pendientes'],['overdueTasks','Vencidas']];label='personal';}else if(state.view==='clients'&&state.clientTab==='directory'){records=selectedContacts();columns=[['name','Contacto'],['company','Compañía'],['role','Cargo'],['email','Correo'],['phone','Teléfono'],['address','Dirección'],['city','Ciudad'],['region','Estado']];label='contactos';}else{records=filtered();columns=[['folio','Folio'],['priority','Nivel SLA'],['title','Título'],['client','Cliente'],['businessUnit','Unidad de negocio'],['area','Área'],['stage','Etapa'],['owner','Responsable'],['openedAt','Inicio'],['dueAt','Meta de cierre'],['closedAt','Cierre real'],['model','Modelo'],['serial','Serie'],['status','Estado'],['log','Bitácora'],['diagnosis','Diagnóstico'],['evidenceUrl','Carpeta']];label='tickets';}const blob=new Blob([toCsv(records,columns.map(([key,label])=>({key,label})))],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`SUDMAR_${label}_${today}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast(`${n(records.length)} registros exportados a CSV.`);}
+function exportView(){let records,columns,label;if(state.view==='calendar'){const tickets=calendarTicketSet(filtered());const {first,last}=monthRange(state.calendarMonth||today.slice(0,7));const activities=calendarActivityTasks(filtered()).filter(t=>t.startAt&&t.startAt<=last&&(t.dueAt&&t.dueAt>=t.startAt?t.dueAt:t.startAt)>=first).map(t=>({...t,durationDays:daysInclusive(t.startAt,t.dueAt&&t.dueAt>=t.startAt?t.dueAt:t.startAt)}));records=[...tickets.filter(t=>t.openedAt>=first&&t.openedAt<=last).map(t=>({recordType:'TICKET',folio:t.folio,client:t.client,title:t.title,owner:t.owner,start:t.openedAt,due:'',durationDays:1,status:t.status})),...activities.map(t=>({recordType:'ACTIVIDAD',folio:t.ticketFolio,client:t.client,title:t.title,owner:t.owner,start:t.startAt,due:t.dueAt,durationDays:t.durationDays,status:t.status}))];columns=[['recordType','Tipo'],['folio','Ticket'],['client','Cliente'],['title','Concepto'],['owner','Responsable'],['start','Inicio'],['due','Fecha compromiso'],['durationDays','Duración días'],['status','Estado']];label='calendario_'+(state.calendarMonth||today.slice(0,7));}else if(state.view==='tasks'){records=currentTasks().map(task=>({...task,category:taskCategoryLabel(taskCategory(task))}));columns=[['ticketFolio','Ticket'],['category','Tipo'],['title','Actividad'],['client','Cliente / tercero'],['reference','Referencia'],['owner','Responsable'],['area','Área'],['startAt','Inicio'],['dueAt','Fin programado'],['status','Estado'],['completedAt','Realización'],['notes','Observaciones / requerimiento'],['outcome','Resultado'],['resolution','Resolución']];label='actividades';}else if(state.view==='team'){records=state.personnel.map(p=>{const w=personWorkload(p);return {...p,pendingTasks:w.pending.length,overdueTasks:w.overdue.length,assignedTasks:w.assignedTasks.length,ownedTickets:w.ownedTickets.length};});columns=[['name','Nombre'],['title','Cargo'],['area','Área'],['parentArea','Área principal'],['fieldRole','Rol de campo'],['ownedTickets','Tickets'],['assignedTasks','Tareas'],['pendingTasks','Pendientes'],['overdueTasks','Vencidas']];label='personal';}else if(state.view==='clients'&&state.clientTab==='directory'){records=selectedContacts();columns=[['name','Contacto'],['company','Compañía'],['role','Cargo'],['email','Correo'],['phone','Teléfono'],['address','Dirección'],['city','Ciudad'],['region','Estado']];label='contactos';}else{records=filtered();columns=[['folio','Folio'],['priority','Nivel SLA'],['title','Título'],['client','Cliente'],['businessUnit','Unidad de negocio'],['area','Área'],['stage','Etapa'],['owner','Responsable'],['openedAt','Inicio'],['dueAt','Meta de cierre'],['closedAt','Cierre real'],['model','Modelo'],['serial','Serie'],['status','Estado'],['log','Bitácora'],['diagnosis','Diagnóstico'],['evidenceUrl','Carpeta']];label='tickets';}const blob=new Blob([toCsv(records,columns.map(([key,label])=>({key,label})))],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`SUDMAR_${label}_${today}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast(`${n(records.length)} registros exportados a CSV.`);}
 async function install(){if(installEvent){await installEvent.prompt();installEvent=null;return;}openDetail(detailHeader('ACCESO DESDE EL TELÉFONO','Instalar SUDMAR')+`<div class="dialog-body"><p>Cuando la plataforma esté disponible en una dirección HTTPS, podrás añadirla a la pantalla de inicio.</p><div class="source-list"><div class="source-item"><span>Android</span><strong>Menú del navegador → Instalar app o Añadir a pantalla de inicio.</strong></div><div class="source-item"><span>iPhone / iPad</span><strong>Safari → Compartir → Añadir a pantalla de inicio.</strong></div></div><p class="definition-note">Un archivo descargado o una vista previa local no permite la instalación completa. La consulta de datos requiere conexión; esta versión no permite editar sin conexión.</p></div>`);}
 
 document.addEventListener('click',event=>{const b=event.target.closest('[data-action]');if(!b)return;const a=b.dataset.action;if(!state.data&&!['close-dialog'].includes(a))return;
@@ -384,6 +522,8 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
  if(a==='equipment')showEquipment(b.dataset.value);
  if(a==='team-person'){state.taskOwner=b.dataset.person;state.taskStatus='pending';state.taskCategory='';navigate('tasks');}
  if(a==='task-category'){state.taskCategory=b.dataset.category||'';state.taskStatus='pending';state.taskOwner='';navigate('tasks');}
+ if(a==='calendar-month-shift'){state.calendarMonth=shiftMonth(state.calendarMonth||today.slice(0,7),Number(b.dataset.delta)||0);render();}
+ if(a==='calendar-today'){state.calendarMonth=today.slice(0,7);render();}
  if(a==='source')showSource();
  if(a==='export')exportView();
  if(a==='install')install();
@@ -399,7 +539,18 @@ $('filterForm').addEventListener('submit',event=>{event.preventDefault();applyFo
 $('newTicketForm').addEventListener('submit',submitNewTicket);
 $('newTaskForm').addEventListener('submit',submitNewTask);
 $('globalSearch').addEventListener('input',event=>{clearTimeout(searchTimer);const value=event.target.value;searchTimer=setTimeout(()=>{state.filters.q=value;state.page=1;render();},160);});
-document.addEventListener('change',event=>{if(event.target.id==='taskStatus'){state.taskStatus=event.target.value;state.page=1;render();}if(event.target.id==='taskOwner'){state.taskOwner=event.target.value;state.page=1;render();}if(event.target.id==='taskCategory'){state.taskCategory=event.target.value;state.page=1;render();}if(event.target.id==='newTicketOwner'){const person=state.personnel.find(p=>p.name===event.target.value);if(person&&$('newTicketArea'))$('newTicketArea').value=person.area;}if(event.target.id==='newTaskOwner'){const person=state.personnel.find(p=>p.name===event.target.value);if($('newTaskArea'))$('newTaskArea').value=person?.area||'';}});
+document.addEventListener('change',event=>{
+ if(event.target.id==='taskStatus'){state.taskStatus=event.target.value;state.page=1;render();}
+ if(event.target.id==='taskOwner'){state.taskOwner=event.target.value;state.page=1;render();}
+ if(event.target.id==='taskCategory'){state.taskCategory=event.target.value;state.page=1;render();}
+ if(event.target.id==='calendarMonthPicker'){state.calendarMonth=event.target.value||today.slice(0,7);render();}
+ if(event.target.id==='calendarOwner'){state.calendarOwner=event.target.value;render();}
+ if(event.target.id==='calendarClient'){state.calendarClient=event.target.value;render();}
+ if(event.target.id==='calendarKind'){state.calendarKind=event.target.value;render();}
+ if(event.target.id==='calendarActivityStatus'){state.calendarActivityStatus=event.target.value;render();}
+ if(event.target.id==='newTicketOwner'){const person=state.personnel.find(p=>p.name===event.target.value);if(person&&$('newTicketArea'))$('newTicketArea').value=person.area;}
+ if(event.target.id==='newTaskOwner'){const person=state.personnel.find(p=>p.name===event.target.value);if($('newTaskArea'))$('newTaskArea').value=person?.area||'';}
+});
 document.addEventListener('input',event=>{
  if(event.target.id==='newTaskTicketSearch'){
    const selected=$('newTaskTicket')?.value||'';
