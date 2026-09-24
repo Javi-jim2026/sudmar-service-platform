@@ -344,7 +344,7 @@ function activityTicketOptions(query='',selected=''){
 function renderActivityTicketOptions(query='',selected=''){
  const select=$('newTaskTicket');if(!select)return;
  const matches=activityTicketOptions(query,selected);
- select.innerHTML='<option value="">Seleccionar ticket</option>'+matches.map(t=>\`<option value="\${e(t.folio)}" \${String(t.folio)===String(selected)?'selected':''}>#\${e(t.folio)} · \${e(t.client||'Sin cliente')} · \${e(t.title||'Sin título')}\${t.model?' · '+e(t.model):''}\${isClosed(t)?' · '+e(t.status):''}</option>\`).join('');
+ select.innerHTML='<option value="">Seleccionar ticket</option>'+matches.map(t=>`<option value="${e(t.folio)}" ${String(t.folio)===String(selected)?'selected':''}>#${e(t.folio)} · ${e(t.client||'Sin cliente')} · ${e(t.title||'Sin título')}${t.model?' · '+e(t.model):''}${isClosed(t)?' · '+e(t.status):''}</option>`).join('');
  const help=$('newTaskTicketSearch')?.closest('.field')?.querySelector('.field-help');
  if(help) help.textContent=queryText?(matches.length+' coincidencia'+(matches.length===1?'':'s')+' encontradas.'):'Mostrando los 40 tickets activos más recientes. Escribe para buscar en todos.';
 }
