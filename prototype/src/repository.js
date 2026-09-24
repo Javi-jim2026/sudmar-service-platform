@@ -84,6 +84,7 @@ export class SnapshotRepository {
         folio: String(row.folio??''),
         priority: String(row.priority??'').replace(/^P/i,''),
         title: row.title??'',
+        description: row.description??'',
         client: client?.name??'',
         businessUnit: row.business_unit??'',
         area: row.area??'',
@@ -292,15 +293,38 @@ export class SnapshotRepository {
 
   async updateTicket(id, changes) {
     const body={updated_at:new Date().toISOString()};
+    let clientId;
+    if (changes.client!==undefined) {
+      clientId=changes.client ? await this.lookupId('clients','name',changes.client) : null;
+      if (changes.client && !clientId) throw new Error('El cliente seleccionado no existe en Supabase.');
+      body.client_id=clientId;
+    }
+    if (changes.title!==undefined) body.title=changes.title||null;
+    if (changes.description!==undefined) body.description=changes.description||null;
     if (changes.status!==undefined) body.status=changes.status||null;
     if (changes.stage!==undefined) body.stage=changes.stage||null;
     if (changes.priority!==undefined) body.priority=changes.priority ? 'P'+String(changes.priority).replace(/^P/i,'') : null;
     if (changes.owner!==undefined) body.owner_id=changes.owner ? await this.lookupId('personnel','name',changes.owner) : null;
+    if (changes.area!==undefined) body.area=changes.area||null;
+    if (changes.businessUnit!==undefined) body.business_unit=changes.businessUnit||null;
+    if (changes.openedAt!==undefined) body.opened_at=changes.openedAt||null;
+    if (changes.dueAt!==undefined) body.due_at=changes.dueAt||null;
+    if (changes.model!==undefined) body.source_model=changes.model||null;
+    if (changes.serial!==undefined) body.source_serial=changes.serial||null;
+    if (changes.log!==undefined) body.logbook=changes.log||null;
+    if (changes.diagnosis!==undefined) body.diagnosis=changes.diagnosis||null;
     const rows=await supabaseRequest(`/rest/v1/tickets?id=${exact(id)}&select=*`,{
       method:'PATCH',
       headers:{Prefer:'return=representation'},
       body:JSON.stringify(body)
     });
+    if (changes.client!==undefined) {
+      await supabaseRequest(`/rest/v1/tasks?ticket_id=${exact(id)}`,{
+        method:'PATCH',
+        headers:{Prefer:'return=minimal'},
+        body:JSON.stringify({client_id:clientId,updated_at:new Date().toISOString()})
+      });
+    }
     return rows?.[0]??null;
   }
 
