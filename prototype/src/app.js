@@ -438,6 +438,12 @@ function showTicketDetail(id){
  const ticketStatuses=['NUEVA','ASIGNADA','ACEPTADA','EN PROCESO','EN ESPERA','PAUSADA','ESPERANDO INFO','BLOQUEADA','PENDIENTE VALIDACIÓN','CONCLUIDA','CANCELADA','ABIERTO','COBRANZA','APROBADA','CERRADO'];
  const ownerOptions='<option value="">Sin asignar</option>'+state.personnel.map(p=>`<option value="${e(p.name)}" ${normalized(p.name)===normalized(t.owner)?'selected':''}>${e(p.name)}</option>`).join('');
  const statusOptions=unique([t.status,...ticketStatuses]).map(value=>`<option value="${e(value)}" ${normalized(value)===normalized(t.status)?'selected':''}>${e(value)}</option>`).join('');
+ const stages=unique([t.stage,...state.data.tickets.map(x=>x.stage)].filter(Boolean)).sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
+ const stageOptions=stages.map(value=>`<option value="${e(value)}" ${normalized(value)===normalized(t.stage)?'selected':''}>${e(value)}</option>`).join('')+'<option value="__NEW_STAGE__">+ Agregar nueva etapa…</option>';
+ const clients=unique(state.data.tickets.map(x=>x.client).filter(Boolean)).sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
+ const clientOptions=clients.map(value=>`<option value="${e(value)}" ${normalized(value)===normalized(t.client)?'selected':''}>${e(value)}</option>`).join('');
+ const businessUnits=unique(state.data.tickets.map(x=>x.businessUnit).filter(Boolean)).sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
+ const areas=unique([...state.personnel.map(p=>p.area),...state.data.tickets.map(x=>x.area)].filter(Boolean)).sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
  const completed=tasks.filter(taskComplete).length;
  const cancelled=tasks.filter(x=>['cancelada','cancelado'].includes(normalized(x.status))).length;
  const pending=tasks.filter(x=>!taskClosed(x)).length;
@@ -449,16 +455,26 @@ function showTicketDetail(id){
  openDetail(detailHeader('SEGUIMIENTO DEL SERVICIO','Ticket #'+t.folio)+
  `<div class="detail-heading-title"><h3>${e(t.title||'Sin título')}</h3><div class="detail-badges">${badge(t)}${priority(t)}${isOverdue(t,today)?'<span class="badge red">Fuera de plazo</span>':''}</div></div>
  <div class="detail-grid">${[['Cliente',t.client],['Unidad de negocio',t.businessUnit],['Área',t.area],['Etapa',t.stage],['Responsable del ticket',t.owner],['Estado del ticket',t.status],['Inicio',fmt(t.openedAt,true)],['Meta de cierre',fmt(t.dueAt,true)],['Cierre real',fmt(t.closedAt,true)],['Modelo',t.model],['Número de serie',t.serial]].map(([l,v])=>detailField(l,v)).join('')}</div>
- <section class="detail-section"><div class="detail-section-actions"><h3>Actualizar seguimiento</h3><span class="number-badge">Supabase</span></div>
+ <section class="detail-section"><div class="detail-section-actions"><div><h3>Actualizar ticket</h3><p class="muted" style="font-size:10px;margin-top:4px">Edita los datos operativos sin cambiar el folio. El cierre real se registra automáticamente.</p></div><span class="number-badge">Supabase</span></div>
  <div class="filter-fields">
+   <label class="field full-width">Título del ticket<input id="ticketEditTitle" value="${e(t.title||'')}" maxlength="180" required></label>
    <label class="field">Estado<select id="ticketEditStatus">${statusOptions}</select></label>
-   <label class="field">Etapa<input id="ticketEditStage" value="${e(t.stage)}" maxlength="120" placeholder="Ej. En diagnóstico"></label>
+   <label class="field">Etapa<select id="ticketEditStage">${stageOptions}</select></label>
+   <label class="field full-width" id="ticketNewStageField" style="display:none">Nueva etapa<input id="ticketEditNewStage" maxlength="120" placeholder="Ej. Esperando refacción"><small class="field-help">Al guardar, esta etapa quedará disponible en los demás tickets.</small></label>
    <label class="field">Nivel de atención<select id="ticketEditPriority"><option value="">Sin nivel</option>${[1,2,3,4].map(p=>`<option value="${p}" ${String(t.priority)===String(p)?'selected':''}>Nivel ${p}</option>`).join('')}</select></label>
    <label class="field">Responsable<select id="ticketEditOwner">${ownerOptions}</select></label>
+   <label class="field">Cliente<select id="ticketEditClient">${clientOptions}</select></label>
+   <label class="field">Unidad de negocio<input id="ticketEditBusinessUnit" list="ticketBusinessUnitList" value="${e(t.businessUnit||'')}" maxlength="120"><datalist id="ticketBusinessUnitList">${businessUnits.map(x=>`<option value="${e(x)}"></option>`).join('')}</datalist></label>
+   <label class="field">Área<input id="ticketEditArea" list="ticketAreaList" value="${e(t.area||'')}" maxlength="120"><datalist id="ticketAreaList">${areas.map(x=>`<option value="${e(x)}"></option>`).join('')}</datalist></label>
+   <label class="field">Fecha de inicio<input id="ticketEditOpenedAt" type="date" value="${e(t.openedAt||'')}" required></label>
+   <label class="field">Meta de cierre<input id="ticketEditDueAt" type="date" value="${e(t.dueAt||'')}"></label>
+   <label class="field">Modelo<input id="ticketEditModel" value="${e(t.model||'')}" maxlength="120"></label>
+   <label class="field">Número de serie<input id="ticketEditSerial" value="${e(t.serial||'')}" maxlength="120"></label>
+   <label class="field full-width">Descripción / solicitud<textarea id="ticketEditDescription" rows="3" maxlength="3000" placeholder="Motivo original del ticket o solicitud del cliente.">${e(t.description||'')}</textarea></label>
+   <label class="field full-width">Bitácora<textarea id="ticketEditLog" rows="5" maxlength="5000" placeholder="Seguimiento general, llamadas, acuerdos, movimientos y eventos relevantes.">${e(t.log||'')}</textarea></label>
+   <label class="field full-width">Diagnóstico / trabajos realizados<textarea id="ticketEditDiagnosis" rows="5" maxlength="5000" placeholder="Diagnóstico técnico, hallazgos y trabajos realizados.">${e(t.diagnosis||'')}</textarea></label>
  </div>
- <div class="detail-section-actions" style="margin-top:14px"><span class="muted">Los cambios se guardan directamente en Supabase.</span><button class="button small primary" data-action="save-ticket-update" data-id="${e(t.id)}">Guardar cambios</button></div></section>
- <section class="detail-section"><h3>Bitácora</h3><p class="note-text">${e(t.log||'No hay bitácora registrada.')}</p></section>
- <section class="detail-section"><h3>Diagnóstico y trabajos realizados</h3><p class="note-text">${e(t.diagnosis||'No hay diagnóstico registrado.')}</p></section>
+ <div class="detail-section-actions" style="margin-top:14px"><span class="muted">El folio y el cierre real no se editan manualmente.</span><button class="button small primary" data-action="save-ticket-update" data-id="${e(t.id)}">Guardar cambios</button></div></section>
  <section class="detail-section activity-section"><div class="detail-section-actions"><div><h3>Actividades del ticket <span class="number-badge">${tasks.length}</span></h3><p class="muted" style="font-size:10px;margin-top:4px">${completed} completadas · ${pending} pendientes${cancelled?' · '+cancelled+' canceladas':''}</p></div><button class="button small primary" data-action="new-task" data-folio="${e(t.folio)}">+ Agregar actividad</button></div>
  <div class="activity-progress"><div class="activity-progress-top"><strong>${progress}%</strong><span>avance de actividades</span>${blocked?'<span class="badge red">'+blocked+' bloqueadas</span>':''}${overdue?'<span class="badge red">'+overdue+' vencidas</span>':''}</div><div class="activity-progress-track"><i style="width:${progress}%"></i></div></div>
  <div class="detail-tasks">${activityList.length?activityList.map(task=>taskRow(task,true)).join(''):'<p class="definition-note">Este ticket todavía no tiene actividades. Agrega la primera para comenzar su gestión operativa.</p>'}</div></section>
@@ -524,7 +540,39 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
  if(a==='remove-filter'){state.filters[b.dataset.key]=blankFilters()[b.dataset.key];state.page=1;render();}
  if(a==='filter')setFilter(b.dataset.key,b.dataset.value);
  if(a==='ticket')showTicketDetail(b.dataset.id);
- if(a==='save-ticket-update'){(async()=>{b.disabled=true;try{await repository.updateTicket(b.dataset.id,{status:$('ticketEditStatus')?.value||'',stage:$('ticketEditStage')?.value||'',priority:$('ticketEditPriority')?.value||'',owner:$('ticketEditOwner')?.value||''});await refreshOperationalData();showTicketDetail(b.dataset.id);toast('Ticket actualizado en Supabase.');}catch(err){toast(err.message||'No se pudo actualizar el ticket.');}finally{b.disabled=false;}})();}
+ if(a==='save-ticket-update'){(async()=>{
+  b.disabled=true;
+  try{
+    const stageSelect=$('ticketEditStage');
+    const stage=stageSelect?.value==='__NEW_STAGE__' ? clean($('ticketEditNewStage')?.value||'') : (stageSelect?.value||'');
+    if(!stage) throw new Error('Selecciona una etapa o escribe el nombre de la nueva etapa.');
+    const openedAt=$('ticketEditOpenedAt')?.value||'';
+    if(!openedAt) throw new Error('La fecha de inicio del ticket es obligatoria.');
+    const title=clean($('ticketEditTitle')?.value||'');
+    if(!title) throw new Error('El título del ticket es obligatorio.');
+    await repository.updateTicket(b.dataset.id,{
+      title,
+      description:$('ticketEditDescription')?.value||'',
+      status:$('ticketEditStatus')?.value||'',
+      stage,
+      priority:$('ticketEditPriority')?.value||'',
+      owner:$('ticketEditOwner')?.value||'',
+      client:$('ticketEditClient')?.value||'',
+      businessUnit:$('ticketEditBusinessUnit')?.value||'',
+      area:$('ticketEditArea')?.value||'',
+      openedAt,
+      dueAt:$('ticketEditDueAt')?.value||'',
+      model:$('ticketEditModel')?.value||'',
+      serial:$('ticketEditSerial')?.value||'',
+      log:$('ticketEditLog')?.value||'',
+      diagnosis:$('ticketEditDiagnosis')?.value||''
+    });
+    await refreshOperationalData();
+    showTicketDetail(b.dataset.id);
+    toast('Ticket actualizado en Supabase.');
+  }catch(err){toast(err.message||'No se pudo actualizar el ticket.');}
+  finally{b.disabled=false;}
+ })();}
  if(a==='task'){showTaskDetail(b.dataset.id);updateWorkSummary($('taskEditChecklist'));}
  if(a==='save-task-update'){(async()=>{
   b.disabled=true;
@@ -601,6 +649,11 @@ document.addEventListener('change',event=>{
  if(event.target.id==='calendarActivityStatus'){state.calendarActivityStatus=event.target.value;render();}
  if(event.target.id==='newTicketOwner'){const person=state.personnel.find(p=>p.name===event.target.value);if(person&&$('newTicketArea'))$('newTicketArea').value=person.area;}
  if(event.target.id==='newTaskOwner'){const person=state.personnel.find(p=>p.name===event.target.value);if($('newTaskArea'))$('newTaskArea').value=person?.area||'';}
+ if(event.target.id==='ticketEditStage'){
+   const field=$('ticketNewStageField');
+   if(field) field.style.display=event.target.value==='__NEW_STAGE__'?'':'none';
+   if(event.target.value==='__NEW_STAGE__') $('ticketEditNewStage')?.focus();
+ }
 });
 document.addEventListener('input',event=>{
  if(event.target.id==='newTaskTicketSearch'){
