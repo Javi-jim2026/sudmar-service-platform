@@ -1,3 +1,4 @@
+import {activityCategories, checklistProgress, validateChecklist, validateActivity, MAX_WORK_ITEMS} from './checklist.js';
 import {config} from './config.js';
 import {repository} from './repository.js';
 import {icon} from './icons.js';
@@ -120,7 +121,7 @@ function taskRow(task,compact=false){
  const context='Ticket #'+e(task.ticketFolio);
  const type=activityType(task);
  const statusLabel=taskComplete(task)?'COMPLETADA':(task.status||'SIN INICIAR');
- return `<button class="task-row" data-action="task" data-id="${e(task.id)}"><span class="task-check ${taskComplete(task)?'done':''}">${taskComplete(task)?icon('check'):''}</span><span class="task-row-title">${e(task.title||'Actividad sin descripción')}<small><span class="badge ${activityTypeTone(task)}">${e(type)}</span> · ${context}</small></span><span class="badge ${activityStatusTone(task)}">${e(statusLabel)}</span>${owner(task.owner)}${compact?'':`<span class="task-date">${fmt(task.dueAt,true)}</span>${icon('chevron','row-arrow')}`}</button>`;
+ return `<button class="task-row" data-action="task" data-id="${e(task.id)}"><span class="task-check ${taskComplete(task)?'done':''}">${taskComplete(task)?icon('check'):''}</span><span class="task-row-title">${e(task.title||'Actividad sin descripción')}<small><span class="badge ${activityTypeTone(task)}">${e(type)}</span> · ${context}</small>${progressMarkup(task)}</span><span class="badge ${activityStatusTone(task)}">${e(statusLabel)}</span>${owner(task.owner)}${compact?'':`<span class="task-date">${fmt(task.dueAt,true)}</span>${icon('chevron','row-arrow')}`}</button>`;
 }
 function renderTasks(){
  const list=currentTasks().sort((a,b)=>Number(taskClosed(a))-Number(taskClosed(b))||(a.dueAt||'9999').localeCompare(b.dueAt||'9999')||(b.startAt||'').localeCompare(a.startAt||''));
@@ -245,7 +246,7 @@ function renderCalendar(tickets){
        const duration=daysInclusive(t.startAt,end);
        const start=date===t.startAt,endHere=date===end;
        const range=start?(duration>1?`${shortDate(t.startAt)}–${shortDate(end)} · ${duration} días`:'1 día'):(endHere?'Vence hoy':`En curso · ${duration} días`);
-       return {sort:'1'+(t.dueAt||'9999')+t.title,html:`<button class="calendar-event activity-event ${activityCalendarClass(t)} ${start?'activity-start':''} ${endHere?'activity-end':''}" data-action="task" data-id="${e(t.id)}" title="${e(t.title)} · ${e(t.owner||'Sin asignar')} · ${e(range)}"><strong>${e(activityType(t))}</strong><span>${e(t.title||'Actividad')}</span><small>${e(range)} · ${e(t.owner||'Sin asignar')}</small></button>`};
+       return {sort:'1'+(t.dueAt||'9999')+t.title,html:`<button class="calendar-event activity-event ${activityCalendarClass(t)} ${start?'activity-start':''} ${endHere?'activity-end':''}" data-action="task" data-id="${e(t.id)}" title="${e(t.title)} · ${e(t.owner||'Sin asignar')} · ${e(range)}"><strong>${e(activityType(t))}${checklistProgress(t)?' · '+checklistProgress(t).percent+'%':''}</strong><span>${e(t.title||'Actividad')}</span><small>${e(range)} · ${e(t.owner||'Sin asignar')}</small></button>`};
      })
    ].sort((a,b)=>a.sort.localeCompare(b.sort,'es',{numeric:true}));
    const visible=allEvents.slice(0,5);
@@ -346,10 +347,36 @@ function renderActivityTicketOptions(query='',selected=''){
  const matches=activityTicketOptions(query,selected);
  select.innerHTML='<option value="">Seleccionar ticket</option>'+matches.map(t=>`<option value="${e(t.folio)}" ${String(t.folio)===String(selected)?'selected':''}>#${e(t.folio)} · ${e(t.client||'Sin cliente')} · ${e(t.title||'Sin título')}${t.model?' · '+e(t.model):''}${isClosed(t)?' · '+e(t.status):''}</option>`).join('');
  const help=$('newTaskTicketSearch')?.closest('.field')?.querySelector('.field-help');
- if(help) help.textContent=queryText?(matches.length+' coincidencia'+(matches.length===1?'':'s')+' encontradas.'):'Mostrando los 40 tickets activos más recientes. Escribe para buscar en todos.';
+ if(help) help.textContent=normalized(query)?(matches.length+' coincidencia'+(matches.length===1?'':'s')+' encontradas.'):'Mostrando los 40 tickets activos más recientes. Escribe para buscar en todos.';
+}
+function progressMarkup(task){
+ const p=checklistProgress(task);
+ if(!p)return '';
+ return `<span class="work-progress"><progress max="100" value="${p.percent}" aria-label="Avance de trabajos"></progress><span>${p.percent}% · ${p.completed} de ${p.total} trabajos</span></span>`;
+}
+function categoryOptions(value=''){
+ return '<option value="">Seleccionar categoría</option>'+activityCategories.map(c=>`<option ${c===value?'selected':''}>${c}</option>`).join('');
+}
+function checklistEditor(id,category,items=[]){
+ return `<section id="${id}" class="work-editor full-width" ${category==='OPERACIONES'?'':'hidden'}><h3>Lista de trabajos</h3><p class="definition-note">Trabajos internos de esta actividad. El avance no cambia su estado.</p><div class="work-items">${items.map(workItemRow).join('')}</div><p class="work-summary" aria-live="polite"></p><button type="button" class="button secondary small" data-action="add-work">+ Agregar trabajo</button></section>`;
+}
+function workItemRow(item){
+ return `<div class="work-item" data-work-id="${e(item.id)}"><input type="checkbox" class="work-completed" aria-label="Trabajo completado" ${item.completed?'checked':''}><input type="text" class="work-text" aria-label="Descripción del trabajo" maxlength="1000" value="${e(item.text)}" placeholder="Escribe el trabajo a realizar"><button type="button" class="button ghost small" data-action="remove-work" aria-label="Eliminar trabajo">Eliminar</button></div>`;
+}
+function readChecklist(editor){
+ return [...editor.querySelectorAll('.work-item')].map(row=>({id:row.dataset.workId,text:row.querySelector('.work-text').value,completed:row.querySelector('.work-completed').checked}));
+}
+function updateWorkSummary(editor){
+ if(!editor)return;
+ const p=checklistProgress({category:'OPERACIONES',checklist:readChecklist(editor)});
+ editor.querySelector('.work-summary').textContent=`${p.percent}% · ${p.completed} de ${p.total} trabajos completados`;
+ editor.querySelector('[data-action="add-work"]').disabled=p.total>=MAX_WORK_ITEMS;
 }
 function openNewTask(ticketFolio=''){
  const form=$('newTaskForm');form.reset();
+ $('newTaskCategory').innerHTML=categoryOptions();
+ $('newTaskChecklistHost').innerHTML=checklistEditor('newTaskChecklist','');
+ updateWorkSummary($('newTaskChecklist'));
  fillWriteSelect('newTaskOwner',state.personnel.map(p=>p.name),'Seleccionar responsable');
  form.elements.startAt.value=today;
  const search=$('newTaskTicketSearch');
@@ -363,7 +390,7 @@ function openNewTask(ticketFolio=''){
  $('newTaskDialog').showModal();
 }
 function formPayload(form){return Object.fromEntries([...new FormData(form).entries()].map(([key,value])=>[key,clean(value)]));}
-async function refreshOperationalData(){state.data=await repository.load();render();}
+async function refreshOperationalData(){state.data=await repository.loadSupabase();render();}
 async function submitNewTicket(event){
  event.preventDefault();const error=$('newTicketError');error.textContent='';
  if(!repository.canWrite()){error.textContent='La conexión de escritura con Supabase todavía no está disponible.';return;}
@@ -378,6 +405,8 @@ async function submitNewTask(event){
  if(!payload.ticketFolio){error.textContent='Selecciona el ticket al que pertenece la actividad.';return;}
  const button=event.submitter;button.disabled=true;
  try{
+   payload.checklist=validateChecklist(readChecklist($('newTaskChecklist')));
+   validateActivity(payload);
    await repository.createTask(payload);
    $('newTaskDialog').close();
    await refreshOperationalData();
@@ -448,11 +477,13 @@ function showTaskDetail(id){
  openDetail(detailHeader('ACTIVIDAD DEL TICKET','Ticket #'+task.ticketFolio)+
  `<div class="detail-heading-title"><h3>${e(task.title||'Actividad sin descripción')}</h3><div class="detail-badges"><span class="badge ${activityStatusTone(task)}">${e(taskComplete(task)?'COMPLETADA':(task.status||'SIN INICIAR'))}</span><span class="badge ${activityTypeTone(task)}">${e(activityType(task))}</span>${resolutionBadge}</div></div>
  <div class="detail-grid">${[['Ticket','#'+task.ticketFolio],['Cliente',ticket.client],['Responsable',task.owner],['Área',task.area],['Tipo',activityType(task)],['Referencia',task.reference],['Inicio',fmt(task.startAt,true)],['Fecha compromiso',fmt(task.dueAt,true)],['Realización',fmt(task.completedAt,true)],['Estado',task.status]].map(([l,v])=>detailField(l,v)).join('')}</div>
+ <section class="detail-section">${progressMarkup(task)}</section>
  <section class="detail-section activity-requirement"><h3>Requerimiento / observaciones</h3><p class="note-text">${e(task.notes||'No hay observaciones registradas.')}</p><p class="definition-note">Aquí se conserva lo que se solicitó hacer y las indicaciones originales de la actividad.</p></section>
  <section class="detail-section activity-resolution ${task.resolution?'has-resolution':''}"><div class="detail-section-actions"><h3>Resolución / resultado</h3>${task.outcome?`<span class="badge ${activityOutcomeTone(task.outcome)}">${e(task.outcome)}</span>`:''}</div><p class="note-text">${e(task.resolution||'La actividad todavía no tiene una resolución registrada.')}</p><p class="definition-note">Este apartado describe qué ocurrió realmente al ejecutar o cerrar la actividad.</p></section>
  <section class="detail-section"><div class="detail-section-actions"><h3>Actualizar actividad</h3><span class="number-badge">${e(task.platformId||'Supabase')}</span></div>
  <div class="filter-fields">
    <label class="field full-width">Actividad<input id="taskEditTitle" value="${e(task.title)}" maxlength="180"></label>
+   <label class="field">Categoría general<select id="taskEditCategory">${categoryOptions(task.category)}</select></label>
    <label class="field">Tipo<input id="taskEditType" list="activityTypeList" value="${e(activityType(task))}" maxlength="80"></label>
    <label class="field">Responsable<select id="taskEditOwner">${ownerOptions}</select></label>
    <label class="field">Estado<select id="taskEditStatus">${statusOptions}</select></label>
@@ -460,6 +491,7 @@ function showTaskDetail(id){
    <label class="field">Fecha de inicio<input id="taskEditStart" type="date" value="${e(task.startAt||'')}"></label>
    <label class="field">Fecha compromiso<input id="taskEditDue" type="date" value="${e(task.dueAt||'')}"></label>
    <label class="field">Referencia<input id="taskEditReference" value="${e(task.reference||'')}" maxlength="100"></label>
+   ${checklistEditor('taskEditChecklist',task.category,task.checklist||[])}
    <label class="field full-width">Observaciones / requerimiento<textarea id="taskEditNotes" rows="4" maxlength="2000" placeholder="Qué se requiere hacer, alcance, indicaciones...">${e(task.notes||'')}</textarea></label>
    <label class="field">Resultado de la actividad<select id="taskEditOutcome">${outcomeOptions}</select></label>
    <label class="field full-width">Resolución<textarea id="taskEditResolution" rows="5" maxlength="3000" placeholder="Qué se hizo, qué se encontró, por qué no se realizó, cancelación del cliente, reprogramación, etc.">${e(task.resolution||'')}</textarea></label>
@@ -478,6 +510,13 @@ async function install(){if(installEvent){await installEvent.prompt();installEve
 document.addEventListener('click',event=>{const b=event.target.closest('[data-action]');if(!b)return;const a=b.dataset.action;if(!state.data&&!['close-dialog'].includes(a))return;
  if(a==='navigate')navigate(b.dataset.view);
  if(a==='filters')openFilters();
+ if(a==='add-work'){
+   const editor=b.closest('.work-editor');
+   if(readChecklist(editor).length>=MAX_WORK_ITEMS)return;
+   editor.querySelector('.work-items').insertAdjacentHTML('beforeend',workItemRow({id:crypto.randomUUID(),text:'',completed:false}));
+   updateWorkSummary(editor);editor.querySelector('.work-item:last-child .work-text').focus();
+ }
+ if(a==='remove-work'){const editor=b.closest('.work-editor');b.closest('.work-item').remove();updateWorkSummary(editor);}
  if(a==='new-ticket')openNewTicket();
  if(a==='new-task')openNewTask(b.dataset.folio||'');
  if(a==='close-dialog')b.closest('dialog')?.close();
@@ -486,7 +525,7 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
  if(a==='filter')setFilter(b.dataset.key,b.dataset.value);
  if(a==='ticket')showTicketDetail(b.dataset.id);
  if(a==='save-ticket-update'){(async()=>{b.disabled=true;try{await repository.updateTicket(b.dataset.id,{status:$('ticketEditStatus')?.value||'',stage:$('ticketEditStage')?.value||'',priority:$('ticketEditPriority')?.value||'',owner:$('ticketEditOwner')?.value||''});await refreshOperationalData();showTicketDetail(b.dataset.id);toast('Ticket actualizado en Supabase.');}catch(err){toast(err.message||'No se pudo actualizar el ticket.');}finally{b.disabled=false;}})();}
- if(a==='task')showTaskDetail(b.dataset.id);
+ if(a==='task'){showTaskDetail(b.dataset.id);updateWorkSummary($('taskEditChecklist'));}
  if(a==='save-task-update'){(async()=>{
   b.disabled=true;
   try{
@@ -499,11 +538,13 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
     if(closing&&!outcome) throw new Error('Selecciona el resultado de la actividad antes de cerrarla.');
     if(closing&&!resolution) throw new Error('Registra la resolución de la actividad antes de cerrarla.');
     const person=state.personnel.find(p=>normalized(p.name)===normalized(selectedOwner));
-    await repository.updateTask(b.dataset.id,{
+    const changes={
+      category:$('taskEditCategory').value||null,
+      checklist:validateChecklist(readChecklist($('taskEditChecklist'))),
       title:$('taskEditTitle')?.value||'',
       taskType:$('taskEditType')?.value||'',
       owner:selectedOwner,
-      area:person?.area||task?.area||'',
+      area:selectedOwner===task.owner ? task.area : (person?.area||task?.area||''),
       status:selectedStatus,
       priority:$('taskEditPriority')?.value||'',
       startAt:$('taskEditStart')?.value||'',
@@ -512,9 +553,14 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
       notes:$('taskEditNotes')?.value||'',
       outcome,
       resolution
-    });
+    };
+    validateActivity(changes);
+    // Leave unchanged dates and completion timestamps exactly as stored.
+    for(const key of ['title','taskType','owner','area','status','priority','startAt','dueAt','reference','notes','outcome','resolution'])if(changes[key]===(task[key]||''))delete changes[key];
+    await repository.updateTask(b.dataset.id,changes,task.updatedAt);
     await refreshOperationalData();
     showTaskDetail(b.dataset.id);
+    updateWorkSummary($('taskEditChecklist'));
     toast('Actividad actualizada con su resolución.');
   }catch(err){toast(err.message||'No se pudo actualizar la actividad.');}
   finally{b.disabled=false;}
@@ -540,6 +586,11 @@ $('newTicketForm').addEventListener('submit',submitNewTicket);
 $('newTaskForm').addEventListener('submit',submitNewTask);
 $('globalSearch').addEventListener('input',event=>{clearTimeout(searchTimer);const value=event.target.value;searchTimer=setTimeout(()=>{state.filters.q=value;state.page=1;render();},160);});
 document.addEventListener('change',event=>{
+ if(event.target.matches('.work-completed'))updateWorkSummary(event.target.closest('.work-editor'));
+ if(['newTaskCategory','taskEditCategory'].includes(event.target.id)){
+   const editor=$(event.target.id==='newTaskCategory'?'newTaskChecklist':'taskEditChecklist');
+   editor.hidden=event.target.value!=='OPERACIONES';updateWorkSummary(editor);
+ }
  if(event.target.id==='taskStatus'){state.taskStatus=event.target.value;state.page=1;render();}
  if(event.target.id==='taskOwner'){state.taskOwner=event.target.value;state.page=1;render();}
  if(event.target.id==='taskCategory'){state.taskCategory=event.target.value;state.page=1;render();}
@@ -570,3 +621,4 @@ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();ins
 
 async function init(){hydrateIcons();document.documentElement.style.setProperty('--primary',config.brand.primary);document.documentElement.style.setProperty('--accent',config.brand.accent);document.querySelectorAll('[data-brand-name]').forEach(el=>el.textContent=config.brand.name);document.querySelectorAll('[data-brand-mark]').forEach(el=>{el.textContent=config.brand.initials;if(config.brand.logoUrl){const img=new Image();img.src=config.brand.logoUrl;img.alt=config.brand.name;img.onload=()=>el.replaceChildren(img);}});renderSavedViews();readLocation();try{const [operationData,people]=await Promise.all([repository.load(),repository.personnel().catch(()=>[])]);state.data=operationData;state.personnel=people;$('sourceDate').textContent=(state.data.metadata.mode==='supabase'?'Supabase en línea · ':'Datos actualizados · ')+fmt(state.data.metadata.sourceModifiedAt||state.data.metadata.importedAt,true);$('sourceTotals').textContent=`${n(state.data.tickets.length)} tickets · ${n(state.data.tasks.length)} actividades`;$('exportButton').disabled=false;render();}catch(error){$('sourceDate').textContent='Datos no disponibles';$('content').innerHTML=`<div class="panel empty-state">${icon('alert')}<h2>No pudimos cargar la operación</h2><p>${e(error.message)} Revisa tu conexión e inténtalo nuevamente.</p><button class="button primary" id="retryLoad">Reintentar</button></div>`;$('retryLoad').addEventListener('click',init);}if('serviceWorker'in navigator&&!globalThis.__SUDMAR_SNAPSHOT__&&location.protocol!=='file:'){navigator.serviceWorker.register('./sw.js').catch(()=>{/* Read access still works without installation support. */});}}
 init();
+
