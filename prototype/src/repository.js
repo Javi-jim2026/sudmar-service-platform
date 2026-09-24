@@ -1,3 +1,4 @@
+import {validateActivity, validateChecklist, activityCategories} from './checklist.js';
 import {config} from './config.js';
 
 const dateOnly = value => value ? String(value).slice(0,10) : null;
@@ -65,7 +66,7 @@ export class SnapshotRepository {
       fetchSupabaseTable('equipment','id,client_id,model,serial_number'),
       fetchSupabaseTable('personnel','id,name,role,area'),
       fetchSupabaseTable('tasks',
-        'id,task_code,ticket_id,client_id,assignee_id,task_type,title,reference,area,priority,status,start_at,due_at,completed_at,notes,resolution,outcome,created_by,created_at',
+        'id,task_code,ticket_id,client_id,assignee_id,task_type,title,reference,area,priority,status,start_at,due_at,completed_at,notes,resolution,outcome,created_by,created_at,updated_at,category,checklist',
         '&order=created_at.desc')
     ]);
 
@@ -110,6 +111,9 @@ export class SnapshotRepository {
       return {
         id: row.id,
         platformId: row.task_code??'',
+        category: row.category??null,
+        checklist: row.checklist??[],
+        updatedAt: row.updated_at,
         ticketFolio: ticket?.folio ? String(ticket.folio) : '',
         title: row.title??'',
         notes: row.notes??'',
@@ -164,7 +168,7 @@ export class SnapshotRepository {
       try {
         return await this.loadSupabase();
       } catch (error) {
-        console.error('Supabase no disponible; usando snapshot local.', error);
+        throw new Error('No se pudo cargar la operación actual de Supabase. Revisa la conexión y vuelve a intentar.', {cause:error});
       }
     }
     return this.loadSnapshot();
@@ -221,6 +225,8 @@ export class SnapshotRepository {
   }
 
   async createTask(payload) {
+    validateActivity(payload);
+    if (!activityCategories.includes(payload.category)) throw new Error('Selecciona la categoría general.');
     if (!payload.ticketFolio) throw new Error('Toda actividad debe estar ligada a un ticket.');
     const tickets=await supabaseRequest(`/rest/v1/tickets?select=id,client_id&folio=${exact(payload.ticketFolio)}&limit=1`);
     if (!tickets?.[0]) throw new Error('El ticket relacionado no existe.');
@@ -236,6 +242,8 @@ export class SnapshotRepository {
         client_id:clientId,
         assignee_id:assigneeId,
         task_type:payload.taskType||'SEGUIMIENTO',
+        category:payload.category,
+        checklist:validateChecklist(payload.checklist||[]),
         title:payload.title,
         reference:payload.reference||null,
         area:payload.area||null,
@@ -250,9 +258,14 @@ export class SnapshotRepository {
     return rows?.[0]??null;
   }
 
-  async updateTask(id, changes) {
+  async updateTask(id, changes, expectedUpdatedAt) {
     const body={updated_at:new Date().toISOString()};
     if (changes.owner!==undefined) body.assignee_id=changes.owner ? await this.lookupId('personnel','name',changes.owner) : null;
+    if (changes.category!==undefined) {
+      if (changes.category!==null && !activityCategories.includes(changes.category)) throw new Error('Categoría general inválida.');
+      body.category=changes.category;
+    }
+    if (changes.checklist!==undefined) body.checklist=validateChecklist(changes.checklist);
     if (changes.taskType!==undefined) body.task_type=changes.taskType||null;
     if (changes.title!==undefined) body.title=changes.title||null;
     if (changes.reference!==undefined) body.reference=changes.reference||null;
@@ -268,12 +281,13 @@ export class SnapshotRepository {
     if (changes.notes!==undefined) body.notes=changes.notes||null;
     if (changes.resolution!==undefined) body.resolution=changes.resolution||null;
     if (changes.outcome!==undefined) body.outcome=changes.outcome||null;
-    const rows=await supabaseRequest(`/rest/v1/tasks?id=${exact(id)}&select=*`,{
+    const rows=await supabaseRequest(`/rest/v1/tasks?id=${exact(id)}&select=*${expectedUpdatedAt?'&updated_at='+exact(expectedUpdatedAt):''}`,{
       method:'PATCH',
       headers:{Prefer:'return=representation'},
       body:JSON.stringify(body)
     });
-    return rows?.[0]??null;
+    if (!rows?.[0]) throw new Error('La actividad cambió en otra sesión o ya no está disponible. Recarga la página antes de volver a editarla.');
+    return rows[0];
   }
 
   async updateTicket(id, changes) {
