@@ -27,7 +27,13 @@ Se normalizan espacios y mayúsculas, sin inferir tipos desde nombres de modelo.
 - 1 duplicado de combinación eliminado del catálogo; el archivo fuente se conserva intacto.
 - 130 tickets vinculados por modelo exacto normalizado y 64 por modelo + serie.
 - Tipos originales normalizados: GENERADORES A DIESEL, OTROS, PORTATILES, TORRES DE ILUMINACION, TRANSFERENCIAS.
-- Pendientes de confirmación: ESE 2006 DBS-GT ES (GENERADORES A DIESEL / GENERADORES A GASOLINA), ESE 804 SDHS-DC (GENERADORES A DIESEL / PORTATILES). Sus 26 filas no se reclasifican automáticamente.
+- En la primera importación se excluyeron ESE 2006 DBS-GT ES y ESE 804 SDHS-DC por tipos contradictorios en la fuente; quedaron pendientes de confirmación hasta la corrección documentada abajo.
+
+### Confirmación de gasolina (25/09/2026)
+
+El usuario confirmó expresamente que **ambos modelos son GENERADORES A GASOLINA**. La migración `20260925100530_confirm_gasoline_inventory_models.sql` registra la clasificación, las series y el número de fila del archivo, y conserva en su fuente SQL el tipo originalmente escrito en cada fila, incluidas las discrepancias. La hoja INVENTARIO accesible el 25/09 contiene **25 filas** de estos dos modelos (21 ESE 2006 y 4 ESE 804), con **25 combinaciones distintas** modelo/serie. La cifra previa de 26 pendientes no coincide con esta hoja; no se inventó ni duplicó una fila para alcanzar ese número.
+
+Tras la importación: **87 modelos y 1,063 combinaciones**. La migración usa restricciones de unicidad para permitir ejecución repetida y no modifica los 103 tickets históricos pendientes de clasificación. Ningún ticket histórico tiene coincidencia exacta de estos dos modelos en `source_model`; por eso se vincularon **0 tickets** mediante esta corrección. En los tickets nuevos, seleccionar uno de estos modelos muestra automáticamente `GENERADORES A GASOLINA` desde el catálogo.
 
 ## Interfaz
 
