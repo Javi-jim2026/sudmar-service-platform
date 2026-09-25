@@ -529,12 +529,23 @@ const help=(text)=>`<details class="context-help"><summary aria-label="Consultar
 const field=(label,control,hint='')=>`<div class="field"><label>${label}${control}</label>${hint?help(hint):''}</div>`;
 const selectControl=(id,name,rows,value='',placeholder='Seleccionar')=>`<select id="${id}" name="${name}">${options(rows,value,placeholder)}</select>`;
 const catalogControl=(prefix,name,label,rows,value='',add='')=>field(label,`<input id="${prefix}${name}" name="${name}" list="${prefix}${name}List" value="${e(value)}" autocomplete="off"><datalist id="${prefix}${name}List">${unique(rows).map(v=>`<option value="${e(v)}"></option>`).join('')}</datalist>${add?`<button type="button" class="text-action" data-action="add-catalog" data-kind="${add}" data-prefix="${prefix}">+ Agregar ${label.toLowerCase()}</button>`:''}`);
+function clientControl(prefix,value=''){
+ const names=unique(catalogs().clients.map(x=>x.name)).sort((a,b)=>a.localeCompare(b,'es'));
+ return field('Cliente',`<input id="${prefix}clientSearch" type="search" placeholder="Buscar cliente por nombre" autocomplete="off" aria-label="Buscar cliente"><select id="${prefix}client" name="client" required><option value="">Seleccionar cliente (${names.length})</option>${names.map(name=>`<option value="${e(name)}" ${catalogKey(name)===catalogKey(value)?'selected':''}>${e(name)}</option>`).join('')}</select><button type="button" class="text-action" data-action="add-catalog" data-kind="clients" data-prefix="${prefix}">+ Agregar cliente</button>`);
+}
+function renderClientOptions(prefix){
+ const input=$(prefix+'clientSearch'),select=$(prefix+'client');if(!input||!select)return;
+ const query=input.value.trim().toLocaleLowerCase('es'),selected=select.value;
+ const names=unique(catalogs().clients.map(x=>x.name)).sort((a,b)=>a.localeCompare(b,'es')).filter(name=>name.toLocaleLowerCase('es').includes(query));
+ select.innerHTML=`<option value="">${names.length?'Seleccionar cliente ('+names.length+')':'Sin coincidencias; agrega un cliente'}</option>`+names.map(name=>`<option value="${e(name)}">${e(name)}</option>`).join('');
+ if(names.includes(selected))select.value=selected;
+}
 const slaSelect=(id,value)=>field('SLA técnico',`<select id="${id}" name="priority">${[1,2,3,4].map(v=>`<option value="${v}" ${String(value||3)===String(v)?'selected':''}>SLA-0${v}</option>`).join('')}</select>`,slaHelp);
 function ticketFields(prefix,t={}){
  const c=catalogs(),model=c.models.find(m=>m.id===t.catalogModelId),category=c.categories.find(x=>x.id===t.serviceCategoryId);
  return `<h3 class="full-width">Cliente y servicio</h3>`+
- catalogControl(prefix,'client','Cliente',c.clients.map(x=>x.name),t.client,'clients')+
  field('Unidad de negocio',`<select id="${prefix}businessUnit" name="businessUnit"><option value="">Seleccionar</option>${['SUDMAR','PRETTL'].map(x=>`<option ${x===t.businessUnit?'selected':''}>${x}</option>`).join('')}${t.businessUnit&&!['SUDMAR','PRETTL'].includes(t.businessUnit)?`<option selected value="${e(t.businessUnit)}">${e(t.businessUnit)} (histórico)</option>`:''}</select>`)+
+ clientControl(prefix,t.client)+
  catalogControl(prefix,'serviceCategory','Categoría de servicio',c.categories.filter(x=>x.business_unit===t.businessUnit).map(x=>x.name),category?.name||'','service_categories')+
  slaSelect(prefix+'priority',t.priority)+
  field('Estado operativo',selectControl(prefix+'status','status',Object.keys(ticketStates),t.status||'REGISTRADO',t.status==='POR CLASIFICAR'?'Requiere clasificación':'Seleccionar'),Object.entries(ticketStates).map(([k,v])=>k+': '+v).join(' '))+
@@ -639,6 +650,7 @@ function openCatalog(kind,prefix){
    const target={clients:'client',service_categories:'serviceCategory',equipment_models:'model',equipment_serials:'serial',activity_types:'taskType',activity_statuses:'status'}[kind];
    const input=$(prefix+target);
    if(kind==='activity_statuses')input.innerHTML=catalogs().statuses.map(s=>`<option value="${e(s.name)}">${e(s.name)}</option>`).join('');
+   if(kind==='clients'){const search=$(prefix+'clientSearch');search.value='';renderClientOptions(prefix);}
    input.value=row.name||row.serial_number;input.dispatchEvent(new Event('change',{bubbles:true}));dialog.close();toast(existing?'Se reutilizó el registro existente.':'Guardado en catálogo.');
   }catch(error){$('catalogError').textContent=error.message;}finally{button.disabled=false;}
  };
@@ -663,5 +675,6 @@ document.addEventListener('change',event=>{
  }
 });
 document.addEventListener('input',event=>{
+ for(const prefix of ['newTicket','ticketEdit'])if(event.target.id===prefix+'clientSearch')renderClientOptions(prefix);
  for(const prefix of ['newTicket','ticketEdit'])if(Object.keys(requestQuestions).some(k=>event.target.id===prefix+k))$(prefix+'summary').textContent=requestSummary(Object.fromEntries(Object.keys(requestQuestions).map(k=>[k,$(prefix+k).value])));
 });
