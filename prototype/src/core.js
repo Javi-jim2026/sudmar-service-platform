@@ -1,7 +1,7 @@
 // Pure domain functions: the UI, a future API adapter and tests share these rules.
 export const normalized = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 export const clean = value => String(value ?? '').trim();
-export const blankFilters = () => ({ q: '', folio: '', priority: '', client: '', businessUnit: '', area: '', stage: '', equipmentType:'', owner: '', status: '', model: '', serial: '', from: '', to: '', dateField: 'openedAt', overdue: false, activeOnly: false });
+export const blankFilters = () => ({ q: '', folio: '', priority: '', client: '', businessUnit: '', area: '', equipmentType:'', owner: '', status: '', model: '', serial: '', from: '', to: '', dateField: 'openedAt', overdue: false, activeOnly: false });
 const terminal = new Set(['cerrado', 'cancelado', 'cancelada', 'aprobada', 'aprobado', 'concluida', 'concluido']);
 const known = new Set(['registrado','programado','en ejecucion','bloqueado','pendiente de validacion','abierto', 'cerrado', 'cancelado', 'cancelada', 'en espera', 'cobranza', 'inactivo', 'consigna', 'nueva', 'asignada', 'aceptada', 'en proceso', 'pausada', 'esperando info', 'bloqueada', 'pendiente validacion', 'pendiente validación', 'aprobada', 'aprobado', 'concluida', 'concluido']);
 export const isKnownStatus = t => known.has(normalized(t.status));
@@ -18,7 +18,7 @@ export function filterTickets(tickets, filters, today) {
   return tickets.filter(t => {
     if (query && ![t.folio,t.title,t.client,t.model,t.serial,t.log,t.diagnosis].some(v=>normalized(v).includes(query))) return false;
     if (filters.folio && !normalized(t.folio).includes(normalized(filters.folio))) return false;
-    for (const key of ['priority','client','businessUnit','area','stage','equipmentType','owner','status','model','serial']) {
+    for (const key of ['priority','client','businessUnit','area','equipmentType','owner','status','model','serial']) {
       if (filters[key] === '__EMPTY__' && clean(t[key]) !== '') return false;
       if (filters[key] && filters[key] !== '__EMPTY__' && clean(t[key]) !== filters[key]) return false;
     }
