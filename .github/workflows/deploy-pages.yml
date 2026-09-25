@@ -8,6 +8,8 @@ on:
       - ".github/workflows/deploy-pages.yml"
       - "tests/**"
       - "package.json"
+      - "supabase/migrations/**"
+      - "docs/operational-redesign.md"
   workflow_dispatch:
 
 permissions:
