@@ -27,8 +27,13 @@ async function add(kind,prefix,name,extra){await click(`[data-action="add-catalo
 try{
  await page.goto(`http://127.0.0.1:${server.address().port}/`);await page.locator('#sourceDate').filter({hasText:'Supabase en línea'}).waitFor();
  await click('[data-action="new-ticket"]');
+ await page.locator('#newTicketbusinessUnit').selectOption('PRETTL');
+ assert.equal(await page.locator('#newTicketclient option[value="Cliente prueba"]').count(),1);
+ await fill('#newTicketclientSearch','cliente PRU');assert.equal(await page.locator('#newTicketclient option').count(),2);
+ await fill('#newTicketclientSearch','');
  await add('clients','newTicket','Cliente Nuevo');assert.equal(tables.clients.length,2);
  await add('clients','newTicket','  cliente   nuevo ');assert.equal(tables.clients.length,2);
+ assert.equal(await page.locator('#newTicketclient').inputValue(),'Cliente Nuevo');
  await page.locator('#newTicketbusinessUnit').selectOption('PRETTL');assert.equal(await page.locator('#newTicketserviceCategoryList option').getAttribute('value'),'Garantía');
  await page.locator('#newTicketbusinessUnit').selectOption('SUDMAR');await add('service_categories','newTicket','Servicio especial');
  await fill('#newTicketmodel','ESE 250 BW/AS');await change('#newTicketmodel');assert.equal(await page.locator('#newTicketequipmentType').inputValue(),'GENERADORES A DIESEL');
@@ -38,7 +43,7 @@ try{
  await page.locator('#newTicketpriority').selectOption('2');
  await click('#newTicketForm [type="submit"]');await page.locator('#newTicketDialog').waitFor({state:'hidden'});
  const ticket=tables.tickets.at(-1);assert.equal(ticket.catalog_model_id,'model');assert.equal(ticket.catalog_serial_id,'serial');assert.equal(ticket.priority,'P2');assert.equal(ticket.operational_status,'REGISTRADO');assert.match(ticket.description,/Motor de arranque/);
- await click('[data-action="new-ticket"]');assert.equal(await page.locator('#newTicketclientList option[value="Cliente Nuevo"]').count(),1);
+ await click('[data-action="new-ticket"]');assert.equal(await page.locator('#newTicketclient option[value="Cliente Nuevo"]').count(),1);
  await add('equipment_models','newTicket','Modelo nuevo',async()=>fill('#catalogForm [name="equipment_type"]','PORTATILES'));assert.equal(await page.locator('#newTicketequipmentType').inputValue(),'PORTATILES');
  await add('equipment_serials','newTicket','SERIE-NUEVA');assert.equal(tables.equipment_serials.at(-1).model_id,tables.equipment_models.at(-1).id);
  await click('#newTicketDialog [data-action="close-dialog"]');
