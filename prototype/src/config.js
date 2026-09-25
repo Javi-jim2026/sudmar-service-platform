@@ -21,5 +21,5 @@ export const config = Object.freeze({
   timezone: 'America/Mexico_City',
   pageSize: 20,
   storageKey: 'sudmar.saved-views.v1',
-  features: { editing: true, sharedDatabase: true, photoUpload: false },
+  features: { editing: true, sharedDatabase: true, photoUpload: false, testTicketDeletion: true },
 });

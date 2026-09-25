@@ -85,6 +85,7 @@ export class SnapshotRepository {
       const owner=personnelById.get(row.owner_id);
       return {
         id: row.id,
+        isTest: row.is_test===true,
         folio: String(row.folio??''),
         priority: String(row.priority??'').replace(/^P/i,''),
         title: row.title??'',
@@ -229,8 +230,16 @@ export class SnapshotRepository {
     return body;
   }
   async createTicket(payload) {
-    const body=await this.ticketBody(payload,true);body.operational_status=payload.status||'REGISTRADO';
+    const body=await this.ticketBody(payload,true);body.is_test=payload.isTest===true;body.operational_status=payload.status||'REGISTRADO';
     const rows=await supabaseRequest('/rest/v1/tickets',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(body)});return rows[0];
+  }
+
+  async deleteTestTicket(id,folio) {
+    if(!this.canWrite() || !config.features.testTicketDeletion)throw Error('La eliminación temporal no está disponible.');
+    if(!id || !folio)throw Error('Escribe el folio exacto.');
+    const deleted=await supabaseRequest('/rest/v1/rpc/delete_test_ticket',{method:'POST',body:JSON.stringify({p_ticket_id:id,p_folio:folio})});
+    if(deleted!==id)throw Error('No se confirmó la eliminación. Recarga antes de reintentar.');
+    return deleted;
   }
 
   async createTask(payload) {

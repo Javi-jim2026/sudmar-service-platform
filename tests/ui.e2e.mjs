@@ -15,6 +15,13 @@ let sequence=9001,rejectNext=false;
 await page.route('https://*.supabase.co/rest/v1/**',async route=>{
  const req=route.request(),url=new URL(req.url()),table=url.pathname.split('/').pop();let rows=tables[table]||[];
  for(const [key,val]of url.searchParams)if(val.startsWith('eq.'))rows=rows.filter(r=>key==='active'||String(r[key])===val.slice(3));
+ if(table==='delete_test_ticket'){
+  const body=req.postDataJSON(),ticket=tables.tickets.find(t=>t.id===body.p_ticket_id);
+  if(rejectNext){rejectNext=false;return route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({message:'El ticket tiene evidencias. Debe cancelarse/archivarse.'})});}
+  if(!ticket?.is_test||ticket.folio!==body.p_folio) return route.fulfill({status:400,body:'{}'});
+  tables.tickets=tables.tickets.filter(t=>t.id!==ticket.id);
+  return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(ticket.id)});
+ }
  if(req.method()==='POST'){
   if(rejectNext){rejectNext=false;return route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({message:'Permiso denegado de prueba'})});}
   const row={...req.postDataJSON(),id:'new-'+sequence,folio:String(sequence++),updated_at:new Date().toISOString()};tables[table].push(row);rows=[row];
@@ -64,6 +71,27 @@ try{
  await page.locator('#ticketEditstatus').selectOption('EN EJECUCIÓN');await click('[data-action="save-ticket-update"]');await page.locator('#toast').filter({hasText:'Ticket actualizado'}).waitFor();assert.equal(tables.tickets.at(-1).operational_status,'EN EJECUCIÓN');
  await click('#detailDialog [data-action="close-dialog"]');await click('[data-action="filters"]');await page.locator('#filterForm [name="equipmentType"]').selectOption('GENERADORES A DIESEL');await page.locator('#filterForm [name="priority"]').selectOption('2');await click('#filterForm [type="submit"]');assert.match(await page.locator('#resultAnnouncement').innerText(),/1 tickets/);
  for(const width of [390,768,1360]){await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await click('[data-action="new-ticket"]');assert.equal(await page.locator('#newTicketDialog').isVisible(),true);await page.screenshot({path:`${process.env.SCREENSHOT_DIR||'.'}/ui-${width}.png`,fullPage:true});await click('#newTicketDialog [data-action="close-dialog"]');}
+ // Deletion is only in ticket details; protected historical records cannot be marked.
+ await page.setViewportSize({width:1360,height:1000});
+ assert.equal(await page.locator('#content [data-action="delete-ticket"]').count(),0);
+ await click('[data-action="clear"]');
+ await click('[data-action="ticket"][data-id="seed"]');
+ assert.equal(await page.locator('#detailDialog [data-action="delete-ticket"]').count(),0);
+ await click('#detailDialog [data-action="close-dialog"]');
+ await click('[data-action="new-ticket"]');
+ await page.locator('#newTicketclient').selectOption('Cliente prueba');await page.locator('#newTicketbusinessUnit').selectOption('SUDMAR');await fill('#newTicketserviceCategory','Cursos');
+ for(const k of ['what','where','condition','required'])await fill('#newTicket'+k,'Prueba controlada '+k);
+ await page.locator('#newTicketIsTest').check();await click('#newTicketForm [type="submit"]');await page.locator('#newTicketDialog').waitFor({state:'hidden'});
+ const disposable=tables.tickets.at(-1);assert.equal(disposable.is_test,true);
+ await click('[data-action="ticket"][data-id="'+disposable.id+'"]');await click('[data-action="delete-ticket"]');
+ assert.equal(await page.locator('#confirmDeleteTicket').isDisabled(),true);
+ await fill('#deleteTicketFolio','incorrecto');assert.equal(await page.locator('#confirmDeleteTicket').isDisabled(),true);
+ await fill('#deleteTicketFolio',disposable.folio);assert.equal(await page.locator('#confirmDeleteTicket').isEnabled(),true);
+ await click('#deleteTicketDialog [data-action="close-dialog"]');assert.ok(tables.tickets.includes(disposable));
+ await click('[data-action="delete-ticket"]');await fill('#deleteTicketFolio',disposable.folio);rejectNext=true;
+ await click('#confirmDeleteTicket');await page.locator('#deleteTicketError').filter({hasText:'cancelarse/archivarse'}).waitFor();assert.ok(tables.tickets.includes(disposable));
+ await click('#confirmDeleteTicket');await page.locator('#deleteTicketDialog').waitFor({state:'hidden'});
+ assert.equal(tables.tickets.includes(disposable),false);assert.ok(tables.tickets.some(t=>t.id==='seed'));
  assert.deepEqual(errors,[]);console.log('All operational UI flows passed (desktop/tablet/mobile).');
 }finally{await browser.close();server.close();}
 

@@ -371,7 +371,7 @@ async function submitNewTicket(event){
  event.preventDefault();const error=$('newTicketError');error.textContent='';
  if(!repository.canWrite()){error.textContent='La conexión de escritura con Supabase todavía no está disponible.';return;}
  const button=event.submitter;button.disabled=true;
- try{await repository.createTicket(readTicketFields('newTicket'));$('newTicketDialog').close();await refreshOperationalData();toast('Ticket creado y guardado en Supabase.');}
+ try{await repository.createTicket({...readTicketFields('newTicket'),isTest:$('newTicketIsTest')?.checked===true});$('newTicketDialog').close();await refreshOperationalData();toast('Ticket creado y guardado en Supabase.');}
  catch(err){error.textContent=err.message||'No se pudo guardar el ticket.';}finally{button.disabled=false;}
 }
 async function submitNewTask(event){
@@ -432,6 +432,7 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
  if(a==='remove-filter'){state.filters[b.dataset.key]=blankFilters()[b.dataset.key];state.page=1;render();}
  if(a==='filter')setFilter(b.dataset.key,b.dataset.value);
  if(a==='ticket')showTicketDetail(b.dataset.id);
+ if(a==='delete-ticket')confirmTicketDeletion(b.dataset.id);
  if(a==='save-ticket-update'){(async()=>{
   b.disabled=true;
   try{
@@ -578,7 +579,7 @@ function readTicketFields(prefix,original={}){
  return {client:client.name,businessUnit,serviceCategoryId:category?.id||'',priority:val('priority'),status:val('status'),owner:val('owner'),area:val('area'),openedAt:val('openedAt'),dueAt:val('dueAt'),...(model?{catalogModelId:model.id,catalogSerialId:serial?.id||''}:{}),...(!original.id||hasRequest?{requestContext}:{})};
 }
 function openNewTicket(){
- $('newTicketForm').querySelector('.filter-fields').innerHTML=ticketFields('newTicket');$('newTicketError').textContent='';$('newTicketDialog').showModal();
+ $('newTicketForm').querySelector('.filter-fields').innerHTML=ticketFields('newTicket')+(config.features.testTicketDeletion?'<label class="full-width"><input id="newTicketIsTest" type="checkbox"> Ticket de prueba (solo podrá eliminarse mientras no registre trabajo real)</label>':'');$('newTicketError').textContent='';$('newTicketDialog').showModal();
 }
 function showTicketDetail(id){
  const t=state.data.tickets.find(t=>t.id===id);if(!t)return;
@@ -594,6 +595,7 @@ function showTicketDetail(id){
  </div><button class="button primary" data-action="save-ticket-update" data-id="${e(id)}">Guardar cambios</button></section>
  ${t.legacyStatus||t.legacyStage||t.legacyDiagnosis?`<details class="detail-section"><summary>Información histórica conservada</summary><p>Estado original: ${e(t.legacyStatus)} · Etapa original: ${e(t.legacyStage)}</p><p class="note-text">${e(t.legacyDiagnosis)}</p></details>`:''}
  <section class="detail-section"><h3>Actividades del ticket (${tasks.length})</h3><button class="button primary" data-action="new-task" data-folio="${e(t.folio)}">+ Agregar actividad</button>${tasks.map(x=>taskRow(x,true)).join('')}</section>
+ ${ticketDeletionSection(t)}
  <section class="detail-section"><p>Cierre real: ${e(t.closedAt||'Sin cierre')}</p>${url?`<a href="${e(url)}" target="_blank" rel="noopener noreferrer">Abrir evidencias</a>`:''}</section>`);
 }
 function activityFields(prefix,task={}){
@@ -678,3 +680,29 @@ document.addEventListener('input',event=>{
  for(const prefix of ['newTicket','ticketEdit'])if(event.target.id===prefix+'clientSearch')renderClientOptions(prefix);
  for(const prefix of ['newTicket','ticketEdit'])if(Object.keys(requestQuestions).some(k=>event.target.id===prefix+k))$(prefix+'summary').textContent=requestSummary(Object.fromEntries(Object.keys(requestQuestions).map(k=>[k,$(prefix+k).value])));
 });
+
+function ticketDeletionSection(t){
+ if(!config.features.testTicketDeletion||!repository.canWrite())return '';
+ return '<section class="detail-section"><h3>Eliminación temporal de pruebas</h3><p>Solo tickets nuevos marcados como prueba y sin actividad real. Los tickets con historial deben cancelarse/archivarse.</p>'+(t.isTest?'<button class="button secondary" data-action="delete-ticket" data-id="'+e(t.id)+'">Eliminar ticket</button>':'<p>Ticket protegido: no fue creado como prueba.</p>')+'</section>';
+}
+function confirmTicketDeletion(id){
+ const t=state.data.tickets.find(x=>x.id===id);if(!t?.isTest)return;
+ const used=state.data.tasks.some(x=>x.ticketFolio===t.folio||String(x.antecedentFolio)===t.folio)||t.evidenceUrl||t.log||t.technicalFindings||t.workPerformed||t.finalCondition||t.closedAt||t.status!=='REGISTRADO';
+ let dialog=$('deleteTicketDialog');if(!dialog){dialog=document.createElement('dialog');dialog.id='deleteTicketDialog';dialog.className='small-dialog';document.body.append(dialog);}
+ dialog.innerHTML='<form id="deleteTicketForm"><div class="dialog-header"><h2>Eliminar ticket #'+e(t.folio)+'</h2><button type="button" class="icon-button" data-action="close-dialog" aria-label="Cerrar">×</button></div><div class="dialog-body">'+(used?'<p>El ticket tiene actividades, evidencias o seguimiento. Debe cancelarse/archivarse; no puede eliminarse.</p>':'<p>Esta acción elimina definitivamente el ticket de prueba. La base de datos comprobará nuevamente que no tenga historial operativo.</p><label for="deleteTicketFolio">Escribe el folio '+e(t.folio)+' para confirmar</label><input id="deleteTicketFolio" autocomplete="off" required><p id="deleteTicketError" role="alert"></p>')+'</div><div class="dialog-footer"><button type="button" class="button secondary" data-action="close-dialog">Volver</button>'+(used?'':'<button type="submit" id="confirmDeleteTicket" class="button primary" disabled>Eliminar definitivamente</button>')+'</div></form>';
+ if(!used){
+  let busy=false;
+  $('deleteTicketFolio').addEventListener('input',()=>{$('confirmDeleteTicket').disabled=busy||$('deleteTicketFolio').value!==t.folio;});
+  $('deleteTicketForm').addEventListener('submit',async event=>{
+   event.preventDefault();if(busy||$('deleteTicketFolio').value!==t.folio)return;
+   busy=true;$('confirmDeleteTicket').disabled=true;$('deleteTicketError').textContent='';
+   try{
+    await repository.deleteTestTicket(t.id,$('deleteTicketFolio').value);
+    dialog.close();$('detailDialog').close();state.data.tickets=state.data.tickets.filter(x=>x.id!==t.id);render();
+    try{await refreshOperationalData();toast('Ticket de prueba eliminado definitivamente.');}catch{toast('Ticket eliminado. No se pudo actualizar la vista; recarga la página.');}
+   }catch(err){$('deleteTicketError').textContent=err.message;}
+   finally{busy=false;if($('confirmDeleteTicket'))$('confirmDeleteTicket').disabled=$('deleteTicketFolio').value!==t.folio;}
+  });
+ }
+ dialog.showModal();if(!used)$('deleteTicketFolio').focus();
+}
