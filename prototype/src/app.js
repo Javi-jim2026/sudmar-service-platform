@@ -437,9 +437,11 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
   b.disabled=true;
   try{
     const original=state.data.tickets.find(t=>t.id===b.dataset.id);
-    await repository.updateTicket(b.dataset.id,{...readTicketFields('ticketEdit',original),
+    const updated=await repository.updateTicket(b.dataset.id,{...readTicketFields('ticketEdit',original),
       log:$('ticketEditLog').value,technicalFindings:$('ticketEditTechnicalFindings').value,
       workPerformed:$('ticketEditWorkPerformed').value,finalCondition:$('ticketEditFinalCondition').value});
+    if(state.filters.folio===original.folio)state.filters.folio=updated.folio;
+    if(state.filters.q===original.folio)state.filters.q=updated.folio;
     await refreshOperationalData();
     showTicketDetail(b.dataset.id);
     toast('Ticket actualizado en Supabase.');
@@ -545,6 +547,7 @@ const slaSelect=(id,value)=>field('SLA técnico',`<select id="${id}" name="prior
 function ticketFields(prefix,t={}){
  const c=catalogs(),model=c.models.find(m=>m.id===t.catalogModelId),category=c.categories.find(x=>x.id===t.serviceCategoryId);
  return `<h3 class="full-width">Cliente y servicio</h3>`+
+ field('Número de ticket / folio',`<input id="${prefix}folio" name="folio" value="${e(t.folio??String(state.data.tickets.reduce((max,t)=>/^\d+$/.test(t.folio)&&Number.isSafeInteger(Number(t.folio))?Math.max(max,Number(t.folio)):max,0)+1))}" required autocomplete="off">`,'Puedes escribir o cambiar el folio. No puede repetirse en otro ticket.')+
  field('Unidad de negocio',`<select id="${prefix}businessUnit" name="businessUnit"><option value="">Seleccionar</option>${['SUDMAR','PRETTL'].map(x=>`<option ${x===t.businessUnit?'selected':''}>${x}</option>`).join('')}${t.businessUnit&&!['SUDMAR','PRETTL'].includes(t.businessUnit)?`<option selected value="${e(t.businessUnit)}">${e(t.businessUnit)} (histórico)</option>`:''}</select>`)+
  clientControl(prefix,t.client)+
  catalogControl(prefix,'serviceCategory','Categoría de servicio',c.categories.filter(x=>x.business_unit===t.businessUnit).map(x=>x.name),category?.name||'','service_categories')+
@@ -576,7 +579,7 @@ function readTicketFields(prefix,original={}){
  if(!original.id||hasRequest)validateRequest(requestContext);
  if(!val('status'))throw Error('Selecciona el estado operativo.');
  if(val('dueAt')&&val('dueAt')<val('openedAt'))throw Error('La fecha objetivo no puede ser anterior al inicio.');
- return {client:client.name,businessUnit,serviceCategoryId:category?.id||'',priority:val('priority'),status:val('status'),owner:val('owner'),area:val('area'),openedAt:val('openedAt'),dueAt:val('dueAt'),...(model?{catalogModelId:model.id,catalogSerialId:serial?.id||''}:{}),...(!original.id||hasRequest?{requestContext}:{})};
+ return {folio:val('folio'),client:client.name,businessUnit,serviceCategoryId:category?.id||'',priority:val('priority'),status:val('status'),owner:val('owner'),area:val('area'),openedAt:val('openedAt'),dueAt:val('dueAt'),...(model?{catalogModelId:model.id,catalogSerialId:serial?.id||''}:{}),...(!original.id||hasRequest?{requestContext}:{})};
 }
 function openNewTicket(){
  $('newTicketForm').querySelector('.filter-fields').innerHTML=ticketFields('newTicket')+(config.features.testTicketDeletion?'<label class="full-width"><input id="newTicketIsTest" type="checkbox"> Ticket de prueba (solo podrá eliminarse mientras no registre trabajo real)</label>':'');$('newTicketError').textContent='';$('newTicketDialog').showModal();

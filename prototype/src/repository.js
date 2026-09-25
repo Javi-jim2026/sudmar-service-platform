@@ -28,7 +28,7 @@ async function supabaseRequest(path, options={}) {
     let message='No se pudo completar la operación en Supabase.';
     try {
       const body=await response.json();
-      message=body?.message||body?.hint||body?.details||message;
+      message=body?.code==='23505' && /folio/.test([body.message,body.details].join(' ')) ? 'Ya existe un ticket con ese número de ticket / folio. Escribe otro; no se guardaron los cambios.' : body?.message||body?.hint||body?.details||message;
     } catch {}
     throw new Error(message);
   }
@@ -230,7 +230,9 @@ export class SnapshotRepository {
     return body;
   }
   async createTicket(payload) {
+    const folio=await this.validateTicketFolio(payload.folio);
     const body=await this.ticketBody(payload,true);body.is_test=payload.isTest===true;body.operational_status=payload.status||'REGISTRADO';
+    body.folio=folio;
     const rows=await supabaseRequest('/rest/v1/tickets',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(body)});return rows[0];
   }
 
@@ -306,9 +308,19 @@ export class SnapshotRepository {
   }
 
   async updateTicket(id,changes) {
+    const folio=changes.folio===undefined?undefined:await this.validateTicketFolio(changes.folio,id);
     const body=await this.ticketBody(changes);
+    if(folio!==undefined)body.folio=folio;
     const rows=await supabaseRequest(`/rest/v1/tickets?id=${exact(id)}&select=*`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(body)});
     if(!rows?.[0])throw Error('No se pudo actualizar el ticket.');return rows[0];
+  }
+
+  async validateTicketFolio(value,id) {
+    const folio=String(value??'').trim();
+    if(!folio)throw Error('Escribe el número de ticket / folio.');
+    const rows=await supabaseRequest(`/rest/v1/tickets?select=id&folio=${exact(folio)}&limit=1`);
+    if(rows.some(row=>row.id!==id))throw Error('Ya existe un ticket con ese número de ticket / folio. Escribe otro; no se guardaron los cambios.');
+    return folio;
   }
 
   async personnel() {

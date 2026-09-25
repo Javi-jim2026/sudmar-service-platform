@@ -24,7 +24,7 @@ await page.route('https://*.supabase.co/rest/v1/**',async route=>{
  }
  if(req.method()==='POST'){
   if(rejectNext){rejectNext=false;return route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({message:'Permiso denegado de prueba'})});}
-  const row={...req.postDataJSON(),id:'new-'+sequence,folio:String(sequence++),updated_at:new Date().toISOString()};tables[table].push(row);rows=[row];
+  const row={id:'new-'+sequence,folio:String(sequence++),...req.postDataJSON(),updated_at:new Date().toISOString()};tables[table].push(row);rows=[row];
  }
  if(req.method()==='PATCH')for(const row of rows)Object.assign(row,req.postDataJSON());
  await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(rows.slice(Number(url.searchParams.get('offset')||0),Number(url.searchParams.get('offset')||0)+1000))});
@@ -48,8 +48,13 @@ try{
  await page.locator('#newTicketowner').selectOption('Javier Jimenez');assert.equal(await page.locator('#newTicketarea').inputValue(),'Operaciones');
  for(const [k,v]of Object.entries({what:'No funciona',where:'Motor de arranque',condition:'Al intentar encender en frío',required:'Diagnóstico eléctrico en sitio'}))await fill('#newTicket'+k,v);
  await page.locator('#newTicketpriority').selectOption('2');
+ await fill('#newTicketfolio','9000');
+ await click('#newTicketForm [type="submit"]');await page.locator('#newTicketError').filter({hasText:'Ya existe'}).waitFor();
+ assert.equal(tables.tickets.length,1);
+ await fill('#newTicketfolio','MANUAL-001');
  await click('#newTicketForm [type="submit"]');await page.locator('#newTicketDialog').waitFor({state:'hidden'});
  const ticket=tables.tickets.at(-1);assert.equal(ticket.catalog_model_id,'model');assert.equal(ticket.catalog_serial_id,'serial');assert.equal(ticket.priority,'P2');assert.equal(ticket.operational_status,'REGISTRADO');assert.match(ticket.description,/Motor de arranque/);
+ assert.equal(ticket.folio,'MANUAL-001');
  await click('[data-action="new-ticket"]');assert.equal(await page.locator('#newTicketclient option[value="Cliente Nuevo"]').count(),1);
  await add('equipment_models','newTicket','Modelo nuevo',async()=>fill('#catalogForm [name="equipment_type"]','PORTATILES'));assert.equal(await page.locator('#newTicketequipmentType').inputValue(),'PORTATILES');
  await add('equipment_serials','newTicket','SERIE-NUEVA');assert.equal(tables.equipment_serials.at(-1).model_id,tables.equipment_models.at(-1).id);
@@ -68,7 +73,13 @@ try{
  assert.equal(tables.tasks[0].activity_status,'COMPLETADA');assert.equal(tables.tasks[0].notes,'Requerimiento original');assert.equal(tables.tasks[0].checklist.filter(i=>i.completed).length,11);
  await click('#detailDialog [data-action="ticket"]');await fill('#ticketEditTechnicalFindings','Batería descargada');await fill('#ticketEditWorkPerformed','Sustitución de batería');await fill('#ticketEditFinalCondition','Operativo');await page.locator('#ticketEditstatus').selectOption('CONCLUIDO');await click('[data-action="save-ticket-update"]');await page.locator('#cedulaText').filter({hasText:'Sustitución de batería'}).waitFor();
  await click('[data-action="copy-cedula"]');assert.match(await page.evaluate(()=>navigator.clipboard.readText()),/Sustitución de batería/);
- await page.locator('#ticketEditstatus').selectOption('EN EJECUCIÓN');await click('[data-action="save-ticket-update"]');await page.locator('#toast').filter({hasText:'Ticket actualizado'}).waitFor();assert.equal(tables.tickets.at(-1).operational_status,'EN EJECUCIÓN');
+ await fill('#ticketEditfolio','9000');await click('[data-action="save-ticket-update"]');await page.locator('#toast').filter({hasText:'Ya existe'}).waitFor();
+ assert.equal(ticket.folio,'MANUAL-001');assert.equal(tables.tickets[0].folio,'9000');
+ await fill('#ticketEditfolio','EDITADO-002');await click('[data-action="save-ticket-update"]');
+ await page.locator('#detailDialog').filter({hasText:'Ticket #EDITADO-002'}).waitFor();
+ assert.equal(ticket.folio,'EDITADO-002');assert.equal(tables.tasks[0].ticket_id,ticket.id);
+ assert.match(await page.locator('#detailDialog').innerText(),/Actividades del ticket \(1\)/);
+ await page.locator('#ticketEditstatus').selectOption('EN EJECUCIÓN');await Promise.all([page.waitForResponse(r=>r.request().method()==='PATCH'&&r.url().includes('/tickets?')),click('[data-action="save-ticket-update"]')]);await page.locator('#detailDialog .detail-badges').filter({hasText:'EN EJECUCIÓN'}).waitFor();assert.equal(tables.tickets.at(-1).operational_status,'EN EJECUCIÓN');
  await click('#detailDialog [data-action="close-dialog"]');await click('[data-action="filters"]');await page.locator('#filterForm [name="equipmentType"]').selectOption('GENERADORES A DIESEL');await page.locator('#filterForm [name="priority"]').selectOption('2');await click('#filterForm [type="submit"]');assert.match(await page.locator('#resultAnnouncement').innerText(),/1 tickets/);
  for(const width of [390,768,1360]){await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await click('[data-action="new-ticket"]');assert.equal(await page.locator('#newTicketDialog').isVisible(),true);await page.screenshot({path:`${process.env.SCREENSHOT_DIR||'.'}/ui-${width}.png`,fullPage:true});await click('#newTicketDialog [data-action="close-dialog"]');}
  // Deletion is only in ticket details; protected historical records cannot be marked.
