@@ -1,15 +1,15 @@
 // Pure domain functions: the UI, a future API adapter and tests share these rules.
 export const normalized = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 export const clean = value => String(value ?? '').trim();
-export const blankFilters = () => ({ q: '', folio: '', priority: '', client: '', businessUnit: '', area: '', stage: '', owner: '', status: '', model: '', serial: '', from: '', to: '', dateField: 'openedAt', overdue: false, activeOnly: false });
+export const blankFilters = () => ({ q: '', folio: '', priority: '', client: '', businessUnit: '', area: '', stage: '', equipmentType:'', owner: '', status: '', model: '', serial: '', from: '', to: '', dateField: 'openedAt', overdue: false, activeOnly: false });
 const terminal = new Set(['cerrado', 'cancelado', 'cancelada', 'aprobada', 'aprobado', 'concluida', 'concluido']);
-const known = new Set(['abierto', 'cerrado', 'cancelado', 'cancelada', 'en espera', 'cobranza', 'inactivo', 'consigna', 'nueva', 'asignada', 'aceptada', 'en proceso', 'pausada', 'esperando info', 'bloqueada', 'pendiente validacion', 'pendiente validación', 'aprobada', 'aprobado', 'concluida', 'concluido']);
+const known = new Set(['registrado','programado','en ejecucion','bloqueado','pendiente de validacion','abierto', 'cerrado', 'cancelado', 'cancelada', 'en espera', 'cobranza', 'inactivo', 'consigna', 'nueva', 'asignada', 'aceptada', 'en proceso', 'pausada', 'esperando info', 'bloqueada', 'pendiente validacion', 'pendiente validación', 'aprobada', 'aprobado', 'concluida', 'concluido']);
 export const isKnownStatus = t => known.has(normalized(t.status));
 export const isClosed = t => terminal.has(normalized(t.status));
 export const isActive = t => isKnownStatus(t) && !isClosed(t);
 export const isOverdue = (t, today) => isActive(t) && Boolean(t.dueAt) && t.dueAt < today;
-export const taskComplete = t => t.checked === true || ['completas', 'completa', 'completada', 'concluida'].includes(normalized(t.status));
-export const taskClosed = t => taskComplete(t) || ['cancelada','cancelado'].includes(normalized(t.status));
+export const taskComplete = t => (t.statusGroup==='CERRADA'&&!t.isCancelled) || t.checked === true || ['completas', 'completa', 'completada', 'concluida'].includes(normalized(t.status));
+export const taskClosed = t => t.statusGroup==='CERRADA' || taskComplete(t) || ['cancelada','cancelado'].includes(normalized(t.status));
 export const validSerial = value => !['', '-', 'na', 'n/a', 's/n', 'sn', 'no aplica', 'sin serie', 'sin numero de serie', 'pendiente', 'varios', '#n/a'].includes(normalized(value));
 export const unique = items => [...new Set(items.filter(v => v !== null && v !== undefined && clean(v) !== '').map(clean))].sort((a,b) => a.localeCompare(b,'es',{numeric:true}));
 
@@ -18,7 +18,7 @@ export function filterTickets(tickets, filters, today) {
   return tickets.filter(t => {
     if (query && ![t.folio,t.title,t.client,t.model,t.serial,t.log,t.diagnosis].some(v=>normalized(v).includes(query))) return false;
     if (filters.folio && !normalized(t.folio).includes(normalized(filters.folio))) return false;
-    for (const key of ['priority','client','businessUnit','area','stage','owner','status','model','serial']) {
+    for (const key of ['priority','client','businessUnit','area','stage','equipmentType','owner','status','model','serial']) {
       if (filters[key] === '__EMPTY__' && clean(t[key]) !== '') return false;
       if (filters[key] && filters[key] !== '__EMPTY__' && clean(t[key]) !== filters[key]) return false;
     }

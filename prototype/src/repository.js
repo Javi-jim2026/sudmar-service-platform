@@ -1,3 +1,4 @@
+import {catalogKey,validateRequest,requestSummary} from './operations.js';
 import {validateActivity, validateChecklist, activityCategories} from './checklist.js';
 import {config} from './config.js';
 
@@ -37,7 +38,8 @@ async function supabaseRequest(path, options={}) {
 }
 
 async function fetchSupabaseTable(table, select, extra='') {
-  return supabaseRequest(`/rest/v1/${table}?select=${encodeURIComponent(select)}${extra}`);
+  const result=[];let offset=0;
+  while(true){const rows=await supabaseRequest(`/rest/v1/${table}?select=${encodeURIComponent(select)}${extra}&limit=1000&offset=${offset}`);result.push(...rows);if(rows.length<1000)break;offset+=1000;}return result;
 }
 
 const exact = value => encodeURIComponent('eq.'+value);
@@ -60,16 +62,18 @@ export class SnapshotRepository {
   async loadSupabase() {
     const [tickets, clients, equipment, personnel, tasks] = await Promise.all([
       fetchSupabaseTable('tickets',
-        'id,folio,client_id,equipment_id,owner_id,area,business_unit,stage,title,description,priority,status,opened_at,due_at,closed_at,logbook,diagnosis,folder_url,source_model,source_serial,source_row',
+        '*',
         '&order=folio.desc'),
       fetchSupabaseTable('clients','id,name'),
-      fetchSupabaseTable('equipment','id,client_id,model,serial_number'),
+      fetchSupabaseTable('equipment','id,client_id,model,serial_number,equipment_type'),
       fetchSupabaseTable('personnel','id,name,role,area'),
       fetchSupabaseTable('tasks',
-        'id,task_code,ticket_id,client_id,assignee_id,task_type,title,reference,area,priority,status,start_at,due_at,completed_at,notes,resolution,outcome,created_by,created_at,updated_at,category,checklist',
+        '*',
         '&order=created_at.desc')
     ]);
 
+    const catalogs=await this.catalogs();
+    this.catalogData=catalogs;
     const clientsById=new Map(clients.map(item=>[item.id,item]));
     const equipmentById=new Map(equipment.map(item=>[item.id,item]));
     const personnelById=new Map(personnel.map(item=>[item.id,item]));
@@ -93,9 +97,13 @@ export class SnapshotRepository {
         openedAt: dateOnly(row.opened_at),
         dueAt: dateOnly(row.due_at),
         closedAt: dateOnly(row.closed_at),
-        model: row.source_model??unit?.model??'',
-        serial: row.source_serial??unit?.serial_number??'',
-        status: row.status??'',
+        model: row.catalog_model_id ? (catalogs.models.find(m=>m.id===row.catalog_model_id)?.name??row.source_model??'') : (row.source_model??unit?.model??''),
+        serial: row.catalog_model_id ? (catalogs.serials.find(s=>s.id===row.catalog_serial_id)?.serial_number??row.source_serial??'') : (row.source_serial??unit?.serial_number??''),
+        status: row.operational_status??'POR CLASIFICAR',
+        legacyStatus:row.legacy_status??row.status,legacyStage:row.legacy_stage??row.stage,legacyDiagnosis:row.legacy_diagnosis??row.diagnosis,
+        requestContext:row.request_context,technicalFindings:row.technical_findings??'',workPerformed:row.work_performed??'',finalCondition:row.final_condition??'',
+        serviceCategoryId:row.service_category_id??'',catalogModelId:row.catalog_model_id??'',catalogSerialId:row.catalog_serial_id??'',
+        equipmentType:catalogs.models.find(m=>m.id===row.catalog_model_id)?.equipment_type??unit?.equipment_type??'',
         log: row.logbook??'',
         diagnosis: row.diagnosis??row.description??'',
         evidenceUrl: row.folder_url??null,
@@ -113,6 +121,9 @@ export class SnapshotRepository {
         id: row.id,
         platformId: row.task_code??'',
         category: row.category??null,
+        antecedentFolio:ticketsById.get(row.antecedent_ticket_id)?.folio??'',
+        statusGroup:catalogs.statuses.find(s=>s.name===row.activity_status)?.group_code,
+        isCancelled:catalogs.statuses.find(s=>s.name===row.activity_status)?.is_cancelled,
         checklist: row.checklist??[],
         updatedAt: row.updated_at,
         ticketFolio: ticket?.folio ? String(ticket.folio) : '',
@@ -138,7 +149,7 @@ export class SnapshotRepository {
         duration: null,
         dueAt: dateOnly(row.due_at),
         completedAt: dateOnly(row.completed_at),
-        status: row.status??'',
+        status: row.activity_status??row.status??'',
         checked: ['COMPLETAS','COMPLETA','COMPLETADA','CONCLUIDA'].includes(String(row.status??'').toUpperCase()),
         sourceProgress: null,
         sourceDaysCompleted: null,
@@ -159,6 +170,7 @@ export class SnapshotRepository {
         sheets:[],
         quality:{duplicateTicketFolios:[],taskFoliosNotInTickets:[],tasksWithoutTitle:mappedTasks.filter(t=>!t.title).length},
       },
+      catalogs,
       tickets:mappedTickets,
       tasks:mappedTasks,
     };
@@ -185,49 +197,44 @@ export class SnapshotRepository {
     return rows?.[0]?.id??null;
   }
 
-  async createEquipment({clientId,model,serial}) {
-    if (!model && !serial) return null;
-    if (serial) {
-      const found=await supabaseRequest(`/rest/v1/equipment?select=id&serial_number=${exact(serial)}&limit=1`);
-      if (found?.[0]?.id) return found[0].id;
-    }
-    const rows=await supabaseRequest('/rest/v1/equipment',{
-      method:'POST',
-      headers:{Prefer:'return=representation'},
-      body:JSON.stringify({client_id:clientId,model:model||null,serial_number:serial||null})
-    });
-    return rows?.[0]?.id??null;
+  async catalogs() {
+    const [clients,models,serials,categories,types,statuses]=await Promise.all([
+      fetchSupabaseTable('clients','id,name','&order=name.asc'),fetchSupabaseTable('equipment_models','*','&order=name.asc'),
+      fetchSupabaseTable('equipment_serials','*','&order=id.asc'),fetchSupabaseTable('service_categories','*','&order=name.asc'),
+      fetchSupabaseTable('activity_types','*','&order=name.asc'),fetchSupabaseTable('activity_statuses','*','&order=name.asc')]);
+    return {clients,models,serials,categories,types,statuses};
   }
-
+  async addCatalog(table,body) {
+    const allowed=['clients','equipment_models','equipment_serials','service_categories','activity_types','activity_statuses'];
+    if(!allowed.includes(table))throw Error('Catálogo no permitido.');
+    const rows=await supabaseRequest('/rest/v1/'+table,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(body)});
+    return rows[0];
+  }
+  async ticketBody(payload,creating=false) {
+    const body={updated_at:new Date().toISOString()};
+    if(payload.requestContext){validateRequest(payload.requestContext);body.request_context=payload.requestContext;body.description=requestSummary(payload.requestContext);body.title=body.description.slice(0,180);}
+    else if(creating)throw Error('Completa la captura guiada.');
+    if(payload.client!==undefined){const clients=(await this.catalogs()).clients;const c=clients.find(c=>catalogKey(c.name)===catalogKey(payload.client));if(!c)throw Error('Selecciona un cliente del catálogo.');body.client_id=c.id;}
+    if(payload.owner!==undefined)body.owner_id=await this.lookupId('personnel','name',payload.owner);
+    const mapping={area:'area',businessUnit:'business_unit',priority:'priority',status:'operational_status',openedAt:'opened_at',dueAt:'due_at',serviceCategoryId:'service_category_id',catalogModelId:'catalog_model_id',catalogSerialId:'catalog_serial_id',log:'logbook',technicalFindings:'technical_findings',workPerformed:'work_performed',finalCondition:'final_condition'};
+    for(const [key,column] of Object.entries(mapping))if(payload[key]!==undefined)body[column]=payload[key]||null;
+    if(body.priority)body.priority='P'+String(body.priority).replace(/^P/,'');
+    if(payload.catalogModelId!==undefined){
+      const catalogs=await this.catalogs();const model=catalogs.models.find(m=>m.id===payload.catalogModelId);
+      const serial=catalogs.serials.find(s=>s.id===payload.catalogSerialId);
+      if(payload.catalogModelId&&!model)throw Error('Modelo no disponible.');
+      if(serial&&serial.model_id!==model?.id)throw Error('La serie no corresponde al modelo.');
+      if(model){body.source_model=model.name;body.source_serial=serial?.serial_number||null;}
+    }
+    return body;
+  }
   async createTicket(payload) {
-    const clientId=await this.lookupId('clients','name',payload.client);
-    if (!clientId) throw new Error('El cliente seleccionado no existe en Supabase.');
-    const ownerId=payload.owner ? await this.lookupId('personnel','name',payload.owner) : null;
-    const equipmentId=await this.createEquipment({clientId,model:payload.model,serial:payload.serial});
-    const rows=await supabaseRequest('/rest/v1/tickets',{
-      method:'POST',
-      headers:{Prefer:'return=representation'},
-      body:JSON.stringify({
-        client_id:clientId,
-        equipment_id:equipmentId,
-        owner_id:ownerId,
-        area:payload.area||null,
-        business_unit:payload.businessUnit||null,
-        title:payload.title,
-        description:payload.description||null,
-        priority:payload.priority ? 'P'+payload.priority : null,
-        status:'NUEVA',
-        stage:'Nueva',
-        opened_at:payload.openedAt||null,
-        due_at:payload.dueAt||null,
-      })
-    });
-    return rows?.[0]??null;
+    const body=await this.ticketBody(payload,true);body.operational_status=payload.status||'REGISTRADO';
+    const rows=await supabaseRequest('/rest/v1/tickets',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(body)});return rows[0];
   }
 
   async createTask(payload) {
     validateActivity(payload);
-    if (!activityCategories.includes(payload.category)) throw new Error('Selecciona la categoría general.');
     if (!payload.ticketFolio) throw new Error('Toda actividad debe estar ligada a un ticket.');
     const tickets=await supabaseRequest(`/rest/v1/tickets?select=id,client_id&folio=${exact(payload.ticketFolio)}&limit=1`);
     if (!tickets?.[0]) throw new Error('El ticket relacionado no existe.');
@@ -243,13 +250,15 @@ export class SnapshotRepository {
         client_id:clientId,
         assignee_id:assigneeId,
         task_type:payload.taskType||'SEGUIMIENTO',
-        category:payload.category,
+        category:null,
+        antecedent_ticket_id:payload.antecedentFolio?await this.lookupId('tickets','folio',payload.antecedentFolio):null,
         checklist:validateChecklist(payload.checklist||[]),
-        title:payload.title,
-        reference:payload.reference||null,
+        title:payload.taskType,
+
         area:payload.area||null,
         priority:payload.priority||null,
-        status:payload.status||'SIN INICIAR',
+        activity_status:payload.status||'POR INICIAR',
+        outcome:payload.outcome||null,resolution:payload.resolution||null,
         start_at:payload.startAt||null,
         due_at:payload.dueAt||null,
         notes:payload.notes||null,
@@ -269,14 +278,10 @@ export class SnapshotRepository {
     if (changes.checklist!==undefined) body.checklist=validateChecklist(changes.checklist);
     if (changes.taskType!==undefined) body.task_type=changes.taskType||null;
     if (changes.title!==undefined) body.title=changes.title||null;
-    if (changes.reference!==undefined) body.reference=changes.reference||null;
+    if(changes.antecedentFolio!==undefined)body.antecedent_ticket_id=changes.antecedentFolio?await this.lookupId('tickets','folio',changes.antecedentFolio):null;
     if (changes.area!==undefined) body.area=changes.area||null;
     if (changes.priority!==undefined) body.priority=changes.priority||null;
-    if (changes.status!==undefined) {
-      body.status=changes.status||'SIN INICIAR';
-      if (String(body.status).toUpperCase()==='COMPLETADA') body.completed_at=new Date().toISOString();
-      else body.completed_at=null;
-    }
+    if(changes.status!==undefined)body.activity_status=changes.status;
     if (changes.startAt!==undefined) body.start_at=changes.startAt||null;
     if (changes.dueAt!==undefined) body.due_at=changes.dueAt||null;
     if (changes.notes!==undefined) body.notes=changes.notes||null;
@@ -291,44 +296,18 @@ export class SnapshotRepository {
     return rows[0];
   }
 
-  async updateTicket(id, changes) {
-    const body={updated_at:new Date().toISOString()};
-    let clientId;
-    if (changes.client!==undefined) {
-      clientId=changes.client ? await this.lookupId('clients','name',changes.client) : null;
-      if (changes.client && !clientId) throw new Error('El cliente seleccionado no existe en Supabase.');
-      body.client_id=clientId;
-    }
-    if (changes.title!==undefined) body.title=changes.title||null;
-    if (changes.description!==undefined) body.description=changes.description||null;
-    if (changes.status!==undefined) body.status=changes.status||null;
-    if (changes.stage!==undefined) body.stage=changes.stage||null;
-    if (changes.priority!==undefined) body.priority=changes.priority ? 'P'+String(changes.priority).replace(/^P/i,'') : null;
-    if (changes.owner!==undefined) body.owner_id=changes.owner ? await this.lookupId('personnel','name',changes.owner) : null;
-    if (changes.area!==undefined) body.area=changes.area||null;
-    if (changes.businessUnit!==undefined) body.business_unit=changes.businessUnit||null;
-    if (changes.openedAt!==undefined) body.opened_at=changes.openedAt||null;
-    if (changes.dueAt!==undefined) body.due_at=changes.dueAt||null;
-    if (changes.model!==undefined) body.source_model=changes.model||null;
-    if (changes.serial!==undefined) body.source_serial=changes.serial||null;
-    if (changes.log!==undefined) body.logbook=changes.log||null;
-    if (changes.diagnosis!==undefined) body.diagnosis=changes.diagnosis||null;
-    const rows=await supabaseRequest(`/rest/v1/tickets?id=${exact(id)}&select=*`,{
-      method:'PATCH',
-      headers:{Prefer:'return=representation'},
-      body:JSON.stringify(body)
-    });
-    if (changes.client!==undefined) {
-      await supabaseRequest(`/rest/v1/tasks?ticket_id=${exact(id)}`,{
-        method:'PATCH',
-        headers:{Prefer:'return=minimal'},
-        body:JSON.stringify({client_id:clientId,updated_at:new Date().toISOString()})
-      });
-    }
-    return rows?.[0]??null;
+  async updateTicket(id,changes) {
+    const body=await this.ticketBody(changes);
+    const rows=await supabaseRequest(`/rest/v1/tickets?id=${exact(id)}&select=*`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(body)});
+    if(!rows?.[0])throw Error('No se pudo actualizar el ticket.');return rows[0];
   }
 
   async personnel() {
+    if(this.canWrite()){
+      const people=await fetchSupabaseTable('personnel','*','&active=eq.true&order=name.asc');
+      let reference=[];try{const response=await fetch(config.personnelUrl,{cache:'no-store'});reference=(await response.json()).people||[];}catch{}
+      return people.map(p=>({...reference.find(r=>catalogKey(r.name)===catalogKey(p.name)),...p,title:p.role,parentArea:'',operationalAreas:p.operational_areas||[p.area]}));
+    }
     const response=await fetch(config.personnelUrl,{cache:'no-store'});
     if (!response.ok) throw new Error('No se pudo cargar el catálogo de personal.');
     const data=await response.json();

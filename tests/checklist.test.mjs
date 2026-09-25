@@ -8,10 +8,10 @@ test('checklist progress handles empty, partial, full and hidden lists independe
   assert.deepEqual(checklistProgress({category:'OPERACIONES',status,checklist:[]}),{total:0,completed:0,percent:0});
   const checklist=Array.from({length:15},(_,i)=>({id:String(i),text:'Trabajo '+i,completed:i<10}));
   assert.equal(checklistProgress({category:'OPERACIONES',status,checklist}).percent,67);
-  assert.equal(checklistProgress({category:'COMPRAS',status,checklist}),null);
+  assert.equal(checklistProgress({category:'COMPRAS',status,checklist}).percent,67);
   assert.equal(checklistProgress({category:'OPERACIONES',status,checklist:checklist.map(i=>({...i,completed:true}))}).percent,100);
  }
- assert.equal(checklistProgress({}),null);
+ assert.equal(checklistProgress({}).percent,0);
 });
 test('checklist rejects malformed, duplicate and blank items; supports up to 500 jobs',()=>{
  const item={id:'a',text:'Trabajo',completed:false};

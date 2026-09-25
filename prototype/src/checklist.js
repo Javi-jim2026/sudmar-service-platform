@@ -14,7 +14,7 @@ export function validateChecklist(items) {
 }
 
 export function checklistProgress(task) {
-  if (task.category !== 'OPERACIONES') return null;
+  if (task.category && task.category !== 'OPERACIONES' && !task.checklist?.length) return null;
   const items = Array.isArray(task.checklist) ? task.checklist : [];
   const total = items.length;
   const completed = items.filter(item => item.completed === true).length;
