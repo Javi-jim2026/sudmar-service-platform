@@ -11,14 +11,39 @@ export const ticketStates={
 export const slaHelp='SLA-01: atención crítica. SLA-02: atención alta. SLA-03: atención normal. SLA-04: atención planificada. Indican orden de atención técnica; los tiempos se acuerdan en la fecha objetivo.';
 export const slaColors={'1':'#c74444','2':'#dc7b22','3':'#168ca8','4':'#788390'};
 export const requestQuestions={what:'¿Qué sucede?',where:'¿Dónde / en qué componente?',condition:'¿En qué condición ocurre?',required:'¿Qué se requiere realizar?'};
+export const simpleRequestSentinel='__SUDMAR_SIMPLE_REQUEST__';
 export const catalogKey=v=>String(v??'').trim().replace(/\s+/g,' ').toUpperCase();
-export function requestSummary(context){return context?`${context.what} · ${context.where} · ${context.condition}. Se requiere: ${context.required}`:'';}
+export const isSimpleRequest=context=>Boolean(context&&['what','where','condition'].every(key=>context[key]===simpleRequestSentinel));
+export function requestSummary(context){
+ if(!context)return '';
+ if(isSimpleRequest(context))return String(context.required||'').trim();
+ return `${context.what} · ${context.where} · ${context.condition}. Se requiere: ${context.required}`;
+}
 export function validateRequest(context){
+ if(isSimpleRequest(context)){
+  if(String(context.required||'').trim().length<4)throw Error('Completa ¿Qué se requiere realizar? con información concreta.');
+  return context;
+ }
  for(const [key,label] of Object.entries(requestQuestions))if(!context||String(context[key]||'').trim().length<4)throw Error(`Completa ${label} con información concreta.`);
  const detail=[context.where,context.condition,context.required].join(' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
  const generic=/^(presenta falla|revisar equipo|no funciona|cliente reporta problema|sin datos|no se sabe|no aplica|pendiente|equipo|falla|revision|normal|ninguna)$/;
  if([context.where,context.condition,context.required].filter(x=>!generic.test(String(x).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''))).length<2||detail.length<24)throw Error('Agrega el componente, la condición y la acción requerida; la solicitud necesita contexto.');
  return context;
+}
+export function suggestTicketTitle(context,maxLength=80){
+ if(!context)return '';
+ const source=isSimpleRequest(context)
+  ? String(context.required||'')
+  : [context.what,context.where].filter(Boolean).join(' · ');
+ let text=source.replace(/\s+/g,' ').trim()
+  .replace(/^(el\s+cliente\s+(reporta|solicita|requiere)\s+(que\s+)?|se\s+(requiere|solicita)\s+|solicitud\s+de\s+|realizar\s+)/i,'')
+  .replace(/[.·;,\s]+$/,'')
+  .trim();
+ if(!text)return '';
+ text=text.charAt(0).toUpperCase()+text.slice(1);
+ if(text.length<=maxLength)return text;
+ const cut=text.slice(0,maxLength+1);const lastSpace=cut.lastIndexOf(' ');
+ return (lastSpace>Math.floor(maxLength*.65)?cut.slice(0,lastSpace):text.slice(0,maxLength)).replace(/[.,;:\s]+$/,'')+'…';
 }
 export function operationalGroup(status){return ({REGISTRADO:'Pendientes',PROGRAMADO:'Pendientes','EN EJECUCIÓN':'Activos','EN ESPERA':'Detenidos',BLOQUEADO:'Detenidos','PENDIENTE DE VALIDACIÓN':'Por validar',CONCLUIDO:'Terminados',CANCELADO:'Terminados'})[status]||'Por clasificar';}
 export function cedulaSummary(t){return [['Ticket',`#${t.folio}`],['Cliente',t.client],['Equipo',[t.model,t.serial].filter(Boolean).join(' · ')],['Solicitud / incidencia reportada',t.description||t.title],['Hallazgo / diagnóstico técnico',t.technicalFindings],['Trabajo realizado / resolución',t.workPerformed],['Resultado / condición final',t.finalCondition],['Estado',t.status],['Cierre real',t.closedAt]].filter(([,v])=>v).map(([k,v])=>`${k}: ${v}`).join('\n');}
