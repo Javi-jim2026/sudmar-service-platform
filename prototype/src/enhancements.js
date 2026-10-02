@@ -196,14 +196,19 @@ function applyNewTicketCaptureMode(){
  if(!note&&required?.closest('.field')){
   note=document.createElement('p');note.id='newTicketCaptureModeNote';note.className='definition-note full-width';required.closest('.field').insertAdjacentElement('afterend',note);
  }
- if(note)note.textContent=simple?`Captura simplificada para ${area}: solo se requiere describir qué se necesita realizar.`:'Captura técnica completa para Operaciones.';
- const summary=$('newTicketsummary');if(summary&&simple)summary.textContent=required?.value?.trim()||'El resumen se generará con “¿Qué se requiere realizar?”.';
+ const noteText=simple?`Captura simplificada para ${area}: solo se requiere describir qué se necesita realizar.`:'Captura técnica completa para Operaciones.';
+ if(note&&note.textContent!==noteText)note.textContent=noteText;
+ const summary=$('newTicketsummary');
+ const summaryText=required?.value?.trim()||'El resumen se generará con “¿Qué se requiere realizar?”.';
+ if(summary&&simple&&summary.textContent!==summaryText)summary.textContent=summaryText;
  autoSuggestTitle('newTicket');
 }
 
 function updateSimpleSummary(){
  if(!isSimpleArea($('newTicketarea')?.value))return;
- const required=$('newTicketrequired');const summary=$('newTicketsummary');if(summary)summary.textContent=required?.value?.trim()||'El resumen se generará con “¿Qué se requiere realizar?”.';
+ const required=$('newTicketrequired'),summary=$('newTicketsummary');
+ const summaryText=required?.value?.trim()||'El resumen se generará con “¿Qué se requiere realizar?”.';
+ if(summary&&summary.textContent!==summaryText)summary.textContent=summaryText;
 }
 
 // Preserve the existing repository contract while allowing the editable title to be stored in tickets.title.
@@ -259,9 +264,9 @@ document.addEventListener('input',event=>{
  }
 });
 
-// Dynamic dialogs are rendered by app.js; observe them as a fallback for keyboard/programmatic opening.
+// Dynamic dialogs are rendered by app.js; watching only their open state avoids self-triggered DOM loops.
 const observer=new MutationObserver(()=>{
  if($('newTicketDialog')?.open)enhanceNewTicket();
  if($('detailDialog')?.open)enhanceTicketDetail();
 });
-observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['open']});
+observer.observe(document.body,{subtree:true,attributes:true,attributeFilter:['open']});
