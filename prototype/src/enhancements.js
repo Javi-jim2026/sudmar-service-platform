@@ -5,14 +5,16 @@ import {catalogKey, simpleRequestSentinel, suggestTicketTitle, isSimpleRequest} 
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const normalize=value=>catalogKey(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const normalizeTitle=value=>String(value??'').replace(/\s+/g,' ').trim();
 const isOperationsArea=area=>normalize(area)==='OPERACIONES';
 const isSimpleArea=area=>Boolean(String(area||'').trim())&&!isOperationsArea(area);
 const titleMax=80;
 let personnel=[];
 let rewriteTarget=null;
-let rewriteMode='orthography';
 let rewriteOriginal='';
 let titleTimer=null;
+let newTicketEnhanceQueued=false;
+let detailEnhanceQueued=false;
 
 const peoplePromise=repository.personnel().then(rows=>{personnel=rows||[];return personnel;}).catch(()=>[]);
 
@@ -67,7 +69,7 @@ async function callWritingAssistant(mode,text,terms=[]){
 
 function openRewrite(target){
  ensureRewriteDialog();
- rewriteTarget=target;rewriteOriginal=String(target.value||'').trim();rewriteMode='orthography';
+ rewriteTarget=target;rewriteOriginal=String(target.value||'').trim();
  $('sudmarRewriteOriginal').textContent=rewriteOriginal||'Sin texto.';
  $('sudmarRewriteProposal').value='';$('sudmarRewriteProposal').hidden=true;
  $('sudmarRewriteStatus').hidden=false;$('sudmarRewriteStatus').textContent='Selecciona una opción para generar la propuesta.';
@@ -78,7 +80,7 @@ function openRewrite(target){
 
 async function generateRewrite(mode,button){
  if(!rewriteTarget||!rewriteOriginal)return;
- rewriteMode=mode;document.querySelectorAll('[data-sudmar-rewrite-mode]').forEach(btn=>btn.classList.toggle('active',btn===button));
+ document.querySelectorAll('[data-sudmar-rewrite-mode]').forEach(btn=>btn.classList.toggle('active',btn===button));
  $('sudmarRewriteError').textContent='';$('sudmarRewriteProposal').hidden=true;$('sudmarRewriteAccept').disabled=true;
  $('sudmarRewriteStatus').hidden=false;$('sudmarRewriteStatus').textContent='Generando propuesta…';
  button.disabled=true;
@@ -133,48 +135,22 @@ async function generateTitleProposal(prefix,useAI=true){
  let suggestion=local;
  if(useAI){
   try{
-   const source=isSimpleRequest(requestContextFrom(prefix))?requestContextFrom(prefix).required:[requestContextFrom(prefix).what,requestContextFrom(prefix).where,requestContextFrom(prefix).condition,requestContextFrom(prefix).required].filter(v=>v&&!v.startsWith('__SUDMAR_')).join('\n');
+   const context=requestContextFrom(prefix);
+   const source=isSimpleRequest(context)?context.required:[context.what,context.where,context.condition,context.required].filter(v=>v&&!v.startsWith('__SUDMAR_')).join('\n');
    suggestion=await callWritingAssistant('title',source,protectedTerms(source,prefix));
   }catch{/* Local suggestion remains available when the AI service is not configured. */}
  }
- suggestion=String(suggestion).replace(/\s+/g,' ').trim();
+ suggestion=normalizeTitle(suggestion);
  if(suggestion.length>titleMax)suggestion=suggestion.slice(0,titleMax).replace(/[\s.,;:]+$/,'')+'…';
  proposal.querySelector('span').textContent=suggestion;proposal.hidden=false;
  return suggestion;
 }
 
 function autoSuggestTitle(prefix){
- clearTimeout(titleTimer);titleTimer=setTimeout(async()=>{
+ clearTimeout(titleTimer);titleTimer=setTimeout(()=>{
   const input=$(prefix+'TitleInput');if(!input||input.dataset.userEdited==='1'||input.value.trim()||!requestReady(prefix))return;
   const suggestion=localTitle(prefix);if(suggestion){input.value=suggestion;input.dataset.autoSuggested='1';}
  },250);
-}
-
-function enhanceNewTicket(){
- const form=$('newTicketForm');if(!form)return;
- const summary=$('newTicketsummary');
- if(summary&&!$('newTicketTitleField'))summary.parentElement.insertAdjacentHTML('afterend',titleFieldHtml('newTicket'));
- attachRewriteButtons(form);
- applyNewTicketCaptureMode();
- autoSuggestTitle('newTicket');
-}
-
-function enhanceTicketDetail(){
- const folio=$('ticketEditfolio');if(!folio)return;
- if(!$('ticketEditTitleField')){
-  const current=document.querySelector('#detailContent .detail-heading-title h3')?.textContent?.trim()||'';
-  folio.closest('.field')?.insertAdjacentHTML('afterend',titleFieldHtml('ticketEdit',current));
-  const input=$('ticketEditTitleInput');if(input)input.dataset.userEdited='1';
- }
- attachRewriteButtons($('detailContent'));
-}
-
-async function syncNewTicketOwner(){
- if(!personnel.length)await peoplePromise;
- const owner=$('newTicketowner')?.value||'';const person=getPerson(owner);const area=$('newTicketarea');
- if(area&&person)area.value=person.area||person.operationalAreas?.[0]||'';
- else if(area&&!owner)area.value='';
- applyNewTicketCaptureMode();
 }
 
 function applyNewTicketCaptureMode(){
@@ -204,6 +180,31 @@ function applyNewTicketCaptureMode(){
  autoSuggestTitle('newTicket');
 }
 
+function applyTicketEditCaptureMode(){
+ const context=requestContextFrom('ticketEdit');
+ const simple=isSimpleRequest(context);
+ for(const key of ['what','where','condition']){
+  const textarea=$('ticketEdit'+key);if(!textarea)continue;
+  const wrapper=textarea.closest('.field');
+  textarea.required=!simple;
+  if(wrapper)wrapper.hidden=simple;
+ }
+ const required=$('ticketEditrequired');if(required)required.required=true;
+ let note=$('ticketEditCaptureModeNote');
+ if(simple&& !note && required?.closest('.field')){
+  note=document.createElement('p');note.id='ticketEditCaptureModeNote';note.className='definition-note full-width';required.closest('.field').insertAdjacentElement('afterend',note);
+ }
+ if(note){
+  note.hidden=!simple;
+  if(simple)note.textContent='Este ticket usa captura simplificada: solo se requiere describir qué se necesita realizar.';
+ }
+ const summary=$('ticketEditsummary');
+ if(simple&&summary){
+  const summaryText=required?.value?.trim()||summary.textContent;
+  if(summaryText&&summary.textContent!==summaryText)summary.textContent=summaryText;
+ }
+}
+
 function updateSimpleSummary(){
  if(!isSimpleArea($('newTicketarea')?.value))return;
  const required=$('newTicketrequired'),summary=$('newTicketsummary');
@@ -211,33 +212,76 @@ function updateSimpleSummary(){
  if(summary&&summary.textContent!==summaryText)summary.textContent=summaryText;
 }
 
-// Preserve the existing repository contract while allowing the editable title to be stored in tickets.title.
+function enhanceNewTicket(){
+ const form=$('newTicketForm');if(!form||!$('newTicketDialog')?.open)return;
+ const summary=$('newTicketsummary');
+ if(summary&&!$('newTicketTitleField'))summary.parentElement.insertAdjacentHTML('afterend',titleFieldHtml('newTicket'));
+ applyNewTicketCaptureMode();
+ attachRewriteButtons(form);
+ autoSuggestTitle('newTicket');
+}
+
+function enhanceTicketDetail(){
+ const folio=$('ticketEditfolio');if(!folio||!$('detailDialog')?.open)return;
+ if(!$('ticketEditTitleField')){
+  const current=document.querySelector('#detailContent .detail-heading-title h3')?.textContent?.trim()||'';
+  folio.closest('.field')?.insertAdjacentHTML('afterend',titleFieldHtml('ticketEdit',current));
+  const input=$('ticketEditTitleInput');if(input)input.dataset.userEdited='1';
+ }
+ applyTicketEditCaptureMode();
+ attachRewriteButtons($('detailContent'));
+}
+
+async function syncNewTicketOwner(){
+ if(!personnel.length)await peoplePromise;
+ const owner=$('newTicketowner')?.value||'';const person=getPerson(owner);const area=$('newTicketarea');
+ if(area&&person){
+  const preferred=person.area||person.operationalAreas?.[0]||'';
+  if([...area.options||[]].some(option=>option.value===preferred))area.value=preferred;
+ }
+ else if(area&&!owner)area.value='';
+ applyNewTicketCaptureMode();
+}
+
+// Keep the original repository API intact and only enrich ticket writes with the
+// editable title collected by the enhancement UI.
 const originalTicketBody=repository.ticketBody.bind(repository);
 repository.ticketBody=async function(payload,creating=false){
  const body=await originalTicketBody(payload,creating);
  if(payload.title!==undefined){
-  const title=String(payload.title||'').replace(/\s+/g,' ').trim();
+  const title=normalizeTitle(payload.title);
   if(title)body.title=title.slice(0,180);
  }
  return body;
 };
 const originalCreateTicket=repository.createTicket.bind(repository);
 repository.createTicket=async function(payload){
- const title=$('newTicketTitleInput')?.value?.trim();
+ const title=normalizeTitle($('newTicketTitleInput')?.value);
  return originalCreateTicket({...payload,...(title?{title}:{})});
 };
 const originalUpdateTicket=repository.updateTicket.bind(repository);
 repository.updateTicket=async function(id,changes){
- const title=$('ticketEditTitleInput')?.value?.trim();
+ const title=normalizeTitle($('ticketEditTitleInput')?.value);
  return originalUpdateTicket(id,{...changes,...(title?{title}:{})});
 };
 
 ensureRewriteDialog();
 
+function queueNewTicketEnhancement(){
+ if(newTicketEnhanceQueued)return;
+ newTicketEnhanceQueued=true;
+ queueMicrotask(()=>{newTicketEnhanceQueued=false;enhanceNewTicket();});
+}
+function queueDetailEnhancement(){
+ if(detailEnhanceQueued)return;
+ detailEnhanceQueued=true;
+ queueMicrotask(()=>{detailEnhanceQueued=false;enhanceTicketDetail();});
+}
+
 document.addEventListener('click',async event=>{
  const button=event.target.closest('button');if(!button)return;
- if(button.dataset.action==='new-ticket')queueMicrotask(enhanceNewTicket);
- if(button.dataset.action==='ticket')queueMicrotask(enhanceTicketDetail);
+ if(button.dataset.action==='new-ticket')queueNewTicketEnhancement();
+ if(button.dataset.action==='ticket')queueDetailEnhancement();
  if(button.dataset.sudmarRewrite){const target=$(button.dataset.sudmarRewrite);if(target)openRewrite(target);}
  if(button.dataset.sudmarRewriteClose!==undefined)$('sudmarRewriteDialog')?.close();
  if(button.dataset.sudmarRewriteMode){await generateRewrite(button.dataset.sudmarRewriteMode,button);}
@@ -255,6 +299,8 @@ document.addEventListener('click',async event=>{
 
 document.addEventListener('change',event=>{
  if(event.target.id==='newTicketowner')syncNewTicketOwner();
+ if(event.target.id==='newTicketarea')applyNewTicketCaptureMode();
+ if(event.target.id==='ticketEditowner'||event.target.id==='ticketEditarea')queueDetailEnhancement();
 });
 
 document.addEventListener('input',event=>{
@@ -264,9 +310,17 @@ document.addEventListener('input',event=>{
  }
 });
 
-// Dynamic dialogs are rendered by app.js; watching only their open state avoids self-triggered DOM loops.
-const observer=new MutationObserver(()=>{
- if($('newTicketDialog')?.open)enhanceNewTicket();
- if($('detailDialog')?.open)enhanceTicketDetail();
+// Dialog open/close changes and detail re-renders are observed separately. The
+// enhancement functions are idempotent, so a re-render after saving restores the
+// title field and writing controls without creating duplicate elements.
+const dialogObserver=new MutationObserver(()=>{
+ if($('newTicketDialog')?.open)queueNewTicketEnhancement();
+ if($('detailDialog')?.open)queueDetailEnhancement();
 });
-observer.observe(document.body,{subtree:true,attributes:true,attributeFilter:['open']});
+dialogObserver.observe(document.body,{subtree:true,attributes:true,attributeFilter:['open']});
+
+const detailContent=$('detailContent');
+if(detailContent){
+ const detailObserver=new MutationObserver(()=>{if($('detailDialog')?.open)queueDetailEnhancement();});
+ detailObserver.observe(detailContent,{childList:true});
+}
