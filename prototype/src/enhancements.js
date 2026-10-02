@@ -3,7 +3,7 @@ import {config} from './config.js';
 import {catalogKey, simpleRequestSentinel, suggestTicketTitle, isSimpleRequest} from './operations.js';
 
 const $=id=>document.getElementById(id);
-const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const normalize=value=>catalogKey(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const normalizeTitle=value=>String(value??'').replace(/\s+/g,' ').trim();
 const fullCaptureAreas=new Set(['OPERACIONES','SERVICIOS ESPECIALIZADOS','ALMACEN FISCAL','PROYECTOS']);
