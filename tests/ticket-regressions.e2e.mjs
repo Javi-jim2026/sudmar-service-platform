@@ -35,6 +35,9 @@ const tables={
   clients:[{id:'client',name:'Cliente prueba'}],
   personnel:[
     {id:'ops',name:'Javier Jimenez',role:'Gerente Operativo',area:'Operaciones',operational_areas:['Operaciones'],active:true},
+    {id:'services',name:'Daniel Hernández',role:'Servicios',area:'Servicios Especializados',operational_areas:['Servicios Especializados'],active:true},
+    {id:'warehouse',name:'Hernán Reyes',role:'Técnico',area:'Almacén Fiscal',operational_areas:['Almacén Fiscal'],active:true},
+    {id:'projects',name:'Enrique González',role:'Proyectos',area:'Proyectos',operational_areas:['Proyectos'],active:true},
     {id:'commercial',name:'Dulce Flores',role:'Ventas',area:'Comercial',operational_areas:['Comercial'],active:true}
   ],
   equipment:[],tasks:[],equipment_models:[],equipment_serials:[],
@@ -92,6 +95,25 @@ try{
   assert.equal((await page.locator('#detailDialog').innerText()).includes(simpleSentinel),false);
   await click('#detailDialog [data-action="close-dialog"]');
 
+  // Operations, Specialized Services, Fiscal Warehouse and Projects all use full technical capture.
+  for(const [owner,area] of [
+    ['Javier Jimenez','Operaciones'],
+    ['Daniel Hernández','Servicios Especializados'],
+    ['Hernán Reyes','Almacén Fiscal'],
+    ['Enrique González','Proyectos']
+  ]){
+    await click('[data-action="new-ticket"]');
+    await page.locator('#newTicketTitleInput').waitFor();
+    await page.locator('#newTicketowner').selectOption(owner);
+    await page.locator('#newTicketowner').dispatchEvent('change');
+    await page.waitForFunction(expected=>document.querySelector('#newTicketarea')?.value===expected,area);
+    assert.equal(await page.locator('#newTicketwhat').isVisible(),true,`${area} debe mostrar ¿Qué sucede?`);
+    assert.equal(await page.locator('#newTicketwhere').isVisible(),true,`${area} debe mostrar ¿Dónde / en qué componente?`);
+    assert.equal(await page.locator('#newTicketcondition').isVisible(),true,`${area} debe mostrar ¿En qué condición ocurre?`);
+    assert.equal(await page.locator('#newTicketrequired').isVisible(),true,`${area} debe mostrar ¿Qué se requiere realizar?`);
+    await click('#newTicketDialog [data-action="close-dialog"]');
+  }
+
   // A new Commercial ticket must switch to the simplified request capture.
   await click('[data-action="new-ticket"]');
   await page.locator('#newTicketTitleInput').waitFor();
@@ -145,7 +167,7 @@ try{
   assert.equal((await page.locator('#detailDialog').innerText()).includes(simpleSentinel),false);
 
   assert.deepEqual(pageErrors,[]);
-  console.log('Ticket regression flows passed: title persistence, simplified capture, historical compatibility.');
+  console.log('Ticket regression flows passed: title persistence, simplified capture, technical-area capture, historical compatibility.');
 }finally{
   await browser.close();
   server.close();
