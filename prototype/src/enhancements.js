@@ -3,11 +3,12 @@ import {config} from './config.js';
 import {catalogKey, simpleRequestSentinel, suggestTicketTitle, isSimpleRequest} from './operations.js';
 
 const $=id=>document.getElementById(id);
-const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
 const normalize=value=>catalogKey(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const normalizeTitle=value=>String(value??'').replace(/\s+/g,' ').trim();
-const isOperationsArea=area=>normalize(area)==='OPERACIONES';
-const isSimpleArea=area=>Boolean(String(area||'').trim())&&!isOperationsArea(area);
+const fullCaptureAreas=new Set(['OPERACIONES','SERVICIOS ESPECIALIZADOS','ALMACEN FISCAL','PROYECTOS']);
+const isFullCaptureArea=area=>fullCaptureAreas.has(normalize(area));
+const isSimpleArea=area=>Boolean(String(area||'').trim())&&!isFullCaptureArea(area);
 const titleMax=80;
 let personnel=[];
 let rewriteTarget=null;
@@ -172,7 +173,7 @@ function applyNewTicketCaptureMode(){
  if(!note&&required?.closest('.field')){
   note=document.createElement('p');note.id='newTicketCaptureModeNote';note.className='definition-note full-width';required.closest('.field').insertAdjacentElement('afterend',note);
  }
- const noteText=simple?`Captura simplificada para ${area}: solo se requiere describir qué se necesita realizar.`:'Captura técnica completa para Operaciones.';
+ const noteText=simple?`Captura simplificada para ${area}: solo se requiere describir qué se necesita realizar.`:area?`Captura técnica completa para ${area}.`:'Captura técnica completa para áreas operativas.';
  if(note&&note.textContent!==noteText)note.textContent=noteText;
  const summary=$('newTicketsummary');
  const summaryText=required?.value?.trim()||'El resumen se generará con “¿Qué se requiere realizar?”.';
