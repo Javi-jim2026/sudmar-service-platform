@@ -2,4 +2,20 @@
 /* Completed checklist items stay fully readable: green state replaces the previous strike-through. */
 .work-item:has(.work-completed:checked) .work-text{color:#17623c!important;text-decoration:none!important;background:#eef9f3;border-color:#82cfa6;font-weight:600}.work-item .work-completed:checked{accent-color:var(--green,#13866c)}
 .sudmar-field-note{font-size:10px;color:var(--muted,#6f7785);font-weight:400;line-height:1.45}.sudmar-duration{font-size:11px;color:#17623c;font-weight:700}.sudmar-resolution-field input[readonly]{background:#f5f7f9;color:#8a98a4}.sudmar-evidence-field{padding-top:2px}.sudmar-evidence-links{display:flex;gap:9px;flex-wrap:wrap}.sudmar-evidence-button{max-width:100%;overflow:hidden;text-overflow:ellipsis}.sudmar-ticket-evidence{background:#fbfdfd}
+/* Activity status visual guide. The selected state keeps a soft background and matching border; native dropdown options use the same palette where the browser allows option styling. */
+#newTaskstatus,#taskEditstatus{font-weight:700;transition:background-color .15s,border-color .15s,color .15s}
+#newTaskstatus:has(option[value="POR INICIAR"]:checked),#taskEditstatus:has(option[value="POR INICIAR"]:checked){background:#f4f6f8;border-color:#a8b3bd;color:#53616c}
+#newTaskstatus:has(option[value="PROGRAMADA"]:checked),#taskEditstatus:has(option[value="PROGRAMADA"]:checked){background:#edf5ff;border-color:#79aee8;color:#245f9d}
+#newTaskstatus:has(option[value="EN EJECUCIÓN"]:checked),#taskEditstatus:has(option[value="EN EJECUCIÓN"]:checked){background:#f3efff;border-color:#9d86d8;color:#6044a3}
+#newTaskstatus:has(option[value="EN ESPERA"]:checked),#taskEditstatus:has(option[value="EN ESPERA"]:checked){background:#fff7e8;border-color:#e7b85a;color:#8a5a00}
+#newTaskstatus:has(option[value="BLOQUEADA"]:checked),#taskEditstatus:has(option[value="BLOQUEADA"]:checked){background:#fff0f0;border-color:#e18b8b;color:#a62d2d}
+#newTaskstatus:has(option[value="COMPLETADA"]:checked),#taskEditstatus:has(option[value="COMPLETADA"]:checked){background:#ebf8f1;border-color:#70c59a;color:#17623c}
+#newTaskstatus:has(option[value="CANCELADA"]:checked),#taskEditstatus:has(option[value="CANCELADA"]:checked){background:#eef1f4;border-color:#9da8b2;color:#4e5963}
+#newTaskstatus option[value="POR INICIAR"],#taskEditstatus option[value="POR INICIAR"]{background:#f4f6f8;color:#53616c}
+#newTaskstatus option[value="PROGRAMADA"],#taskEditstatus option[value="PROGRAMADA"]{background:#edf5ff;color:#245f9d}
+#newTaskstatus option[value="EN EJECUCIÓN"],#taskEditstatus option[value="EN EJECUCIÓN"]{background:#f3efff;color:#6044a3}
+#newTaskstatus option[value="EN ESPERA"],#taskEditstatus option[value="EN ESPERA"]{background:#fff7e8;color:#8a5a00}
+#newTaskstatus option[value="BLOQUEADA"],#taskEditstatus option[value="BLOQUEADA"]{background:#fff0f0;color:#a62d2d}
+#newTaskstatus option[value="COMPLETADA"],#taskEditstatus option[value="COMPLETADA"]{background:#ebf8f1;color:#17623c}
+#newTaskstatus option[value="CANCELADA"],#taskEditstatus option[value="CANCELADA"]{background:#eef1f4;color:#4e5963}
 @media(max-width:640px){.sudmar-title-proposal{align-items:flex-start;flex-direction:column}.sudmar-rewrite-modes{display:grid;grid-template-columns:1fr}.sudmar-rewrite-modes .button{width:100%}.sudmar-evidence-links{display:grid;grid-template-columns:1fr}.sudmar-evidence-button{width:100%;justify-content:flex-start}}
