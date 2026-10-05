@@ -10,16 +10,42 @@ const fullCaptureAreas=new Set(['OPERACIONES','SERVICIOS ESPECIALIZADOS','ALMACE
 const isFullCaptureArea=area=>fullCaptureAreas.has(normalize(area));
 const isSimpleArea=area=>Boolean(String(area||'').trim())&&!isFullCaptureArea(area);
 const titleMax=80;
+const todayLocal=()=>new Intl.DateTimeFormat('en-CA',{timeZone:config.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 let personnel=[];
 let rewriteTarget=null;
 let rewriteOriginal='';
 let titleTimer=null;
 let newTicketEnhanceQueued=false;
+let newTaskEnhanceQueued=false;
 let detailEnhanceQueued=false;
 
 const peoplePromise=repository.personnel().then(rows=>{personnel=rows||[];return personnel;}).catch(()=>[]);
 
 function getPerson(name){return personnel.find(p=>normalize(p.name)===normalize(name));}
+function dateOnly(value){return value?String(value).slice(0,10):'';}
+function daysBetween(from,to){
+ if(!from||!to)return null;
+ const a=new Date(from+'T00:00:00Z'),b=new Date(to+'T00:00:00Z');
+ return Math.round((b-a)/86400000);
+}
+function normalizeEvidenceUrl(value){
+ let text=String(value||'').trim();
+ if(!text)return '';
+ if(!/^https?:\/\//i.test(text)&&/^(?:www\.)?(?:1drv\.ms|[^/]*sharepoint\.com)\//i.test(text))text='https://'+text.replace(/^www\./i,'');
+ let url;try{url=new URL(text);}catch{throw new Error('Pega un enlace válido de OneDrive o SharePoint.');}
+ if(url.protocol!=='https:')throw new Error('El enlace de evidencias debe comenzar con https://');
+ return url.href;
+}
+function safeEvidenceUrl(value){try{return normalizeEvidenceUrl(value);}catch{return '';}}
+function evidenceButton(url,label){const safe=safeEvidenceUrl(url);return safe?`<a class="button secondary sudmar-evidence-button" href="${esc(safe)}" target="_blank" rel="noopener noreferrer">📁 ${esc(label)}</a>`:'';}
+
+async function supabaseGet(path){
+ const base=config.supabase?.url?.replace(/\/$/,'');const key=config.supabase?.publishableKey;
+ if(!base||!key)throw new Error('Supabase no está configurado.');
+ const response=await fetch(base+path,{cache:'no-store',headers:{apikey:key,Authorization:`Bearer ${key}`,Accept:'application/json'}});
+ if(!response.ok)throw new Error('No se pudo consultar la información complementaria.');
+ return response.json();
+}
 
 function protectedTerms(text,prefix=''){
  const terms=new Set();
@@ -113,7 +139,6 @@ function requestContextFrom(prefix){
   required:$(prefix+'required')?.value?.trim()||''
  };
 }
-
 function requestReady(prefix){
  const context=requestContextFrom(prefix);
  if(isSimpleRequest(context))return context.required.length>=4;
@@ -127,9 +152,7 @@ function titleFieldHtml(prefix,value=''){
   <div class="sudmar-title-proposal" id="${prefix}TitleProposal" hidden><span></span><button type="button" class="button secondary small" data-sudmar-title-use="${prefix}">Usar sugerencia</button></div>
  </div>`;
 }
-
 function localTitle(prefix){return suggestTicketTitle(requestContextFrom(prefix),titleMax);}
-
 async function generateTitleProposal(prefix,useAI=true){
  const proposal=$(prefix+'TitleProposal'),input=$(prefix+'TitleInput');if(!proposal||!input)return;
  const local=localTitle(prefix);if(!local)return;
@@ -146,12 +169,57 @@ async function generateTitleProposal(prefix,useAI=true){
  proposal.querySelector('span').textContent=suggestion;proposal.hidden=false;
  return suggestion;
 }
-
 function autoSuggestTitle(prefix){
  clearTimeout(titleTimer);titleTimer=setTimeout(()=>{
   const input=$(prefix+'TitleInput');if(!input||input.dataset.userEdited==='1'||input.value.trim()||!requestReady(prefix))return;
   const suggestion=localTitle(prefix);if(suggestion){input.value=suggestion;input.dataset.autoSuggested='1';}
  },250);
+}
+
+function ensureTicketResolutionField(prefix,value=''){
+ const due=$(prefix+'dueAt');if(!due||$(prefix+'ResolvedAt'))return;
+ const wrapper=document.createElement('div');wrapper.className='field sudmar-resolution-field';
+ wrapper.innerHTML=`<label>Fecha de resolución real<input type="date" id="${prefix}ResolvedAt" value="${esc(value)}"></label><span class="sudmar-field-note" id="${prefix}ResolutionNote">Se registra cuando el ticket queda CONCLUIDO.</span><strong class="sudmar-duration" id="${prefix}ResolutionDuration"></strong>`;
+ due.closest('.field')?.insertAdjacentElement('afterend',wrapper);
+ syncTicketResolutionField(prefix,false);
+}
+function syncTicketResolutionField(prefix,fromStatusChange=false){
+ const status=$(prefix+'status')?.value||'',input=$(prefix+'ResolvedAt');if(!input)return;
+ const concluded=status==='CONCLUIDO';input.readOnly=!concluded;
+ if(fromStatusChange){if(concluded&&!input.value)input.value=todayLocal();if(!concluded)input.value='';}
+ const note=$(prefix+'ResolutionNote');if(note)note.textContent=concluded?'Fecha en la que realmente quedó solucionado. Puedes corregirla.':'Disponible cuando el estado sea CONCLUIDO.';
+ updateTicketDuration(prefix);
+}
+function updateTicketDuration(prefix){
+ const from=$(prefix+'openedAt')?.value||'',to=$(prefix+'ResolvedAt')?.value||'',target=$(prefix+'ResolutionDuration');if(!target)return;
+ const days=daysBetween(from,to);target.textContent=days===null?'':days===0?'Tiempo real: resuelto el mismo día':`Tiempo real de resolución: ${days} día${days===1?'':'s'}`;
+}
+
+function ensureActivityOperationalFields(prefix,values={}){
+ const due=$(prefix+'dueAt');if(!due)return;
+ if(!$(prefix+'CompletedAt')){
+  const wrapper=document.createElement('div');wrapper.className='field sudmar-resolution-field';
+  wrapper.innerHTML=`<label>Fecha de realización real<input type="date" id="${prefix}CompletedAt" value="${esc(dateOnly(values.completedAt))}"></label><span class="sudmar-field-note" id="${prefix}CompletedNote">Se habilita al cerrar la actividad.</span>`;
+  due.closest('.field')?.insertAdjacentElement('afterend',wrapper);
+ }
+ if(!$(prefix+'EvidenceUrl')){
+  const completed=$(prefix+'CompletedAt');const wrapper=document.createElement('div');wrapper.className='field full-width sudmar-evidence-field';
+  wrapper.innerHTML=`<label>Carpeta de evidencias / OneDrive<input type="url" id="${prefix}EvidenceUrl" value="${esc(values.evidenceUrl||'')}" placeholder="https://1drv.ms/... o enlace de SharePoint" autocomplete="off"></label><span class="sudmar-field-note">Pega el enlace de la carpeta de fotos, videos o documentos de esta actividad.</span><div id="${prefix}EvidenceOpen"></div>`;
+  completed?.closest('.field')?.insertAdjacentElement('afterend',wrapper);
+ }
+ updateActivityEvidenceButton(prefix);
+ syncActivityCompletionField(prefix,false);
+}
+async function syncActivityCompletionField(prefix,fromStatusChange=false){
+ const status=$(prefix+'status')?.value||'',input=$(prefix+'CompletedAt');if(!input)return;
+ let closed=false;try{const catalogs=await repository.catalogs();closed=catalogs.statuses.some(s=>s.name===status&&s.group_code==='CERRADA');}catch{closed=['COMPLETADA','CANCELADA'].includes(status);}
+ input.readOnly=!closed;
+ if(fromStatusChange){if(closed&&!input.value)input.value=todayLocal();if(!closed)input.value='';}
+ const note=$(prefix+'CompletedNote');if(note)note.textContent=closed?'Fecha en la que realmente se realizó/cerró la actividad. Puedes corregirla.':'Se habilita cuando el estado de la actividad sea de cierre.';
+}
+function updateActivityEvidenceButton(prefix){
+ const input=$(prefix+'EvidenceUrl'),target=$(prefix+'EvidenceOpen');if(!input||!target)return;
+ const safe=safeEvidenceUrl(input.value);target.innerHTML=safe?evidenceButton(safe,'Abrir evidencias'):'';
 }
 
 function applyNewTicketCaptureMode(){
@@ -192,20 +260,13 @@ function applyTicketEditCaptureMode(){
  }
  const required=$('ticketEditrequired');if(required)required.required=true;
  let note=$('ticketEditCaptureModeNote');
- if(simple&& !note && required?.closest('.field')){
+ if(simple&&!note&&required?.closest('.field')){
   note=document.createElement('p');note.id='ticketEditCaptureModeNote';note.className='definition-note full-width';required.closest('.field').insertAdjacentElement('afterend',note);
  }
- if(note){
-  note.hidden=!simple;
-  if(simple)note.textContent='Este ticket usa captura simplificada: solo se requiere describir qué se necesita realizar.';
- }
+ if(note){note.hidden=!simple;if(simple)note.textContent='Este ticket usa captura simplificada: solo se requiere describir qué se necesita realizar.';}
  const summary=$('ticketEditsummary');
- if(simple&&summary){
-  const summaryText=required?.value?.trim()||summary.textContent;
-  if(summaryText&&summary.textContent!==summaryText)summary.textContent=summaryText;
- }
+ if(simple&&summary){const summaryText=required?.value?.trim()||summary.textContent;if(summaryText&&summary.textContent!==summaryText)summary.textContent=summaryText;}
 }
-
 function updateSimpleSummary(){
  if(!isSimpleArea($('newTicketarea')?.value))return;
  const required=$('newTicketrequired'),summary=$('newTicketsummary');
@@ -217,11 +278,41 @@ function enhanceNewTicket(){
  const form=$('newTicketForm');if(!form||!$('newTicketDialog')?.open)return;
  const summary=$('newTicketsummary');
  if(summary&&!$('newTicketTitleField'))summary.parentElement.insertAdjacentHTML('afterend',titleFieldHtml('newTicket'));
- applyNewTicketCaptureMode();
- attachRewriteButtons(form);
- autoSuggestTitle('newTicket');
+ ensureTicketResolutionField('newTicket','');
+ applyNewTicketCaptureMode();attachRewriteButtons(form);autoSuggestTitle('newTicket');
 }
-
+function enhanceNewTask(){
+ const form=$('newTaskForm');if(!form||!$('newTaskDialog')?.open)return;
+ ensureActivityOperationalFields('newTask',{});
+}
+async function loadTicketOperationalExtras(ticketId){
+ const save=document.querySelector('#detailContent [data-action="save-ticket-update"]');if(!ticketId||!save||save.dataset.operationalExtras==='loading'||save.dataset.operationalExtras==='loaded')return;
+ save.dataset.operationalExtras='loading';
+ try{
+  const [tickets,tasks]=await Promise.all([
+   supabaseGet(`/rest/v1/tickets?select=id,folio,opened_at,due_at,resolved_at,folder_url&id=eq.${encodeURIComponent(ticketId)}&limit=1`),
+   supabaseGet(`/rest/v1/tasks?select=id,task_code,title,task_type,evidence_url&ticket_id=eq.${encodeURIComponent(ticketId)}&order=created_at.asc`)
+  ]);
+  const ticket=tickets?.[0];
+  if(ticket){
+   const input=$('ticketEditResolvedAt');if(input)input.value=dateOnly(ticket.resolved_at);
+   syncTicketResolutionField('ticketEdit',false);
+   renderTicketEvidenceSection(ticket,tasks||[]);
+  }
+  save.dataset.operationalExtras='loaded';
+ }catch{save.dataset.operationalExtras='error';}
+}
+function renderTicketEvidenceSection(ticket,tasks){
+ const existing=$('ticketEvidenceSection');if(existing)existing.remove();
+ const links=[];
+ if(ticket.folder_url&&safeEvidenceUrl(ticket.folder_url))links.push(evidenceButton(ticket.folder_url,'Carpeta general del ticket'));
+ for(const task of tasks){if(task.evidence_url&&safeEvidenceUrl(task.evidence_url))links.push(evidenceButton(task.evidence_url,task.task_type||task.title||task.task_code||'Evidencias de actividad'));}
+ const activities=[...document.querySelectorAll('#detailContent .detail-section')].find(section=>section.querySelector('h3')?.textContent?.startsWith('Actividades del ticket'));
+ if(!activities)return;
+ const section=document.createElement('section');section.id='ticketEvidenceSection';section.className='detail-section sudmar-ticket-evidence';
+ section.innerHTML=`<h3>📎 Evidencias del servicio</h3>${links.length?`<div class="sudmar-evidence-links">${links.join('')}</div>`:'<p class="definition-note">Aún no hay carpetas de evidencias vinculadas a las actividades de este ticket.</p>'}`;
+ activities.insertAdjacentElement('afterend',section);
+}
 function enhanceTicketDetail(){
  const folio=$('ticketEditfolio');if(!folio||!$('detailDialog')?.open)return;
  if(!$('ticketEditTitleField')){
@@ -229,99 +320,101 @@ function enhanceTicketDetail(){
   folio.closest('.field')?.insertAdjacentHTML('afterend',titleFieldHtml('ticketEdit',current));
   const input=$('ticketEditTitleInput');if(input)input.dataset.userEdited='1';
  }
- applyTicketEditCaptureMode();
- attachRewriteButtons($('detailContent'));
+ ensureTicketResolutionField('ticketEdit','');
+ applyTicketEditCaptureMode();attachRewriteButtons($('detailContent'));
+ const save=document.querySelector('#detailContent [data-action="save-ticket-update"]');if(save)loadTicketOperationalExtras(save.dataset.id);
 }
+async function enhanceActivityDetail(){
+ const status=$('taskEditstatus'),save=document.querySelector('#detailContent [data-action="save-task-update"]');if(!status||!save||!$('detailDialog')?.open)return;
+ ensureActivityOperationalFields('taskEdit',{});
+ if(save.dataset.operationalExtras==='loading'||save.dataset.operationalExtras==='loaded')return;
+ save.dataset.operationalExtras='loading';
+ try{
+  const rows=await supabaseGet(`/rest/v1/tasks?select=id,completed_at,evidence_url&id=eq.${encodeURIComponent(save.dataset.id)}&limit=1`);const task=rows?.[0];
+  if(task){$('taskEditCompletedAt').value=dateOnly(task.completed_at);$('taskEditEvidenceUrl').value=task.evidence_url||'';updateActivityEvidenceButton('taskEdit');await syncActivityCompletionField('taskEdit',false);}
+  save.dataset.operationalExtras='loaded';
+ }catch{save.dataset.operationalExtras='error';}
+}
+function enhanceDetail(){enhanceTicketDetail();enhanceActivityDetail();}
 
 async function syncNewTicketOwner(){
  if(!personnel.length)await peoplePromise;
  const owner=$('newTicketowner')?.value||'';const person=getPerson(owner);const area=$('newTicketarea');
- if(area&&person){
-  const preferred=person.area||person.operationalAreas?.[0]||'';
-  if([...area.options||[]].some(option=>option.value===preferred))area.value=preferred;
- }
+ if(area&&person){const preferred=person.area||person.operationalAreas?.[0]||'';if([...area.options||[]].some(option=>option.value===preferred))area.value=preferred;}
  else if(area&&!owner)area.value='';
  applyNewTicketCaptureMode();
 }
 
-// Keep the original repository API intact and only enrich ticket writes with the
-// editable title collected by the enhancement UI.
 const originalTicketBody=repository.ticketBody.bind(repository);
 repository.ticketBody=async function(payload,creating=false){
  const body=await originalTicketBody(payload,creating);
- if(payload.title!==undefined){
-  const title=normalizeTitle(payload.title);
-  if(title)body.title=title.slice(0,180);
- }
+ if(payload.title!==undefined){const title=normalizeTitle(payload.title);if(title)body.title=title.slice(0,180);}
+ if(payload.resolvedAt!==undefined)body.resolved_at=payload.resolvedAt||null;
  return body;
 };
 const originalCreateTicket=repository.createTicket.bind(repository);
 repository.createTicket=async function(payload){
- const title=normalizeTitle($('newTicketTitleInput')?.value);
- return originalCreateTicket({...payload,...(title?{title}:{})});
+ const title=normalizeTitle($('newTicketTitleInput')?.value),resolvedAt=$('newTicketResolvedAt')?.value||'';
+ return originalCreateTicket({...payload,...(title?{title}:{}),resolvedAt});
 };
 const originalUpdateTicket=repository.updateTicket.bind(repository);
 repository.updateTicket=async function(id,changes){
- const title=normalizeTitle($('ticketEditTitleInput')?.value);
- return originalUpdateTicket(id,{...changes,...(title?{title}:{})});
+ const title=normalizeTitle($('ticketEditTitleInput')?.value),resolvedAt=$('ticketEditResolvedAt')?.value||'';
+ return originalUpdateTicket(id,{...changes,...(title?{title}:{}),resolvedAt});
+};
+const originalCreateTask=repository.createTask.bind(repository);
+repository.createTask=async function(payload){
+ const evidenceUrl=normalizeEvidenceUrl($('newTaskEvidenceUrl')?.value||''),completedAt=$('newTaskCompletedAt')?.value||'';
+ return originalCreateTask({...payload,evidenceUrl,completedAt});
+};
+const originalUpdateTask=repository.updateTask.bind(repository);
+repository.updateTask=async function(id,changes,expectedUpdatedAt){
+ const evidenceUrl=normalizeEvidenceUrl($('taskEditEvidenceUrl')?.value||''),completedAt=$('taskEditCompletedAt')?.value||'';
+ return originalUpdateTask(id,{...changes,evidenceUrl,completedAt},expectedUpdatedAt);
 };
 
 ensureRewriteDialog();
-
-function queueNewTicketEnhancement(){
- if(newTicketEnhanceQueued)return;
- newTicketEnhanceQueued=true;
- queueMicrotask(()=>{newTicketEnhanceQueued=false;enhanceNewTicket();});
-}
-function queueDetailEnhancement(){
- if(detailEnhanceQueued)return;
- detailEnhanceQueued=true;
- queueMicrotask(()=>{detailEnhanceQueued=false;enhanceTicketDetail();});
-}
+function queueNewTicketEnhancement(){if(newTicketEnhanceQueued)return;newTicketEnhanceQueued=true;queueMicrotask(()=>{newTicketEnhanceQueued=false;enhanceNewTicket();});}
+function queueNewTaskEnhancement(){if(newTaskEnhanceQueued)return;newTaskEnhanceQueued=true;queueMicrotask(()=>{newTaskEnhanceQueued=false;enhanceNewTask();});}
+function queueDetailEnhancement(){if(detailEnhanceQueued)return;detailEnhanceQueued=true;queueMicrotask(()=>{detailEnhanceQueued=false;enhanceDetail();});}
 
 document.addEventListener('click',async event=>{
  const button=event.target.closest('button');if(!button)return;
  if(button.dataset.action==='new-ticket')queueNewTicketEnhancement();
- if(button.dataset.action==='ticket')queueDetailEnhancement();
+ if(button.dataset.action==='new-task')queueNewTaskEnhancement();
+ if(button.dataset.action==='ticket'||button.dataset.action==='task')queueDetailEnhancement();
  if(button.dataset.sudmarRewrite){const target=$(button.dataset.sudmarRewrite);if(target)openRewrite(target);}
  if(button.dataset.sudmarRewriteClose!==undefined)$('sudmarRewriteDialog')?.close();
  if(button.dataset.sudmarRewriteMode){await generateRewrite(button.dataset.sudmarRewriteMode,button);}
- if(button.id==='sudmarRewriteAccept'&&rewriteTarget){
-  rewriteTarget.value=$('sudmarRewriteProposal').value;rewriteTarget.dispatchEvent(new Event('input',{bubbles:true}));$('sudmarRewriteDialog').close();
- }
- if(button.dataset.sudmarTitleSuggest){
-  const prefix=button.dataset.sudmarTitleSuggest;button.disabled=true;try{await generateTitleProposal(prefix,true);}finally{button.disabled=false;}
- }
- if(button.dataset.sudmarTitleUse){
-  const prefix=button.dataset.sudmarTitleUse,input=$(prefix+'TitleInput'),proposal=$(prefix+'TitleProposal');
-  const text=proposal?.querySelector('span')?.textContent?.trim();if(input&&text){input.value=text;input.dataset.userEdited='1';proposal.hidden=true;}
- }
+ if(button.id==='sudmarRewriteAccept'&&rewriteTarget){rewriteTarget.value=$('sudmarRewriteProposal').value;rewriteTarget.dispatchEvent(new Event('input',{bubbles:true}));$('sudmarRewriteDialog').close();}
+ if(button.dataset.sudmarTitleSuggest){const prefix=button.dataset.sudmarTitleSuggest;button.disabled=true;try{await generateTitleProposal(prefix,true);}finally{button.disabled=false;}}
+ if(button.dataset.sudmarTitleUse){const prefix=button.dataset.sudmarTitleUse,input=$(prefix+'TitleInput'),proposal=$(prefix+'TitleProposal');const text=proposal?.querySelector('span')?.textContent?.trim();if(input&&text){input.value=text;input.dataset.userEdited='1';proposal.hidden=true;}}
 });
 
 document.addEventListener('change',event=>{
  if(event.target.id==='newTicketowner')syncNewTicketOwner();
  if(event.target.id==='newTicketarea')applyNewTicketCaptureMode();
  if(event.target.id==='ticketEditowner'||event.target.id==='ticketEditarea')queueDetailEnhancement();
+ if(event.target.id==='newTicketstatus')syncTicketResolutionField('newTicket',true);
+ if(event.target.id==='ticketEditstatus')syncTicketResolutionField('ticketEdit',true);
+ if(event.target.id==='newTaskstatus')syncActivityCompletionField('newTask',true);
+ if(event.target.id==='taskEditstatus')syncActivityCompletionField('taskEdit',true);
 });
 
 document.addEventListener('input',event=>{
  if(event.target.id==='newTicketTitleInput'||event.target.id==='ticketEditTitleInput')event.target.dataset.userEdited='1';
- if(['newTicketwhat','newTicketwhere','newTicketcondition','newTicketrequired'].includes(event.target.id)){
-  updateSimpleSummary();autoSuggestTitle('newTicket');
- }
+ if(['newTicketwhat','newTicketwhere','newTicketcondition','newTicketrequired'].includes(event.target.id)){updateSimpleSummary();autoSuggestTitle('newTicket');}
+ if(['newTicketopenedAt','newTicketResolvedAt','ticketEditopenedAt','ticketEditResolvedAt'].includes(event.target.id))updateTicketDuration(event.target.id.startsWith('newTicket')?'newTicket':'ticketEdit');
+ if(event.target.id==='newTaskEvidenceUrl')updateActivityEvidenceButton('newTask');
+ if(event.target.id==='taskEditEvidenceUrl')updateActivityEvidenceButton('taskEdit');
 });
 
-// Dialog open/close changes and detail re-renders are observed separately. The
-// enhancement functions are idempotent, so a re-render after saving restores the
-// title field and writing controls without creating duplicate elements.
 const dialogObserver=new MutationObserver(()=>{
  if($('newTicketDialog')?.open)queueNewTicketEnhancement();
+ if($('newTaskDialog')?.open)queueNewTaskEnhancement();
  if($('detailDialog')?.open)queueDetailEnhancement();
 });
 dialogObserver.observe(document.body,{subtree:true,attributes:true,attributeFilter:['open']});
 
 const detailContent=$('detailContent');
-if(detailContent){
- const detailObserver=new MutationObserver(()=>{if($('detailDialog')?.open)queueDetailEnhancement();});
- detailObserver.observe(detailContent,{childList:true});
-}
+if(detailContent){const detailObserver=new MutationObserver(()=>{if($('detailDialog')?.open)queueDetailEnhancement();});detailObserver.observe(detailContent,{childList:true});}
