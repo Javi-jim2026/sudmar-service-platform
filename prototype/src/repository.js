@@ -61,15 +61,11 @@ export class SnapshotRepository {
 
   async loadSupabase() {
     const [tickets, clients, equipment, personnel, tasks] = await Promise.all([
-      fetchSupabaseTable('tickets',
-        '*',
-        '&order=folio.desc'),
+      fetchSupabaseTable('tickets','*','&order=folio.desc'),
       fetchSupabaseTable('clients','id,name'),
       fetchSupabaseTable('equipment','id,client_id,model,serial_number,equipment_type'),
       fetchSupabaseTable('personnel','id,name,role,area'),
-      fetchSupabaseTable('tasks',
-        '*',
-        '&order=created_at.desc')
+      fetchSupabaseTable('tasks','*','&order=created_at.desc')
     ]);
 
     const catalogs=await this.catalogs();
@@ -98,6 +94,7 @@ export class SnapshotRepository {
         openedAt: dateOnly(row.opened_at),
         dueAt: dateOnly(row.due_at),
         closedAt: dateOnly(row.closed_at),
+        resolvedAt: dateOnly(row.resolved_at),
         model: row.catalog_model_id ? (catalogs.models.find(m=>m.id===row.catalog_model_id)?.name??row.source_model??'') : (row.source_model??unit?.model??''),
         serial: row.catalog_model_id ? (catalogs.serials.find(s=>s.id===row.catalog_serial_id)?.serial_number??row.source_serial??'') : (row.source_serial??unit?.serial_number??''),
         status: row.operational_status??'POR CLASIFICAR',
@@ -150,6 +147,7 @@ export class SnapshotRepository {
         duration: null,
         dueAt: dateOnly(row.due_at),
         completedAt: dateOnly(row.completed_at),
+        evidenceUrl: row.evidence_url??null,
         status: row.activity_status??row.status??'',
         checked: ['COMPLETAS','COMPLETA','COMPLETADA','CONCLUIDA'].includes(String(row.status??'').toUpperCase()),
         sourceProgress: null,
@@ -217,7 +215,7 @@ export class SnapshotRepository {
     else if(creating)throw Error('Completa la captura guiada.');
     if(payload.client!==undefined){const clients=(await this.catalogs()).clients;const c=clients.find(c=>catalogKey(c.name)===catalogKey(payload.client));if(!c)throw Error('Selecciona un cliente del catálogo.');body.client_id=c.id;}
     if(payload.owner!==undefined)body.owner_id=await this.lookupId('personnel','name',payload.owner);
-    const mapping={area:'area',businessUnit:'business_unit',priority:'priority',status:'operational_status',openedAt:'opened_at',dueAt:'due_at',serviceCategoryId:'service_category_id',catalogModelId:'catalog_model_id',catalogSerialId:'catalog_serial_id',log:'logbook',technicalFindings:'technical_findings',workPerformed:'work_performed',finalCondition:'final_condition'};
+    const mapping={area:'area',businessUnit:'business_unit',priority:'priority',status:'operational_status',openedAt:'opened_at',dueAt:'due_at',resolvedAt:'resolved_at',serviceCategoryId:'service_category_id',catalogModelId:'catalog_model_id',catalogSerialId:'catalog_serial_id',log:'logbook',technicalFindings:'technical_findings',workPerformed:'work_performed',finalCondition:'final_condition'};
     for(const [key,column] of Object.entries(mapping))if(payload[key]!==undefined)body[column]=payload[key]||null;
     if(body.priority)body.priority='P'+String(body.priority).replace(/^P/,'');
     if(payload.catalogModelId!==undefined){
@@ -265,13 +263,15 @@ export class SnapshotRepository {
         antecedent_ticket_id:payload.antecedentFolio?await this.lookupId('tickets','folio',payload.antecedentFolio):null,
         checklist:validateChecklist(payload.checklist||[]),
         title:payload.taskType,
-
         area:payload.area||null,
         priority:payload.priority||null,
         activity_status:payload.status||'POR INICIAR',
-        outcome:payload.outcome||null,resolution:payload.resolution||null,
+        outcome:payload.outcome||null,
+        resolution:payload.resolution||null,
         start_at:payload.startAt||null,
         due_at:payload.dueAt||null,
+        completed_at:payload.completedAt||null,
+        evidence_url:payload.evidenceUrl||null,
         notes:payload.notes||null,
         created_by:'Plataforma SUDMAR',
       })
@@ -295,6 +295,8 @@ export class SnapshotRepository {
     if(changes.status!==undefined)body.activity_status=changes.status;
     if (changes.startAt!==undefined) body.start_at=changes.startAt||null;
     if (changes.dueAt!==undefined) body.due_at=changes.dueAt||null;
+    if (changes.completedAt!==undefined) body.completed_at=changes.completedAt||null;
+    if (changes.evidenceUrl!==undefined) body.evidence_url=changes.evidenceUrl||null;
     if (changes.notes!==undefined) body.notes=changes.notes||null;
     if (changes.resolution!==undefined) body.resolution=changes.resolution||null;
     if (changes.outcome!==undefined) body.outcome=changes.outcome||null;
