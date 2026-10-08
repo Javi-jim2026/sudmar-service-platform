@@ -44,7 +44,7 @@ try{
  assert.equal(await page.evaluate(()=>Object.keys(JSON.parse(localStorage.getItem('sudmar-operations-pilot-v1')).reviews).length),1);
  await click('[data-action="navigate"][data-view="dashboard"]');
 
- await click('[data-action="new-ticket"]);
+ await click('[data-action="new-ticket"]');
  await page.locator('#newTicketstatus + .ops-picker').click();
  await page.locator('#newTicketDialog .ops-picker-popup .ops-picker-option').filter({hasText:'REGISTRADO'}).click();
  assert.equal(await page.locator('#newTicketstatus').inputValue(),'REGISTRADO');
