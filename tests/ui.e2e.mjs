@@ -137,7 +137,7 @@ try{
  await click('[data-action="ticket"][data-id="seed"]');
  page.once('dialog',dialog=>dialog.dismiss());
  await click('#detailDialog [data-action="toggle-ticket-visibility"]');
- assert.equal(tables.tickets.find(t=>t.id==='seed').operational_hidden,undefined);
+ assert.equal(tables.tickets.find(t=>t.id==='seed').operational_hidden,false);
  page.once('dialog',dialog=>dialog.accept());
  await click('#detailDialog [data-action="toggle-ticket-visibility"]');
  await page.locator('#toast').filter({hasText:'Ticket desactivado'}).waitFor();
