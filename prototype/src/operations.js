@@ -47,3 +47,10 @@ export function suggestTicketTitle(context,maxLength=80){
 }
 export function operationalGroup(status){return ({REGISTRADO:'Pendientes',PROGRAMADO:'Pendientes','EN EJECUCIÓN':'Activos','EN ESPERA':'Detenidos',BLOQUEADO:'Detenidos','PENDIENTE DE VALIDACIÓN':'Por validar',CONCLUIDO:'Terminados',CANCELADO:'Terminados'})[status]||'Por clasificar';}
 export function cedulaSummary(t){return [['Ticket',`#${t.folio}`],['Cliente',t.client],['Equipo',[t.model,t.serial].filter(Boolean).join(' · ')],['Solicitud / incidencia reportada',t.description||t.title],['Hallazgo / diagnóstico técnico',t.technicalFindings],['Trabajo realizado / resolución',t.workPerformed],['Resultado / condición final',t.finalCondition],['Estado',t.status],['Cierre real',t.closedAt]].filter(([,v])=>v).map(([k,v])=>`${k}: ${v}`).join('\n');}
+
+/** Short, factual summary generated only from submitted service details. */
+export function resolutionSummary({technicalFindings='',workPerformed='',finalCondition=''}={}){
+ const rows=[['Se encontró',technicalFindings],['Se realizó',workPerformed],['Resultado final',finalCondition]]
+  .filter(([,value])=>String(value||'').trim()).map(([label,value])=>label+': '+String(value).trim().replace(/\\s+/g,' '));
+ return rows.join('\\n')||'Aún no se documentan los trabajos ni el resultado final.';
+}
