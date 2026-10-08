@@ -9,6 +9,7 @@ const names=['Javier Jimenez','Daniel Hernandez','Enrique Gonzalez','Hernan Reye
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:config.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const key='sudmar-operations-pilot-v1';
 const dateParts=s=>new Date(s+'T12:00:00');
+const localDay=value=>new Intl.DateTimeFormat('en-CA',{timeZone:config.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
 const iso=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
 const weekStart=s=>{const d=dateParts(s||today());d.setDate(d.getDate()-((d.getDay()+6)%7));return iso(d);};
 const plusDays=(s,n)=>{const d=dateParts(s);d.setDate(d.getDate()+n);return iso(d);};
@@ -67,7 +68,7 @@ const cancelled=t=>t.status==='CANCELADA'||t.isCancelled;
 function taskWeek(tasks,person,start){const [a,b]=range(start);return tasks.filter(t=>t.owner===person&&t.startAt<=b&&((t.completedAt||t.dueAt||b)>=a||!completed(t)&&!cancelled(t)));}
 function entriesInWeek(store,person,start){const [a,b]=range(start);return Object.entries(store.reports).filter(([k,r])=>k.startsWith(person+'|')&&r.date>=a&&r.date<=b);}
 function absent(store,person,date){return store.absences[storageKey(person,date)]||'';}
-function compliance(store,person,start){const dates=Array.from({length:7},(_,i)=>plusDays(start,i)).filter((d,i)=>i<5&&d<today()&&!absent(store,person,d));const done=dates.filter(d=>Boolean(store.reports[storageKey(person,d)]));const late=done.filter(d=>store.reports[storageKey(person,d)].submittedAt?.slice(0,10)>d).length;return {required:dates.length,done:done.length,late,missed:dates.length-done.length};}
+function compliance(store,person,start){const dates=Array.from({length:7},(_,i)=>plusDays(start,i)).filter((d,i)=>i<5&&d<today()&&!absent(store,person,d));const done=dates.filter(d=>Boolean(store.reports[storageKey(person,d)]));const late=done.filter(d=>localDay(store.reports[storageKey(person,d)].submittedAt)>d).length;return {required:dates.length,done:done.length,late,missed:dates.length-done.length};}
 function totals(store,person,start,tasks){
  const active=taskWeek(tasks,person,start);
  const docs=entriesInWeek(store,person,start).flatMap(([,r])=>r.items||[]);
