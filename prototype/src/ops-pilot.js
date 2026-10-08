@@ -48,7 +48,7 @@ function attachPickers(root=document){
     b.style.setProperty('--status-color',p[0]);b.style.setProperty('--status-bg',p[1]);
     b.innerHTML=paintOption(option.value,priority);b.addEventListener('click',()=>{select.value=option.value;select.dispatchEvent(new Event('change',{bubbles:true}));closePopup();control.focus();});panel.append(b);
    }
-   const r=control.getBoundingClientRect();panel.style.position='fixed';panel.style.top=Math.min(r.bottom+4,innerHeight-300)+'px';panel.style.left=Math.max(8,Math.min(r.left,innerWidth-300))+'px';panel.style.width=Math.max(220,r.width)+'px';document.body.append(panel);popup=panel;control.setAttribute('aria-expanded','true');
+   const r=control.getBoundingClientRect();panel.style.position='fixed';panel.style.top=Math.min(r.bottom+4,innerHeight-300)+'px';panel.style.left=Math.max(8,Math.min(r.left,innerWidth-300))+'px';panel.style.width=Math.max(220,r.width)+'px';(control.closest('dialog')||document.body).append(panel);popup=panel;control.setAttribute('aria-expanded','true');
   });
  }
 }
