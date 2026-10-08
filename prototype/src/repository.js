@@ -83,6 +83,8 @@ export class SnapshotRepository {
       return {
         id: row.id,
         isTest: row.is_test===true,
+        operationalHidden: row.operational_hidden===true,
+        operationalHiddenAt: row.operational_hidden_at??null,
         folio: String(row.folio??''),
         priority: String(row.priority??'').replace(/^P/i,''),
         title: row.title??'',
@@ -317,6 +319,22 @@ export class SnapshotRepository {
     if(folio!==undefined)body.folio=folio;
     const rows=await supabaseRequest(`/rest/v1/tickets?id=${exact(id)}&select=*`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(body)});
     if(!rows?.[0])throw Error('No se pudo actualizar el ticket.');return rows[0];
+  }
+
+  async updateTicketVisibility(id,currentlyHidden) {
+    if (!this.canWrite()) throw Error('La edición de tickets no está disponible.');
+    const body={
+      operational_hidden:!currentlyHidden,
+      operational_hidden_at:currentlyHidden?null:new Date().toISOString()
+    };
+    // Actualización condicional: evita sobrescribir un cambio realizado en otra sesión.
+    const rows=await supabaseRequest(`/rest/v1/tickets?id=${exact(id)}&operational_hidden=${exact(String(currentlyHidden))}&select=id,operational_hidden,operational_hidden_at`,{
+      method:'PATCH',
+      headers:{Prefer:'return=representation'},
+      body:JSON.stringify(body)
+    });
+    if (!rows?.[0]) throw Error('La visibilidad del ticket cambió en otra sesión. Actualiza antes de reintentar.');
+    return rows[0];
   }
 
   async validateTicketFolio(value,id) {
