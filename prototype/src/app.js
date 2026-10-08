@@ -553,7 +553,7 @@ function ticketFields(prefix,t={}){
  catalogControl(prefix,'serviceCategory','Categoría de servicio',c.categories.filter(x=>x.business_unit===t.businessUnit).map(x=>x.name),category?.name||'','service_categories')+
  slaSelect(prefix+'priority',t.priority)+
  field('Estado operativo',selectControl(prefix+'status','status',Object.keys(ticketStates),t.status||'REGISTRADO',t.status==='POR CLASIFICAR'?'Requiere clasificación':'Seleccionar'),Object.entries(ticketStates).map(([k,v])=>k+': '+v).join(' '))+
- field('Coordinador del ticket',selectControl(prefix+'owner','owner',state.personnel.map(x=>x.name),t.owner||(t.id?'':'Javier Jimenez'),'Sin asignar'))+
+ field('Coordinador del ticket',selectControl(prefix+'owner','owner',[...new Set([...state.personnel.map(x=>x.name),...(t.id&&t.owner?[t.owner]:[])])],t.owner||(t.id?'':'Javier Jimenez'),'Sin asignar'))+
  field('Área del responsable',`<input id="${prefix}area" name="area" value="${e(t.area||(!t.id?'Operaciones':''))}" readonly>`)+
  field('Fecha de inicio',`<input id="${prefix}openedAt" name="openedAt" type="date" value="${e(t.openedAt||today)}" required>`)+
  field('Fecha objetivo',`<input id="${prefix}dueAt" name="dueAt" type="date" value="${e(t.dueAt||'')}">`)+
@@ -604,7 +604,7 @@ function showTicketDetail(id){
 function activityFields(prefix,task={}){
  const c=catalogs();
  return catalogControl(prefix,'taskType','Tipo de actividad',c.types.map(x=>x.name),task.taskType||'','activity_types')+
- field('Responsable',selectControl(prefix+'owner','owner',state.personnel.map(x=>x.name),task.owner))+
+ field('Responsable',selectControl(prefix+'owner','owner',[...new Set([...state.personnel.map(x=>x.name),...(task.id&&task.owner?[task.owner]:[])])],task.owner))+
  field('Área del responsable',`<input id="${prefix}area" name="area" value="${e(task.area||'')}" readonly>`)+
  slaSelect(prefix+'priority',task.priority)+
  field('Estado de actividad',`<select id="${prefix}status" name="status">${c.statuses.map(s=>`<option value="${e(s.name)}" ${(task.status||'POR INICIAR')===s.name?'selected':''}>${e(s.name)}</option>`).join('')}</select><button type="button" class="text-action" data-action="add-catalog" data-kind="activity_statuses" data-prefix="${prefix}">+ Agregar estado</button>`,c.statuses.map(s=>s.name+': '+s.description).join(' '))+
