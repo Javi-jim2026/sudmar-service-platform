@@ -212,10 +212,13 @@ function ensureActivityOperationalFields(prefix,values={}){
 }
 async function syncActivityCompletionField(prefix,fromStatusChange=false){
  const status=$(prefix+'status')?.value||'',input=$(prefix+'CompletedAt');if(!input)return;
- let closed=false;try{const catalogs=await repository.catalogs();closed=catalogs.statuses.some(s=>s.name===status&&s.group_code==='CERRADA');}catch{closed=['COMPLETADA','CANCELADA'].includes(status);}
- input.readOnly=!closed;
- if(fromStatusChange){if(closed&&!input.value)input.value=todayLocal();if(!closed)input.value='';}
- const note=$(prefix+'CompletedNote');if(note)note.textContent=closed?'Fecha en la que realmente se realizó/cerró la actividad. Puedes corregirla.':'Se habilita cuando el estado de la actividad sea de cierre.';
+ const completed=status==='COMPLETADA',cancelled=status==='CANCELADA';
+ input.readOnly=!completed;
+ if(fromStatusChange){if(completed&&!input.value)input.value=todayLocal();if(!completed)input.value='';}
+ const note=$(prefix+'CompletedNote');if(note)note.textContent=completed?'Fecha real del trabajo terminado; puedes corregirla.':cancelled?'Actividad cancelada: no se contabiliza como realizada.':'Se habilita únicamente al seleccionar COMPLETADA.';
+ let cancelNote=$(prefix+'CancelledNote');
+ if(!cancelNote){cancelNote=document.createElement('span');cancelNote.id=prefix+'CancelledNote';cancelNote.className='sudmar-field-note';input.closest('.field')?.append(cancelNote);}
+ cancelNote.hidden=!cancelled;if(cancelled)cancelNote.textContent='La fecha de cancelación se registra automáticamente al guardar.';
 }
 function updateActivityEvidenceButton(prefix){
  const input=$(prefix+'EvidenceUrl'),target=$(prefix+'EvidenceOpen');if(!input||!target)return;
