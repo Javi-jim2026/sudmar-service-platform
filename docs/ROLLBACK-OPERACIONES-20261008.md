@@ -14,8 +14,8 @@ git fetch origin
 git switch main
 git pull --ff-only
 git switch -c restore/pre-operaciones-kpi
-git restore --source origin/backup/pre-operaciones-kpi-2026-10-08 -- prototype/src/app.js prototype/src/enhancements.js prototype/src/operations.js prototype/src/ops-pilot.js prototype/ops-pilot.css prototype/index.html prototype/sw.js tests/ui.e2e.mjs
-# Los archivos nuevos ops-pilot.js / ops-pilot.css pueden requerir git rm, pues no existían en la rama de respaldo.
+git restore --source origin/backup/pre-operaciones-kpi-2026-10-08 -- prototype/src/app.js prototype/src/enhancements.js prototype/src/operations.js prototype/index.html prototype/sw.js tests/ui.e2e.mjs
+git rm --ignore-unmatch prototype/src/ops-pilot.js prototype/ops-pilot.css
 git status
 ```
 Comparar resultados, hacer commit y desplegar con el workflow de GitHub Actions. No forzar la rama `main` ni usar `git reset --hard` para evitar sobrescribir nuevos desarrollos.
