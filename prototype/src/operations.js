@@ -51,6 +51,6 @@ export function cedulaSummary(t){return [['Ticket',`#${t.folio}`],['Cliente',t.c
 /** Short, factual summary generated only from submitted service details. */
 export function resolutionSummary({technicalFindings='',workPerformed='',finalCondition=''}={}){
  const rows=[['Se encontró',technicalFindings],['Se realizó',workPerformed],['Resultado final',finalCondition]]
-  .filter(([,value])=>String(value||'').trim()).map(([label,value])=>label+': '+String(value).trim().replace(/\\s+/g,' '));
- return rows.join('\\n')||'Aún no se documentan los trabajos ni el resultado final.';
+  .filter(([,value])=>String(value||'').trim()).map(([label,value])=>label+': '+String(value).trim().replace(/\s+/g,' '));
+ return rows.join('\n')||'Aún no se documentan los trabajos ni el resultado final.';
 }
