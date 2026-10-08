@@ -363,7 +363,7 @@ function activityTicketOptions(query='',selected=''){
  if(queryText){
    matches=all.filter(t=>normalized([t.folio,t.title,t.client,t.model,t.serial,t.status].join(' ')).includes(queryText));
  }else{
-   matches=all.filter(t=>!isClosed(t)).slice(0,40);
+   matches=all.filter(t=>!isClosed(t)&&!t.operationalHidden).slice(0,40);
  }
  if(selected&&!matches.some(t=>String(t.folio)===String(selected))){
    const selectedTicket=all.find(t=>String(t.folio)===String(selected));
@@ -374,7 +374,7 @@ function activityTicketOptions(query='',selected=''){
 function renderActivityTicketOptions(query='',selected=''){
  const select=$('newTaskTicket');if(!select)return;
  const matches=activityTicketOptions(query,selected);
- select.innerHTML='<option value="">Seleccionar ticket</option>'+matches.map(t=>`<option value="${e(t.folio)}" ${String(t.folio)===String(selected)?'selected':''}>#${e(t.folio)} · ${e(t.client||'Sin cliente')} · ${e(t.title||'Sin título')}${t.model?' · '+e(t.model):''}${isClosed(t)?' · '+e(t.status):''}</option>`).join('');
+ select.innerHTML='<option value="">Seleccionar ticket</option>'+matches.map(t=>`<option value="${e(t.folio)}" ${String(t.folio)===String(selected)?'selected':''}>#${e(t.folio)} · ${e(t.client||'Sin cliente')} · ${e(t.title||'Sin título')}${t.model?' · '+e(t.model):''}${isClosed(t)?' · '+e(t.status):''}${t.operationalHidden?' · DESACTIVADO':''}</option>`).join('');
  const help=$('newTaskTicketSearch')?.closest('.field')?.querySelector('.field-help');
  if(help) help.textContent=normalized(query)?(matches.length+' coincidencia'+(matches.length===1?'':'s')+' encontradas.'):'Mostrando los 40 tickets activos más recientes. Escribe para buscar en todos.';
 }
@@ -557,7 +557,8 @@ document.addEventListener('change',event=>{
  if(event.target.id==='calendarClient'){state.calendarClient=event.target.value;render();}
  if(event.target.id==='calendarKind'){state.calendarKind=event.target.value;render();}
  if(event.target.id==='calendarActivityStatus'){state.calendarActivityStatus=event.target.value;render();}
- if(event.target.id==='newTicketOwner'){}
+ if(['newTicketmodel','newTicketserial'].includes(event.target.id))renderNewTicketAntecedents();
+  if(event.target.id==='newTicketOwner'){}
  if(event.target.id==='newTaskOwner'){}
  if(event.target.id==='ticketEditStage'){
    const field=$('ticketNewStageField');
@@ -619,6 +620,7 @@ function ticketFields(prefix,t={}){
  `<h3 class="full-width">Equipo</h3>`+
  catalogControl(prefix,'model','Modelo',c.models.map(x=>x.name),model?.name||t.model||'','equipment_models')+
  catalogControl(prefix,'serial','Número de serie',c.serials.filter(x=>x.model_id===model?.id).map(x=>x.serial_number),t.serial||'','equipment_serials')+
+ (prefix==='newTicket'?'<div id="newTicketAntecedents" class="full-width ticket-antecedents" role="status" aria-live="polite"></div>':'')+
  field('Tipo de equipo',`<input id="${prefix}equipmentType" value="${e(model?.equipment_type||t.equipmentType||'')}" readonly>`)+
  `<h3 class="full-width">Solicitud / incidencia reportada</h3>`+
  Object.entries(requestQuestions).map(([key,label])=>field(label,`<textarea id="${prefix}${key}" name="${key}" rows="2" maxlength="700" required>${e(t.requestContext?.[key]||'')}</textarea>`)).join('')+
@@ -639,6 +641,11 @@ function readTicketFields(prefix,original={}){
  if(!val('status'))throw Error('Selecciona el estado operativo.');
  if(val('dueAt')&&val('dueAt')<val('openedAt'))throw Error('La fecha objetivo no puede ser anterior al inicio.');
  return {folio:val('folio'),client:client.name,businessUnit,serviceCategoryId:category?.id||'',priority:val('priority'),status:val('status'),owner:val('owner'),area:val('area'),openedAt:val('openedAt'),dueAt:val('dueAt'),...(model?{catalogModelId:model.id,catalogSerialId:serial?.id||''}:{}),...(!original.id||hasRequest?{requestContext}:{})};
+}
+function renderNewTicketAntecedents(){
+ const target=$('newTicketAntecedents');if(!target)return;
+ const serial=$('newTicketserial')?.value||'',matches=antecedentsBySerial(state.data.tickets,serial);
+ target.innerHTML=matches.length?`<strong>Antecedentes del equipo: ${matches.length} ticket(s)</strong><p>Esta serie ya tiene registros previos, incluidos los desactivados.</p><ul>${matches.slice(0,8).map(t=>`<li>Ticket #${e(t.folio)} · ${e(t.client||'Sin cliente')} · ${e(t.status||'Sin estado')}${t.operationalHidden?' · Desactivado':''}</li>`).join('')}</ul>${matches.length>8?'<p>Consulta el historial completo para ver todos los registros.</p>':''}`:'';
 }
 function openNewTicket(){
  $('newTicketForm').querySelector('.filter-fields').innerHTML=ticketFields('newTicket')+(config.features.testTicketDeletion?'<label class="full-width"><input id="newTicketIsTest" type="checkbox"> Ticket de prueba (solo podrá eliminarse mientras no registre trabajo real)</label>':'');$('newTicketError').textContent='';$('newTicketDialog').showModal();
@@ -747,7 +754,8 @@ document.addEventListener('change',event=>{
  }
 });
 document.addEventListener('input',event=>{
- for(const prefix of ['newTicket','ticketEdit'])if(event.target.id===prefix+'clientSearch')renderClientOptions(prefix);
+ if(event.target.id==='newTicketserial')renderNewTicketAntecedents();
+  for(const prefix of ['newTicket','ticketEdit'])if(event.target.id===prefix+'clientSearch')renderClientOptions(prefix);
  for(const prefix of ['newTicket','ticketEdit'])if(Object.keys(requestQuestions).some(k=>event.target.id===prefix+k)){const text=requestSummary(Object.fromEntries(Object.keys(requestQuestions).map(k=>[k,$(prefix+k).value])));$(prefix+'summary').textContent=text;if(prefix==='ticketEdit'&&$('cedulaRequestText'))$('cedulaRequestText').textContent=text;}
  if(['ticketEditTechnicalFindings','ticketEditWorkPerformed','ticketEditFinalCondition'].includes(event.target.id)&&$('cedulaResolutionText')){$('cedulaResolutionText').textContent=resolutionSummary({technicalFindings:$('ticketEditTechnicalFindings')?.value,workPerformed:$('ticketEditWorkPerformed')?.value,finalCondition:$('ticketEditFinalCondition')?.value});}
 });
