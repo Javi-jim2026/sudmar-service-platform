@@ -33,7 +33,21 @@ const click=s=>page.locator(s).first().click(),fill=(s,v)=>page.locator(s).fill(
 async function add(kind,prefix,name,extra){await click(`[data-action="add-catalog"][data-kind="${kind}"][data-prefix="${prefix}"]`);await fill('#catalogForm [name="name"]',name);if(extra)await extra();await click('#catalogForm [type="submit"]');await page.locator('#catalogDialog').waitFor({state:'hidden'});}
 try{
  await page.goto(`http://127.0.0.1:${server.address().port}/`);await page.locator('#sourceDate').filter({hasText:'Supabase en línea'}).waitFor();
- await click('[data-action="new-ticket"]');
+ // Pilot-only KPI/report/evaluation: names are selected manually and journals stay local.
+ await click('[data-ops-view="daily"]');await page.locator('#opsEntryForm').waitFor();
+ await fill('#opsEntrySummary','Seguimiento documentado y pruebas de campo para el servicio.');
+ await click('#opsEntryForm [type="submit"]');assert.equal(await page.locator('#opsDraftList .ops-task-line').count(),1);
+ await click('#opsSubmitDaily');assert.equal(await page.evaluate(()=>Object.keys(JSON.parse(localStorage.getItem('sudmar-operations-pilot-v1')).reports).length),1);
+ await click('[data-ops-view="kpis"]');await page.locator('#opsWeek').waitFor();
+ await click('[data-ops-view="review"]');await page.locator('#opsReviewSubject').selectOption('EQUIPO OPERATIVO');
+ await click('#opsStartReview');await page.locator('[name="r0"]').selectOption('8');await click('#opsReviewForm [type="submit"]');
+ assert.equal(await page.evaluate(()=>Object.keys(JSON.parse(localStorage.getItem('sudmar-operations-pilot-v1')).reviews).length),1);
+ await click('[data-action="navigate"][data-view="dashboard"]');
+
+ await click('[data-action="new-ticket"]);
+ await page.locator('#newTicketstatus + .ops-picker').click();
+ await page.locator('#newTicketDialog .ops-picker-popup .ops-picker-option').filter({hasText:'REGISTRADO'}).click();
+ assert.equal(await page.locator('#newTicketstatus').inputValue(),'REGISTRADO');
  await page.locator('#newTicketbusinessUnit').selectOption('PRETTL');
  assert.equal(await page.locator('#newTicketclient option[value="Cliente prueba"]').count(),1);
  await fill('#newTicketclientSearch','cliente PRU');assert.equal(await page.locator('#newTicketclient option').count(),2);
