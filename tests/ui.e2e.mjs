@@ -10,7 +10,7 @@ const browser=await chromium.launch({headless:true,...(process.env.BROWSER_PATH?
 const context=await browser.newContext({viewport:{width:1360,height:1000},serviceWorkers:'block',permissions:['clipboard-read','clipboard-write']});
 const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
 const day='2026-09-25';
-const tables={tickets:[{id:'seed',folio:'9000',client_id:'client',title:'Histórico',status:'COBRANZA',legacy_status:'COBRANZA',stage:'Cobranza',business_unit:'SERVICIO',opened_at:day,owner_id:'person',diagnosis:'Texto histórico'}],clients:[{id:'client',name:'Cliente prueba'}],personnel:[{id:'person',name:'Javier Jimenez',role:'Gerente Operativo',area:'Operaciones',operational_areas:['Operaciones']}],equipment:[],inventory_units:[{id:'inventory-a',source_row:1,serial_number:'89331070/0004',model:'ESE 340 CW/AS MPP',extraction_ref:'2211',product_line:'PREMIUM POWER',equipment_type:'GENERADORES A DIESEL',quantity:1,status:'ENTREGADO',archived:false,updated_at:'2026-10-08T00:00:00Z',source_snapshot:{serial_number:'89331070/0004'}},{id:'inventory-b',source_row:3,serial_number:'89331070/0004',model:'ESE 340 CW/AS MPP',extraction_ref:'2212',product_line:'PREMIUM POWER',equipment_type:'GENERADORES A DIESEL',quantity:1,status:'DISPONIBLE',archived:false,updated_at:'2026-10-08T00:00:00Z',source_snapshot:{serial_number:'89331070/0004'}}],tasks:[],equipment_models:[{id:'model',name:'ESE 250 BW/AS',equipment_type:'GENERADORES A DIESEL'}],equipment_serials:[{id:'serial',model_id:'model',serial_number:'89333065/0006'}],service_categories:[{id:'cat1',business_unit:'SUDMAR',name:'Cursos'},{id:'cat2',business_unit:'PRETTL',name:'Garantía'}],activity_types:[{id:'type1',name:'Diagnóstico'},{id:'type2',name:'Instalación'}],activity_statuses:[{name:'POR INICIAR',group_code:'POR INICIAR',description:'Aún no comienza'},{name:'EN EJECUCIÓN',group_code:'EN CURSO',description:'En ejecución'},{name:'EN ESPERA',group_code:'DETENIDA',description:'Dependencia externa'},{name:'BLOQUEADA',group_code:'DETENIDA',description:'Impedimento'},{name:'COMPLETADA',group_code:'CERRADA',description:'Terminó'},{name:'CANCELADA',group_code:'CERRADA',description:'Cancelada',is_cancelled:true}]};
+const tables={tickets:[{id:'seed',folio:'9000',client_id:'client',title:'Histórico',status:'COBRANZA',operational_hidden:false,legacy_status:'COBRANZA',stage:'Cobranza',business_unit:'SERVICIO',opened_at:day,owner_id:'person',source_serial:'89333065/0006',diagnosis:'Texto histórico'}],clients:[{id:'client',name:'Cliente prueba'}],personnel:[{id:'person',name:'Javier Jimenez',role:'Gerente Operativo',area:'Operaciones',operational_areas:['Operaciones']}],equipment:[],inventory_units:[{id:'inventory-a',source_row:1,serial_number:'89331070/0004',model:'ESE 340 CW/AS MPP',extraction_ref:'2211',product_line:'PREMIUM POWER',equipment_type:'GENERADORES A DIESEL',quantity:1,status:'ENTREGADO',archived:false,updated_at:'2026-10-08T00:00:00Z',source_snapshot:{serial_number:'89331070/0004'}},{id:'inventory-b',source_row:3,serial_number:'89331070/0004',model:'ESE 340 CW/AS MPP',extraction_ref:'2212',product_line:'PREMIUM POWER',equipment_type:'GENERADORES A DIESEL',quantity:1,status:'DISPONIBLE',archived:false,updated_at:'2026-10-08T00:00:00Z',source_snapshot:{serial_number:'89331070/0004'}}],tasks:[],equipment_models:[{id:'model',name:'ESE 250 BW/AS',equipment_type:'GENERADORES A DIESEL'}],equipment_serials:[{id:'serial',model_id:'model',serial_number:'89333065/0006'}],service_categories:[{id:'cat1',business_unit:'SUDMAR',name:'Cursos'},{id:'cat2',business_unit:'PRETTL',name:'Garantía'}],activity_types:[{id:'type1',name:'Diagnóstico'},{id:'type2',name:'Instalación'}],activity_statuses:[{name:'POR INICIAR',group_code:'POR INICIAR',description:'Aún no comienza'},{name:'EN EJECUCIÓN',group_code:'EN CURSO',description:'En ejecución'},{name:'EN ESPERA',group_code:'DETENIDA',description:'Dependencia externa'},{name:'BLOQUEADA',group_code:'DETENIDA',description:'Impedimento'},{name:'COMPLETADA',group_code:'CERRADA',description:'Terminó'},{name:'CANCELADA',group_code:'CERRADA',description:'Cancelada',is_cancelled:true}]};
 let sequence=9001,rejectNext=false;
 await page.route('https://*.supabase.co/rest/v1/**',async route=>{
  const req=route.request(),url=new URL(req.url()),table=url.pathname.split('/').pop();let rows=tables[table]||[];
@@ -131,6 +131,38 @@ try{
  await click('#confirmDeleteTicket');await page.locator('#deleteTicketError').filter({hasText:'cancelarse/archivarse'}).waitFor();assert.ok(tables.tickets.includes(disposable));
  await click('#confirmDeleteTicket');await page.locator('#deleteTicketDialog').waitFor({state:'hidden'});
  assert.equal(tables.tickets.includes(disposable),false);assert.ok(tables.tickets.some(t=>t.id==='seed'));
+ // Hidden tickets are explicitly selected by the user and remain in Supabase and in history.
+ await click('[data-action="navigate"][data-view="dashboard"]');
+ assert.equal(await page.locator('[data-metric="total"]').innerText(),'2');
+ await click('[data-action="ticket"][data-id="seed"]');
+ page.once('dialog',dialog=>dialog.dismiss());
+ await click('#detailDialog [data-action="toggle-ticket-visibility"]');
+ assert.equal(tables.tickets.find(t=>t.id==='seed').operational_hidden,undefined);
+ page.once('dialog',dialog=>dialog.accept());
+ await click('#detailDialog [data-action="toggle-ticket-visibility"]');
+ await page.locator('#toast').filter({hasText:'Ticket desactivado'}).waitFor();
+ assert.equal(tables.tickets.find(t=>t.id==='seed').operational_hidden,true);
+ assert.equal(tables.tickets.find(t=>t.id==='seed').operational_status,undefined);
+ assert.equal(await page.locator('[data-metric="total"]').innerText(),'1');
+ await click('#detailDialog [data-action="close-dialog"]');
+ await click('[data-action="navigate"][data-view="tickets"]');
+ assert.equal(await page.locator('[data-action="ticket"][data-id="seed"]').count(),0);
+ await page.locator('#ticketVisibility').selectOption('hidden');
+ assert.equal(await page.locator('[data-action="ticket"][data-id="seed"]').count()>0,true);
+ await click('[data-action="new-ticket"]');
+ await fill('#newTicketserial','89333065/0006');
+ await page.locator('#newTicketAntecedents').filter({hasText:'Ticket #9000'}).waitFor();
+ assert.match(await page.locator('#newTicketAntecedents').innerText(),/Desactivado/);
+ await click('#newTicketDialog [data-action="close-dialog"]');
+ await click('[data-action="ticket"][data-id="seed"]');
+ page.once('dialog',dialog=>dialog.accept());
+ await click('#detailDialog [data-action="toggle-ticket-visibility"]');
+ await page.locator('#toast').filter({hasText:'Ticket reactivado'}).waitFor();
+ assert.equal(tables.tickets.find(t=>t.id==='seed').operational_hidden,false);
+ await click('#detailDialog [data-action="close-dialog"]');
+ await page.locator('#ticketVisibility').selectOption('visible');
+ assert.equal(await page.locator('[data-action="ticket"][data-id="seed"]').count()>0,true);
+
  assert.deepEqual(errors,[]);console.log('All operational UI flows passed (desktop/tablet/mobile).');
 }finally{await browser.close();server.close();}
 
