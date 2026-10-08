@@ -1,4 +1,4 @@
-import {ticketStates,slaHelp,slaColors,requestQuestions,requestSummary,validateRequest,catalogKey,cedulaSummary,operationalGroup} from './operations.js';
+import {ticketStates,slaHelp,slaColors,requestQuestions,requestSummary,validateRequest,catalogKey,cedulaSummary,operationalGroup,resolutionSummary} from './operations.js';
 import {activityCategories, checklistProgress, validateChecklist, validateActivity, MAX_WORK_ITEMS} from './checklist.js';
 import {config} from './config.js';
 import {repository} from './repository.js';
@@ -553,8 +553,8 @@ function ticketFields(prefix,t={}){
  catalogControl(prefix,'serviceCategory','Categoría de servicio',c.categories.filter(x=>x.business_unit===t.businessUnit).map(x=>x.name),category?.name||'','service_categories')+
  slaSelect(prefix+'priority',t.priority)+
  field('Estado operativo',selectControl(prefix+'status','status',Object.keys(ticketStates),t.status||'REGISTRADO',t.status==='POR CLASIFICAR'?'Requiere clasificación':'Seleccionar'),Object.entries(ticketStates).map(([k,v])=>k+': '+v).join(' '))+
- field('Responsable',selectControl(prefix+'owner','owner',state.personnel.map(x=>x.name),t.owner,'Sin asignar'))+
- field('Área del responsable',`<input id="${prefix}area" name="area" value="${e(t.area||'')}" readonly>`)+
+ field('Coordinador del ticket',selectControl(prefix+'owner','owner',state.personnel.map(x=>x.name),t.owner||(t.id?'':'Javier Jimenez'),'Sin asignar'))+
+ field('Área del responsable',`<input id="${prefix}area" name="area" value="${e(t.area||(!t.id?'Operaciones':''))}" readonly>`)+
  field('Fecha de inicio',`<input id="${prefix}openedAt" name="openedAt" type="date" value="${e(t.openedAt||today)}" required>`)+
  field('Fecha objetivo',`<input id="${prefix}dueAt" name="dueAt" type="date" value="${e(t.dueAt||'')}">`)+
  `<h3 class="full-width">Equipo</h3>`+
@@ -588,9 +588,9 @@ function showTicketDetail(id){
  const t=state.data.tickets.find(t=>t.id===id);if(!t)return;
  const tasks=state.data.tasks.filter(x=>x.ticketFolio===t.folio),url=safeEvidenceUrl(t.evidenceUrl);
  openDetail(detailHeader('SEGUIMIENTO DEL SERVICIO','Ticket #'+t.folio)+`<div class="detail-heading-title"><h3>${e(t.title)}</h3><div class="detail-badges">${badge(t)}${priority(t)}</div></div>
- <section class="detail-section"><h3>RESUMEN PARA CÉDULA</h3><p class="note-text" id="cedulaText">${e(cedulaSummary(t))}</p><button class="button secondary" data-action="copy-cedula">Copiar para cédula</button></section>
+ <section class="detail-section sudmar-dual-summary"><h3>RESUMEN PARA CÉDULA</h3><p class="definition-note">Dos textos independientes, generados desde la captura guiada. Se actualizan al editar los campos.</p><div class="sudmar-summary-card"><h4>Solicitud / incidencia reportada</h4><p class="note-text" id="cedulaRequestText">${e(t.description||requestSummary(t.requestContext)||t.title||'Sin solicitud documentada.')}</p><button type="button" class="button secondary" data-action="copy-request">📋 Copiar solicitud</button></div><div class="sudmar-summary-card"><h4>Resolución / trabajos realizados</h4><p class="note-text" id="cedulaResolutionText">${e(resolutionSummary(t))}</p><button type="button" class="button secondary" data-action="copy-resolution">📋 Copiar resolución</button></div></section>
  <section class="detail-section"><div class="filter-fields">${ticketFields('ticketEdit',t)}
- <h3 class="full-width">Seguimiento y cierre</h3>
+ <h3 class="full-width">Resolución y cierre</h3>
  ${field('Hallazgo / diagnóstico técnico',`<textarea id="ticketEditTechnicalFindings" rows="3" maxlength="5000">${e(t.technicalFindings)}</textarea>`,'Qué se encontró realmente al revisar.')}
  ${field('Trabajo realizado / resolución',`<textarea id="ticketEditWorkPerformed" rows="3" maxlength="5000">${e(t.workPerformed)}</textarea>`,'Qué se hizo operativamente.')}
  ${field('Resultado / condición final',`<textarea id="ticketEditFinalCondition" rows="3" maxlength="5000">${e(t.finalCondition)}</textarea>`,'Cómo quedó el equipo o servicio.')}
@@ -664,7 +664,7 @@ function openCatalog(kind,prefix){
 document.addEventListener('click',async event=>{
  const b=event.target.closest('[data-action]');if(!b)return;
  if(b.dataset.action==='add-catalog')openCatalog(b.dataset.kind,b.dataset.prefix);
- if(b.dataset.action==='copy-cedula'){try{await navigator.clipboard.writeText($('cedulaText').textContent);toast('Resumen copiado para cédula.');}catch{toast('No se pudo copiar. Selecciona el resumen y cópialo manualmente.');}}
+ if(['copy-request','copy-resolution'].includes(b.dataset.action)){const text=$(b.dataset.action==='copy-request'?'cedulaRequestText':'cedulaResolutionText')?.textContent||'';try{await navigator.clipboard.writeText(text);toast('Resumen copiado para cédula.');}catch{toast('No se pudo copiar. Selecciona el resumen y cópialo manualmente.');}}
 });
 document.addEventListener('change',event=>{
  for(const prefix of ['newTicket','ticketEdit','newTask','taskEdit']){
@@ -681,7 +681,8 @@ document.addEventListener('change',event=>{
 });
 document.addEventListener('input',event=>{
  for(const prefix of ['newTicket','ticketEdit'])if(event.target.id===prefix+'clientSearch')renderClientOptions(prefix);
- for(const prefix of ['newTicket','ticketEdit'])if(Object.keys(requestQuestions).some(k=>event.target.id===prefix+k))$(prefix+'summary').textContent=requestSummary(Object.fromEntries(Object.keys(requestQuestions).map(k=>[k,$(prefix+k).value])));
+ for(const prefix of ['newTicket','ticketEdit'])if(Object.keys(requestQuestions).some(k=>event.target.id===prefix+k)){const text=requestSummary(Object.fromEntries(Object.keys(requestQuestions).map(k=>[k,$(prefix+k).value])));$(prefix+'summary').textContent=text;if(prefix==='ticketEdit'&&$('cedulaRequestText'))$('cedulaRequestText').textContent=text;}
+ if(['ticketEditTechnicalFindings','ticketEditWorkPerformed','ticketEditFinalCondition'].includes(event.target.id)&&$('cedulaResolutionText')){$('cedulaResolutionText').textContent=resolutionSummary({technicalFindings:$('ticketEditTechnicalFindings')?.value,workPerformed:$('ticketEditWorkPerformed')?.value,finalCondition:$('ticketEditFinalCondition')?.value});}
 });
 
 function ticketDeletionSection(t){
