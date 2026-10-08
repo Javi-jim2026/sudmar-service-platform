@@ -60,12 +60,13 @@ export class SnapshotRepository {
   }
 
   async loadSupabase() {
-    const [tickets, clients, equipment, personnel, tasks] = await Promise.all([
+    const [tickets, clients, equipment, personnel, tasks, inventory] = await Promise.all([
       fetchSupabaseTable('tickets','*','&order=folio.desc'),
       fetchSupabaseTable('clients','id,name'),
       fetchSupabaseTable('equipment','id,client_id,model,serial_number,equipment_type'),
       fetchSupabaseTable('personnel','id,name,role,area'),
-      fetchSupabaseTable('tasks','*','&order=created_at.desc')
+      fetchSupabaseTable('tasks','*','&order=created_at.desc'),
+      fetchSupabaseTable('inventory_units','*','&order=source_row.asc')
     ]);
 
     const catalogs=await this.catalogs();
@@ -172,6 +173,7 @@ export class SnapshotRepository {
       catalogs,
       tickets:mappedTickets,
       tasks:mappedTasks,
+      inventory,
     };
   }
 
@@ -323,6 +325,20 @@ export class SnapshotRepository {
     const rows=await supabaseRequest(`/rest/v1/tickets?select=id&folio=${exact(folio)}&limit=1`);
     if(rows.some(row=>row.id!==id))throw Error('Ya existe un ticket con ese número de ticket / folio. Escribe otro; no se guardaron los cambios.');
     return folio;
+  }
+
+  async updateInventory(id,changes,expectedUpdatedAt) {
+    if(!this.canWrite())throw Error('La edición de equipos no está disponible.');
+    const allowed=['serial_number','model','extraction_ref','product_line','equipment_type','quantity','status','client_name','notes','archived'];
+    const body={updated_at:new Date().toISOString()};
+    for(const key of allowed)if(Object.prototype.hasOwnProperty.call(changes,key))body[key]=changes[key];
+    if(body.serial_number!==undefined&&!String(body.serial_number).trim())throw Error('El número de serie no puede estar vacío.');
+    if(body.model!==undefined&&!String(body.model).trim())throw Error('El modelo no puede estar vacío.');
+    if(body.quantity!==undefined&&(!Number.isInteger(Number(body.quantity))||Number(body.quantity)<1))throw Error('Cantidad inválida.');
+    const path='/rest/v1/inventory_units?id='+exact(id)+'&select=*'+(expectedUpdatedAt?'&updated_at='+exact(expectedUpdatedAt):'');
+    const updated=await supabaseRequest(path,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(body)});
+    if(!updated?.[0])throw Error('Este registro cambió en otra sesión. Actualiza la página antes de editarlo.');
+    return updated[0];
   }
 
   async personnel() {
