@@ -4,6 +4,7 @@ import {config} from './config.js';
 import {repository} from './repository.js';
 import {icon} from './icons.js';
 import {inventoryStatuses,renderInventoryEquipment,renderInventoryDetails} from './inventory.js';
+import {ticketsByVisibility,antecedentsBySerial} from './visibility.js';
 import {normalized, clean, blankFilters, isKnownStatus, isClosed, isActive, isOverdue, taskComplete, taskClosed, taskCategory, validSerial, unique, filterTickets, linkedTasks, metrics, countsBy, equipmentGroups, safeEvidenceUrl, toCsv} from './core.js';
 
 const $=id=>document.getElementById(id);
@@ -36,14 +37,14 @@ const statusStyle={
   concluida:{label:'Concluida',tone:'green',color:'#16835f'},
   concluido:{label:'Concluido',tone:'green',color:'#16835f'}
 };
-const state={data:null,personnel:[],view:'dashboard',filters:blankFilters(),page:1,taskStatus:'all',taskOwner:'',taskCategory:'',calendarMonth:today.slice(0,7),calendarOwner:'',calendarClient:'',calendarKind:'all',calendarActivityStatus:'pending',clientTab:'operations',contactQuery:'',references:null,referenceError:false,inventoryTab:'inventory',inventoryQuery:'',inventoryStatus:'',inventoryArchiveMode:'active',inventoryPage:1};
+const state={data:null,personnel:[],view:'dashboard',filters:blankFilters(),page:1,taskStatus:'all',taskOwner:'',taskCategory:'',calendarMonth:today.slice(0,7),calendarOwner:'',calendarClient:'',calendarKind:'all',calendarActivityStatus:'pending',clientTab:'operations',contactQuery:'',references:null,referenceError:false,inventoryTab:'inventory',inventoryQuery:'',inventoryStatus:'',inventoryArchiveMode:'active',inventoryPage:1,ticketVisibility:'visible'};
 let installEvent=null,toastTimer,searchTimer;
 const statusInfo=t=>statusStyle[normalized(t.status)]||(ticketStates[t.status]?{label:t.status,tone:t.status==='BLOQUEADO'?'red':'blue',color:'#2f80ed'}:{label:'Por clasificar',tone:'slate',color:'#788390'});
 const badge=t=>`<span class="badge ${statusInfo(t).tone}" title="Estado del ticket: ${e(t.status||'Sin registrar')}">${statusInfo(t).label}</span>`;
 const priority=t=>`<span class="priority p${['1','2','3','4'].includes(t.priority)?t.priority:'0'}"><i></i>${t.priority?`SLA-0${e(t.priority)}`:'Sin SLA'}</span>`;
 const owner=name=>`<span class="avatar-owner"><span class="avatar">${e(clean(name).split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('')||'—')}</span><span class="owner-name">${e(name||'Sin asignar')}</span></span>`;
 const sortRecent=items=>[...items].sort((a,b)=>(b.openedAt||'').localeCompare(a.openedAt||'')||b.folio.localeCompare(a.folio,'es',{numeric:true}));
-const filtered=()=>filterTickets(state.data.tickets,state.filters,today);
+const filtered=()=>filterTickets(ticketsByVisibility(state.data.tickets,state.view==='tickets'?state.ticketVisibility:'visible'),state.filters,today);
 const tasksInScope=()=>linkedTasks(filtered(),state.data.tasks);
 const taskCategoryLabel=value=>({COMPRA:'Compras',COBRANZA:'Cobranza',FACTURACION:'Facturación',COTIZACION:'Cotización',CAMPO:'Campo / servicio',SEGUIMIENTO:'Seguimiento',OVERDUE:'Vencida'})[value]||value||'Seguimiento';
 const activityType=task=>clean(task.taskType)||taskCategoryLabel(taskCategory(task));
@@ -102,7 +103,7 @@ function readLocation(){const params=new URLSearchParams(location.search);state.
 function writeLocation(){try{const params=new URLSearchParams();if(state.view!=='dashboard')params.set('view',state.view);const defaults=blankFilters();for(const[key,value]of Object.entries(state.filters))if(value&&value!==defaults[key])params.set(key,typeof value==='boolean'?'1':value);history.replaceState(null,'',location.pathname+(params.size?'?'+params.toString():'')+location.hash);}catch{/* A standalone downloaded preview may restrict history. */}}
 function navigate(view){if(!views[view])return;state.view=view;state.page=1;render();window.scrollTo({top:0,behavior:'instant'});}
 
-function renderNav(){for(const id of ['desktopNav','mobileNav']){$(id).innerHTML=Object.entries(views).map(([key,v])=>`<button class="${id==='desktopNav'?'nav-button ':''}${key===state.view?'active':''}" data-action="navigate" data-view="${key}" ${key===state.view?'aria-current="page"':''} aria-label="${v.label}">${icon(v.icon)}<span>${v.label}</span>${id==='desktopNav'&&key==='tickets'?`<small class="nav-count">${n(state.data.tickets.length)}</small>`:''}</button>`).join('');}}
+function renderNav(){for(const id of ['desktopNav','mobileNav']){$(id).innerHTML=Object.entries(views).map(([key,v])=>`<button class="${id==='desktopNav'?'nav-button ':''}${key===state.view?'active':''}" data-action="navigate" data-view="${key}" ${key===state.view?'aria-current="page"':''} aria-label="${v.label}">${icon(v.icon)}<span>${v.label}</span>${id==='desktopNav'&&key==='tickets'?`<small class="nav-count">${n(ticketsByVisibility(state.data.tickets).length)}</small>`:''}</button>`).join('');}}
 function activeFilters(){return Object.entries(state.filters).filter(([key,value])=>key!=='dateField'&&Boolean(value));}
 function renderFilterChips(){const active=activeFilters();$('filterCount').textContent=active.length;$('filterCount').hidden=!active.length;$('filterChips').innerHTML=active.map(([key,value])=>`<button class="filter-chip" data-action="remove-filter" data-key="${key}" aria-label="Quitar filtro ${e(filterLabels[key])}"><span>${e(filterLabels[key])}${typeof value==='boolean'?'':': '+e(value==='__EMPTY__'?'Sin registrar':key==='priority'?'SLA-0'+value:value)}</span>${icon('close')}</button>`).join('')+(active.length?'<button class="clear-chips" data-action="clear">Limpiar todo</button>':'');}
 function options(values,selected,placeholder='Todos'){return `<option value="">${e(placeholder)}</option>`+values.map(value=>`<option value="${e(value)}" ${value===selected?'selected':''}>${e(value||'Sin registrar')}</option>`).join('');}
@@ -118,7 +119,7 @@ function barsPanel(tickets,key,title,subtitle){const groups=countsBy(tickets,key
 function empty(message='Prueba con otro cliente, una búsqueda más corta o un rango de fechas diferente.'){return `<div class="empty-state">${icon('search')}<h2>Sin resultados para esta vista</h2><p>${e(message)}</p><button class="button secondary" data-action="clear">Limpiar filtros</button></div>`;}
 function pagination(total){const pages=Math.max(1,Math.ceil(total/config.pageSize));state.page=Math.min(state.page,pages);const first=total?(state.page-1)*config.pageSize+1:0,last=Math.min(state.page*config.pageSize,total);return `<div class="pagination"><span class="pagination-label">${n(first)}–${n(last)} de ${n(total)} registros</span><div class="pagination-controls"><button class="button" data-action="page" data-delta="-1" ${state.page<=1?'disabled':''} aria-label="Página anterior">‹</button><span>${state.page} / ${pages}</span><button class="button" data-action="page" data-delta="1" ${state.page>=pages?'disabled':''} aria-label="Página siguiente">›</button></div></div>`;}
 function pageSlice(items){state.page=Math.max(1,Math.min(state.page,Math.max(1,Math.ceil(items.length/config.pageSize))));return items.slice((state.page-1)*config.pageSize,state.page*config.pageSize);}
-function renderTickets(tickets,preview=false){const sorted=sortRecent(tickets),list=preview?sorted.slice(0,6):pageSlice(sorted);const modes=[['all','Todos'],['active','Activos'],['wait','En espera'],['validation','Por validar']];const selected=state.filters.activeOnly?'active':state.filters.status==='EN ESPERA'?'wait':state.filters.status==='PENDIENTE DE VALIDACIÓN'?'validation':'all';const header=preview?`<div class="panel-header"><div><h2>Últimos tickets registrados</h2><p>Abre un ticket para consultar su seguimiento</p></div><button class="text-action" data-action="navigate" data-view="tickets">Ver todos ${icon('arrow')}</button></div>`:`<div class="list-toolbar"><div><h2>${n(tickets.length)} tickets</h2><p>Ordenados por fecha de inicio, del más reciente al anterior</p></div><div class="segments" aria-label="Filtros rápidos de estado">${modes.map(([key,label])=>`<button class="${selected===key?'active':''}" data-action="quick" data-key="${key}">${label}</button>`).join('')}</div></div>`;return `<section class="panel">${header}${list.length?`<div class="table-wrap"><table class="ticket-table"><thead><tr><th>Ticket / equipo</th><th>Cliente</th><th class="priority-column">Atención</th><th>Estado operativo</th><th class="owner-column">Responsable</th><th>Meta de cierre</th><th><span class="sr-only">Abrir</span></th></tr></thead><tbody>${list.map(t=>`<tr style="--ticket-state-color:${slaColors[t.priority]||'#788390'}"><td><button class="ticket-title" data-action="ticket" data-id="${e(t.id)}"><span class="folio">#${e(t.folio)}</span><strong title="${e(t.title)}">${e(t.title||'Sin título')}</strong><small>${e(t.model||'Modelo no registrado')}${t.serial?' · '+e(t.serial):''}</small></button></td><td class="client-cell"><span title="${e(t.client)}">${e(t.client||'Sin cliente')}</span><small>${e(t.businessUnit)}</small></td><td class="priority-column">${priority(t)}</td><td>${badge(t)}</td><td class="owner-column">${owner(t.owner)}</td><td class="date-cell ${isOverdue(t,today)?'overdue':''}">${fmt(t.dueAt,true)}</td><td><button class="icon-button" data-action="ticket" data-id="${e(t.id)}" aria-label="Abrir ticket ${e(t.folio)}">${icon('chevron','row-arrow')}</button></td></tr>`).join('')}</tbody></table></div><div class="mobile-ticket-list">${list.map(t=>`<button class="mobile-ticket" style="--ticket-state-color:${slaColors[t.priority]||'#788390'}" data-action="ticket" data-id="${e(t.id)}"><span class="mobile-ticket-top"><span class="folio">#${e(t.folio)}</span>${badge(t)}</span><h3>${e(t.title||'Sin título')}</h3><p>${e(t.client||'Sin cliente')} · ${e(t.model||'Sin modelo')}</p><span class="mobile-ticket-bottom">${priority(t)}<span>${e(t.equipmentType||'')}</span>${icon('chevron')}</span></button>`).join('')}</div>`:empty()}${preview?'':pagination(tickets.length)}</section>`;}
+function renderTickets(tickets,preview=false){const sorted=sortRecent(tickets),list=preview?sorted.slice(0,6):pageSlice(sorted);const modes=[['all','Todos'],['active','Activos'],['wait','En espera'],['validation','Por validar']];const selected=state.filters.activeOnly?'active':state.filters.status==='EN ESPERA'?'wait':state.filters.status==='PENDIENTE DE VALIDACIÓN'?'validation':'all';const header=preview?`<div class="panel-header"><div><h2>Últimos tickets registrados</h2><p>Abre un ticket para consultar su seguimiento</p></div><button class="text-action" data-action="navigate" data-view="tickets">Ver todos ${icon('arrow')}</button></div>`:`<div class="list-toolbar"><div><h2>${n(tickets.length)} tickets</h2><p>Ordenados por fecha de inicio, del más reciente al anterior · ${n(ticketsByVisibility(state.data.tickets,'hidden').length)} desactivados conservados</p></div><div class="visibility-control"><label for="ticketVisibility">Visibilidad</label><select id="ticketVisibility" aria-label="Mostrar tickets según visibilidad"><option value="visible" ${state.ticketVisibility==='visible'?'selected':''}>Visibles</option><option value="hidden" ${state.ticketVisibility==='hidden'?'selected':''}>Desactivados</option><option value="all" ${state.ticketVisibility==='all'?'selected':''}>Todos</option></select></div><div class="segments" aria-label="Filtros rápidos de estado">${modes.map(([key,label])=>`<button class="${selected===key?'active':''}" data-action="quick" data-key="${key}">${label}</button>`).join('')}</div></div>`;return `<section class="panel">${header}${list.length?`<div class="table-wrap"><table class="ticket-table"><thead><tr><th>Ticket / equipo</th><th>Cliente</th><th class="priority-column">Atención</th><th>Estado operativo</th><th class="owner-column">Responsable</th><th>Meta de cierre</th><th><span class="sr-only">Abrir</span></th></tr></thead><tbody>${list.map(t=>`<tr style="--ticket-state-color:${slaColors[t.priority]||'#788390'}"><td><button class="ticket-title" data-action="ticket" data-id="${e(t.id)}"><span class="folio">#${e(t.folio)}</span><strong title="${e(t.title)}">${e(t.title||'Sin título')}</strong><small>${e(t.model||'Modelo no registrado')}${t.serial?' · '+e(t.serial):''}</small></button></td><td class="client-cell"><span title="${e(t.client)}">${e(t.client||'Sin cliente')}</span><small>${e(t.businessUnit)}</small></td><td class="priority-column">${priority(t)}</td><td>${badge(t)}</td><td class="owner-column">${owner(t.owner)}</td><td class="date-cell ${isOverdue(t,today)?'overdue':''}">${fmt(t.dueAt,true)}</td><td><button class="icon-button" data-action="ticket" data-id="${e(t.id)}" aria-label="Abrir ticket ${e(t.folio)}">${icon('chevron','row-arrow')}</button></td></tr>`).join('')}</tbody></table></div><div class="mobile-ticket-list">${list.map(t=>`<button class="mobile-ticket" style="--ticket-state-color:${slaColors[t.priority]||'#788390'}" data-action="ticket" data-id="${e(t.id)}"><span class="mobile-ticket-top"><span class="folio">#${e(t.folio)}</span>${badge(t)}</span><h3>${e(t.title||'Sin título')}</h3><p>${e(t.client||'Sin cliente')} · ${e(t.model||'Sin modelo')}</p><span class="mobile-ticket-bottom">${priority(t)}<span>${e(t.equipmentType||'')}</span>${icon('chevron')}</span></button>`).join('')}</div>`:empty()}${preview?'':pagination(tickets.length)}</section>`;}
 function taskRow(task,compact=false){
  const context='Ticket #'+e(task.ticketFolio);
  const type=activityType(task);
@@ -401,7 +402,8 @@ function updateWorkSummary(editor){
  editor.querySelector('[data-action="add-work"]').disabled=p.total>=MAX_WORK_ITEMS;
 }
 function formPayload(form){return Object.fromEntries([...new FormData(form).entries()].map(([key,value])=>[key,clean(value)]));}
-async function refreshOperationalData(){state.data=await repository.loadSupabase();render();}
+function updateSourceTotals(){const visible=ticketsByVisibility(state.data.tickets).length,hidden=ticketsByVisibility(state.data.tickets,'hidden').length;$('sourceTotals').textContent=`${n(visible)} tickets visibles${hidden?' · '+n(hidden)+' desactivados':''} · ${n(state.data.tasks.length)} actividades`;}
+async function refreshOperationalData(){state.data=await repository.loadSupabase();updateSourceTotals();render();}
 async function submitNewTicket(event){
  event.preventDefault();const error=$('newTicketError');error.textContent='';
  if(!repository.canWrite()){error.textContent='La conexión de escritura con Supabase todavía no está disponible.';return;}
@@ -468,6 +470,22 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
  if(a==='filter')setFilter(b.dataset.key,b.dataset.value);
  if(a==='ticket')showTicketDetail(b.dataset.id);
  if(a==='delete-ticket')confirmTicketDeletion(b.dataset.id);
+ if(a==='toggle-ticket-visibility'){(async()=>{
+  const ticket=state.data.tickets.find(t=>t.id===b.dataset.id);
+  if(!ticket||!repository.canWrite())return;
+  const hiding=!ticket.operationalHidden;
+  const message=hiding
+   ?'¿Desactivar el ticket #'+ticket.folio+'? No aparecerá en resumen, calendario ni listados operativos. Permanecerá guardado como antecedente y podrás reactivarlo.'
+   :'¿Reactivar el ticket #'+ticket.folio+' y devolverlo a las vistas operativas?';
+  if(!window.confirm(message))return;
+  b.disabled=true;
+  try{
+   await repository.updateTicketVisibility(ticket.id,ticket.operationalHidden);
+   await refreshOperationalData();showTicketDetail(ticket.id);
+   toast(hiding?'Ticket desactivado y conservado en antecedentes.':'Ticket reactivado en Operaciones.');
+  }catch(error){toast(error.message||'No se pudo cambiar la visibilidad del ticket.');}
+  finally{b.disabled=false;}
+ })();}
  if(a==='save-ticket-update'){(async()=>{
   b.disabled=true;
   try{
@@ -530,7 +548,8 @@ document.addEventListener('change',event=>{
    const editor=$(event.target.id==='newTaskCategory'?'newTaskChecklist':'taskEditChecklist');
    editor.hidden=event.target.value!=='OPERACIONES';updateWorkSummary(editor);
  }
- if(event.target.id==='taskStatus'){state.taskStatus=event.target.value;state.page=1;render();}
+ if(event.target.id==='ticketVisibility'){state.ticketVisibility=['visible','hidden','all'].includes(event.target.value)?event.target.value:'visible';state.page=1;render();}
+  if(event.target.id==='taskStatus'){state.taskStatus=event.target.value;state.page=1;render();}
  if(event.target.id==='taskOwner'){state.taskOwner=event.target.value;state.page=1;render();}
  if(event.target.id==='taskCategory'){state.taskCategory=event.target.value;state.page=1;render();}
  if(event.target.id==='calendarMonthPicker'){state.calendarMonth=event.target.value||today.slice(0,7);render();}
@@ -563,7 +582,7 @@ document.addEventListener('keydown',event=>{if(event.key==='/'&&!['INPUT','TEXTA
 window.addEventListener('popstate',()=>{readLocation();render();});
 window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installEvent=event;});
 
-async function init(){hydrateIcons();document.documentElement.style.setProperty('--primary',config.brand.primary);document.documentElement.style.setProperty('--accent',config.brand.accent);document.querySelectorAll('[data-brand-name]').forEach(el=>el.textContent=config.brand.name);document.querySelectorAll('[data-brand-mark]').forEach(el=>{el.textContent=config.brand.initials;if(config.brand.logoUrl){const img=new Image();img.src=config.brand.logoUrl;img.alt=config.brand.name;img.onload=()=>el.replaceChildren(img);}});renderSavedViews();readLocation();try{const [operationData,people]=await Promise.all([repository.load(),repository.personnel().catch(()=>[])]);state.data=operationData;state.personnel=people;$('sourceDate').textContent=(state.data.metadata.mode==='supabase'?'Supabase en línea · ':'Datos actualizados · ')+fmt(state.data.metadata.sourceModifiedAt||state.data.metadata.importedAt,true);$('sourceTotals').textContent=`${n(state.data.tickets.length)} tickets · ${n(state.data.tasks.length)} actividades`;$('exportButton').disabled=false;render();}catch(error){$('sourceDate').textContent='Datos no disponibles';$('content').innerHTML=`<div class="panel empty-state">${icon('alert')}<h2>No pudimos cargar la operación</h2><p>${e(error.message)} Revisa tu conexión e inténtalo nuevamente.</p><button class="button primary" id="retryLoad">Reintentar</button></div>`;$('retryLoad').addEventListener('click',init);}if('serviceWorker'in navigator&&!globalThis.__SUDMAR_SNAPSHOT__&&location.protocol!=='file:'){navigator.serviceWorker.register('./sw.js').catch(()=>{/* Read access still works without installation support. */});}}
+async function init(){hydrateIcons();document.documentElement.style.setProperty('--primary',config.brand.primary);document.documentElement.style.setProperty('--accent',config.brand.accent);document.querySelectorAll('[data-brand-name]').forEach(el=>el.textContent=config.brand.name);document.querySelectorAll('[data-brand-mark]').forEach(el=>{el.textContent=config.brand.initials;if(config.brand.logoUrl){const img=new Image();img.src=config.brand.logoUrl;img.alt=config.brand.name;img.onload=()=>el.replaceChildren(img);}});renderSavedViews();readLocation();try{const [operationData,people]=await Promise.all([repository.load(),repository.personnel().catch(()=>[])]);state.data=operationData;state.personnel=people;$('sourceDate').textContent=(state.data.metadata.mode==='supabase'?'Supabase en línea · ':'Datos actualizados · ')+fmt(state.data.metadata.sourceModifiedAt||state.data.metadata.importedAt,true);updateSourceTotals();$('exportButton').disabled=false;render();}catch(error){$('sourceDate').textContent='Datos no disponibles';$('content').innerHTML=`<div class="panel empty-state">${icon('alert')}<h2>No pudimos cargar la operación</h2><p>${e(error.message)} Revisa tu conexión e inténtalo nuevamente.</p><button class="button primary" id="retryLoad">Reintentar</button></div>`;$('retryLoad').addEventListener('click',init);}if('serviceWorker'in navigator&&!globalThis.__SUDMAR_SNAPSHOT__&&location.protocol!=='file:'){navigator.serviceWorker.register('./sw.js').catch(()=>{/* Read access still works without installation support. */});}}
 init();
 
 
@@ -624,10 +643,18 @@ function readTicketFields(prefix,original={}){
 function openNewTicket(){
  $('newTicketForm').querySelector('.filter-fields').innerHTML=ticketFields('newTicket')+(config.features.testTicketDeletion?'<label class="full-width"><input id="newTicketIsTest" type="checkbox"> Ticket de prueba (solo podrá eliminarse mientras no registre trabajo real)</label>':'');$('newTicketError').textContent='';$('newTicketDialog').showModal();
 }
+function ticketVisibilitySection(ticket){
+ const hidden=ticket.operationalHidden===true;
+ return `<section class="detail-section ticket-visibility-section"><h3>Visibilidad en Operaciones</h3>
+  <p class="definition-note">${hidden?'Este ticket está desactivado: no se incluye en resumen, lista normal ni calendario. Sigue disponible en antecedentes e historial.':'Oculta este ticket de indicadores, listas operativas y calendario sin eliminarlo ni modificar sus estados o actividades.'}</p>
+  ${hidden?`<p class="visibility-hidden-note">Ticket desactivado${ticket.operationalHiddenAt?' · '+fmt(ticket.operationalHiddenAt,true):''}</p>`:''}
+  ${repository.canWrite()?`<button type="button" class="button secondary" data-action="toggle-ticket-visibility" data-id="${e(ticket.id)}">${hidden?'Reactivar ticket':'Desactivar y ocultar ticket'}</button>`:'<p class="definition-note">Edición no disponible.</p>'}
+ </section>`;
+}
 function showTicketDetail(id){
  const t=state.data.tickets.find(t=>t.id===id);if(!t)return;
  const tasks=state.data.tasks.filter(x=>x.ticketFolio===t.folio),url=safeEvidenceUrl(t.evidenceUrl);
- openDetail(detailHeader('SEGUIMIENTO DEL SERVICIO','Ticket #'+t.folio)+`<div class="detail-heading-title"><h3>${e(t.title)}</h3><div class="detail-badges">${badge(t)}${priority(t)}</div></div>
+ openDetail(detailHeader('SEGUIMIENTO DEL SERVICIO','Ticket #'+t.folio)+`<div class="detail-heading-title"><h3>${e(t.title)}</h3><div class="detail-badges">${badge(t)}${priority(t)}${t.operationalHidden?'<span class="badge slate">Desactivado</span>':''}</div></div>
  <section class="detail-section sudmar-dual-summary"><h3>RESUMEN PARA CÉDULA</h3><p class="definition-note">Dos textos independientes, generados desde la captura guiada. Se actualizan al editar los campos.</p><div class="sudmar-summary-card"><h4>Solicitud / incidencia reportada</h4><p class="note-text" id="cedulaRequestText">${e(t.description||requestSummary(t.requestContext)||t.title||'Sin solicitud documentada.')}</p><button type="button" class="button secondary" data-action="copy-request">📋 Copiar solicitud</button></div><div class="sudmar-summary-card"><h4>Resolución / trabajos realizados</h4><p class="note-text" id="cedulaResolutionText">${e(resolutionSummary(t))}</p><button type="button" class="button secondary" data-action="copy-resolution">📋 Copiar resolución</button></div></section>
  <section class="detail-section"><div class="filter-fields">${ticketFields('ticketEdit',t)}
  <h3 class="full-width">Resolución y cierre</h3>
@@ -639,7 +666,7 @@ function showTicketDetail(id){
  ${t.legacyStatus||t.legacyStage||t.legacyDiagnosis?`<details class="detail-section"><summary>Información histórica conservada</summary><p>Estado original: ${e(t.legacyStatus)} · Etapa original: ${e(t.legacyStage)}</p><p class="note-text">${e(t.legacyDiagnosis)}</p></details>`:''}
  <section class="detail-section"><h3>Actividades del ticket (${tasks.length})</h3><button class="button primary" data-action="new-task" data-folio="${e(t.folio)}">+ Agregar actividad</button>${tasks.map(x=>taskRow(x,true)).join('')}</section>
  ${ticketDeletionSection(t)}
- <section class="detail-section"><p>Cierre real: ${e(t.closedAt||'Sin cierre')}</p>${url?`<a href="${e(url)}" target="_blank" rel="noopener noreferrer">Abrir evidencias</a>`:''}</section>`);
+ <section class="detail-section"><p>Cierre real: ${e(t.closedAt||'Sin cierre')}</p>${url?`<a href="${e(url)}" target="_blank" rel="noopener noreferrer">Abrir evidencias</a>`:''}</section>${ticketVisibilitySection(t)}`);
 }
 function activityFields(prefix,task={}){
  const c=catalogs();
