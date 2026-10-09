@@ -27,7 +27,12 @@ const palette={
 };
 function paintOption(value,priority=false){const x=palette[value]||['#64748b','#f1f5f9'];return '<span class="ops-color-dot" style="background:'+x[0]+'"></span><span>'+esc(priority?'SLA-0'+value:value)+'</span>';}
 let popup=null;
-function closePopup(){popup?.remove();popup=null;}
+function closePopup(){
+ if(!popup)return;
+ const trigger=document.getElementById(popup.dataset.for)?.nextElementSibling;
+ if(trigger?.classList.contains('ops-picker'))trigger.setAttribute('aria-expanded','false');
+ popup.remove();popup=null;
+}
 function attachPickers(root=document){
  for(const id of ['newTicketstatus','ticketEditstatus','newTaskstatus','taskEditstatus','newTicketpriority','ticketEditpriority','newTaskpriority','taskEditpriority']){
   const select=root.querySelector('#'+id);
@@ -48,13 +53,25 @@ function attachPickers(root=document){
     b.style.setProperty('--status-color',p[0]);b.style.setProperty('--status-bg',p[1]);
     b.innerHTML=paintOption(option.value,priority);b.addEventListener('click',()=>{select.value=option.value;select.dispatchEvent(new Event('change',{bubbles:true}));closePopup();control.focus();});panel.append(b);
    }
-   const r=control.getBoundingClientRect();panel.style.position='fixed';panel.style.top=Math.min(r.bottom+4,innerHeight-300)+'px';panel.style.left=Math.max(8,Math.min(r.left,innerWidth-300))+'px';panel.style.width=Math.max(220,r.width)+'px';(control.closest('dialog')||document.body).append(panel);popup=panel;control.setAttribute('aria-expanded','true');
+   const r=control.getBoundingClientRect();
+   panel.style.position='fixed';
+   panel.style.width=Math.min(Math.max(220,r.width),Math.max(100,innerWidth-16))+'px';
+   (control.closest('dialog')||document.body).append(panel);
+   const desired=Math.min(panel.scrollHeight,370,Math.floor(innerHeight*.75));
+   const below=Math.max(0,innerHeight-r.bottom-12),above=Math.max(0,r.top-12);
+   const openingUp=below<Math.min(desired,180)&&above>below;
+   const height=Math.max(80,Math.min(desired,openingUp?above:below));
+   panel.style.maxHeight=height+'px';
+   panel.style.top=Math.max(8,Math.min(openingUp?r.top-height-4:r.bottom+4,innerHeight-height-8))+'px';
+   panel.style.left=Math.max(8,Math.min(r.left,innerWidth-panel.offsetWidth-8))+'px';
+   popup=panel;control.setAttribute('aria-expanded','true');
   });
  }
 }
 document.addEventListener('click',event=>{if(popup&&!event.target.closest('.ops-picker-popup,.ops-picker'))closePopup();});
-document.addEventListener('keydown',event=>{if(event.key==='Escape')closePopup();});
-document.addEventListener('scroll',()=>closePopup(),true);
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&popup){event.preventDefault();closePopup();}},true);
+// Permitir desplazar la lista sin que su propio evento de scroll la cierre.
+document.addEventListener('scroll',event=>{if(popup&&!popup.contains(event.target))closePopup();},true);
 function ensurePickers(){
  for(const id of ['newTicketDialog','newTaskDialog','detailDialog']){const root=$(id);if(root?.open)attachPickers(root);}
 }

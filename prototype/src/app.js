@@ -579,6 +579,20 @@ document.addEventListener('input',event=>{
 });
 $('saveViewForm').addEventListener('submit',event=>{event.preventDefault();const name=clean(new FormData(event.target).get('viewName'));if(!name)return;const saved=getSavedViews().filter(v=>v.name!==name);saved.unshift({name,filters:{...state.filters},view:state.view});try{localStorage.setItem(config.storageKey,JSON.stringify(saved.slice(0,10)));$('saveDialog').close();renderSavedViews();toast('Vista guardada en este navegador.');}catch{toast('El navegador no permitió guardar esta vista.');}});
 $('savedViews').addEventListener('change',event=>{if(event.target.value==='')return;const view=getSavedViews()[Number(event.target.value)];if(!view)return;const defaults=blankFilters();for(const key of Object.keys(defaults)){if(typeof view.filters[key]===typeof defaults[key])defaults[key]=view.filters[key];}state.filters=defaults;navigate(view.view||'dashboard');});
+// Cerrar cada ayuda (i) cuando se pulsa fuera de ella.
+document.addEventListener('click',event=>{
+ const selected=event.target.closest?.('details.context-help');
+ document.querySelectorAll('details.context-help[open]').forEach(item=>{if(item!==selected)item.open=false;});
+});
+// Escape cierra la ayuda sin cerrar el cuadro completo.
+document.addEventListener('keydown',event=>{
+ if(event.key!=='Escape')return;
+ const items=document.querySelectorAll('details.context-help[open]');
+ if(!items.length)return;
+ items.forEach(item=>item.open=false);
+ event.preventDefault();
+ event.stopImmediatePropagation();
+},true);
 document.addEventListener('keydown',event=>{if(event.key==='/'&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)&&!document.querySelector('dialog[open]')){event.preventDefault();$('globalSearch').focus();}});
 window.addEventListener('popstate',()=>{readLocation();render();});
 window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installEvent=event;});

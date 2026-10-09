@@ -59,7 +59,26 @@ try{
  await click('[data-action="navigate"][data-view="dashboard"]');
 
  await click('[data-action="new-ticket"]');
+ // Ayuda (i): Esc y clic externo la cierran sin cerrar el formulario.
+ const help=page.locator('#newTicketDialog details.context-help').first();
+ await help.locator('summary').click();
+ assert.equal(await help.evaluate(el=>el.open),true);
+ await page.keyboard.press('Escape');
+ assert.equal(await help.evaluate(el=>el.open),false);
+ assert.equal(await page.locator('#newTicketDialog').isVisible(),true);
+ await help.locator('summary').click();
+ await page.locator('#newTicketTitle').click();
+ assert.equal(await help.evaluate(el=>el.open),false);
+ // Desplegables personalizados: la rueda debe mover la lista sin cerrarla.
+ await page.setViewportSize({width:1360,height:500});
  await page.locator('#newTicketstatus + .ops-picker').click();
+ const picker=page.locator('#newTicketDialog .ops-picker-popup');
+ assert.equal(await picker.evaluate(el=>el.scrollHeight>el.clientHeight),true);
+ await picker.hover();
+ await page.mouse.wheel(0,260);
+ await page.waitForFunction(()=>document.querySelector('#newTicketDialog .ops-picker-popup')?.scrollTop>0);
+ assert.equal(await picker.isVisible(),true);
+ await page.setViewportSize({width:1360,height:1000});
  await page.locator('#newTicketDialog .ops-picker-popup .ops-picker-option').filter({hasText:'REGISTRADO'}).click();
  assert.equal(await page.locator('#newTicketstatus').inputValue(),'REGISTRADO');
  await page.locator('#newTicketbusinessUnit').selectOption('PRETTL');
