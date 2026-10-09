@@ -491,7 +491,7 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
   try{
     const original=state.data.tickets.find(t=>t.id===b.dataset.id);
     const updated=await repository.updateTicket(b.dataset.id,{...readTicketFields('ticketEdit',original),
-      log:$('ticketEditLog').value,technicalFindings:$('ticketEditTechnicalFindings').value,
+      technicalFindings:$('ticketEditTechnicalFindings').value,
       workPerformed:$('ticketEditWorkPerformed').value,finalCondition:$('ticketEditFinalCondition').value});
     if(state.filters.folio===original.folio)state.filters.folio=updated.folio;
     if(state.filters.q===original.folio)state.filters.q=updated.folio;
@@ -679,11 +679,10 @@ function showTicketDetail(id){
  <section class="detail-section sudmar-dual-summary"><h3>RESUMEN PARA CÉDULA</h3><p class="definition-note">Dos textos independientes, generados desde la captura guiada. Se actualizan al editar los campos.</p><div class="sudmar-summary-card"><h4>Solicitud / incidencia reportada</h4><p class="note-text" id="cedulaRequestText">${e(t.description||requestSummary(t.requestContext)||t.title||'Sin solicitud documentada.')}</p><button type="button" class="button secondary" data-action="copy-request">📋 Copiar solicitud</button></div><div class="sudmar-summary-card"><h4>Resolución / trabajos realizados</h4><p class="note-text" id="cedulaResolutionText">${e(resolutionSummary(t))}</p><button type="button" class="button secondary" data-action="copy-resolution">📋 Copiar resolución</button></div></section>
  <section class="detail-section"><div class="filter-fields">${ticketFields('ticketEdit',t)}
  <h3 class="full-width">Resolución y cierre</h3>
- ${field('Hallazgo / diagnóstico técnico',`<textarea id="ticketEditTechnicalFindings" rows="3" maxlength="5000">${e(t.technicalFindings)}</textarea>`,'Qué se encontró realmente al revisar.')}
- ${field('Trabajo realizado / resolución',`<textarea id="ticketEditWorkPerformed" rows="3" maxlength="5000">${e(t.workPerformed)}</textarea>`,'Qué se hizo operativamente.')}
- ${field('Resultado / condición final',`<textarea id="ticketEditFinalCondition" rows="3" maxlength="5000">${e(t.finalCondition)}</textarea>`,'Cómo quedó el equipo o servicio.')}
- ${field('Bitácora interna',`<textarea id="ticketEditLog" rows="3" maxlength="20000">${e(t.log)}</textarea>`,'Seguimiento cronológico: fechas, llamadas, acuerdos, movimientos y pendientes.')}
- </div><button class="button primary" data-action="save-ticket-update" data-id="${e(id)}">Guardar cambios</button></section>
+ ${field('¿Qué encontramos?',`<textarea id="ticketEditTechnicalFindings" rows="3" maxlength="5000">${e(t.technicalFindings)}</textarea>`,'Hallazgo / diagnóstico técnico: qué se encontró realmente al revisar.')}
+ ${field('¿Qué hicimos?',`<textarea id="ticketEditWorkPerformed" rows="3" maxlength="5000">${e(t.workPerformed)}</textarea>`,'Trabajo realizado / resolución: qué se hizo operativamente.')}
+ ${field('¿Cómo quedó?',`<textarea id="ticketEditFinalCondition" rows="3" maxlength="5000">${e(t.finalCondition)}</textarea>`,'Resultado / condición final del equipo o servicio.')}
+  </div><button class="button primary" data-action="save-ticket-update" data-id="${e(id)}">Guardar cambios</button></section>
  ${t.legacyStatus||t.legacyStage||t.legacyDiagnosis?`<details class="detail-section"><summary>Información histórica conservada</summary><p>Estado original: ${e(t.legacyStatus)} · Etapa original: ${e(t.legacyStage)}</p><p class="note-text">${e(t.legacyDiagnosis)}</p></details>`:''}
  <section class="detail-section"><h3>Actividades del ticket (${tasks.length})</h3><button class="button primary" data-action="new-task" data-folio="${e(t.folio)}">+ Agregar actividad</button>${tasks.map(x=>taskRow(x,true)).join('')}</section>
  ${ticketDeletionSection(t)}

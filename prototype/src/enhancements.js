@@ -122,7 +122,7 @@ async function generateRewrite(mode,button){
 }
 
 function attachRewriteButtons(root=document){
- const ids=['newTicketwhat','newTicketwhere','newTicketcondition','newTicketrequired','ticketEditwhat','ticketEditwhere','ticketEditcondition','ticketEditrequired','ticketEditTechnicalFindings','ticketEditWorkPerformed','ticketEditFinalCondition','ticketEditLog'];
+ const ids=['newTicketwhat','newTicketwhere','newTicketcondition','newTicketrequired','ticketEditwhat','ticketEditwhere','ticketEditcondition','ticketEditrequired','ticketEditTechnicalFindings','ticketEditWorkPerformed','ticketEditFinalCondition'];
  for(const id of ids){
   const textarea=$(id);if(!textarea||textarea.dataset.rewriteReady==='1')continue;
   textarea.dataset.rewriteReady='1';textarea.spellcheck=true;textarea.lang='es-MX';
