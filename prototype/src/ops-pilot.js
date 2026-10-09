@@ -70,8 +70,8 @@ function attachPickers(root=document){
 }
 document.addEventListener('click',event=>{if(popup&&!event.target.closest('.ops-picker-popup,.ops-picker'))closePopup();});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&popup){event.preventDefault();closePopup();}},true);
-// Permitir desplazar la lista sin que su propio evento de scroll la cierre.
-document.addEventListener('scroll',event=>{if(popup&&!popup.contains(event.target))closePopup();},true);
+// No cerrar por eventos de scroll: el diálogo puede desplazarse para mostrar el menú,
+// incluso cuando el usuario intenta mover la rueda o arrastrar su propia barra.
 function ensurePickers(){
  for(const id of ['newTicketDialog','newTaskDialog','detailDialog']){const root=$(id);if(root?.open)attachPickers(root);}
 }
