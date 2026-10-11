@@ -60,13 +60,14 @@ export class SnapshotRepository {
   }
 
   async loadSupabase() {
-    const [tickets, clients, equipment, personnel, tasks, inventory] = await Promise.all([
+    const [tickets, clients, equipment, personnel, tasks, inventory, ticketEquipment] = await Promise.all([
       fetchSupabaseTable('tickets','*','&order=folio.desc'),
       fetchSupabaseTable('clients','id,name'),
       fetchSupabaseTable('equipment','id,client_id,model,serial_number,equipment_type'),
       fetchSupabaseTable('personnel','id,name,role,area'),
       fetchSupabaseTable('tasks','*','&order=created_at.desc'),
-      fetchSupabaseTable('inventory_units','*','&order=source_row.asc')
+      fetchSupabaseTable('inventory_units','*','&order=source_row.asc'),
+      fetchSupabaseTable('ticket_equipment','*','&order=position.asc')
     ]);
 
     const catalogs=await this.catalogs();
@@ -75,6 +76,16 @@ export class SnapshotRepository {
     const equipmentById=new Map(equipment.map(item=>[item.id,item]));
     const personnelById=new Map(personnel.map(item=>[item.id,item]));
     const ticketsById=new Map(tickets.map(item=>[item.id,item]));
+    const unitsByTicket=new Map();
+    for(const unit of ticketEquipment){
+      const model=catalogs.models.find(x=>x.id===unit.model_id),serial=catalogs.serials.find(x=>x.id===unit.serial_id);
+      if(!unitsByTicket.has(unit.ticket_id))unitsByTicket.set(unit.ticket_id,[]);
+      unitsByTicket.get(unit.ticket_id).push({
+        model:model?.name||'',serial:serial?.serial_number||'',modelId:unit.model_id,serialId:unit.serial_id,
+        status:unit.status||'PENDIENTE',technician:unit.technician||'',attendedAt:dateOnly(unit.attended_at),
+        findings:unit.technical_findings||'',workPerformed:unit.work_performed||'',finalCondition:unit.final_condition||'',evidenceUrl:unit.evidence_url||''
+      });
+    }
 
     const mappedTickets=tickets.map(row=>{
       const client=clientsById.get(row.client_id);
@@ -85,6 +96,8 @@ export class SnapshotRepository {
         isTest: row.is_test===true,
         operationalHidden: row.operational_hidden===true,
         operationalHiddenAt: row.operational_hidden_at??null,
+         isMultiEquipment:row.is_multi_equipment===true,
+         linkedEquipment:unitsByTicket.get(row.id)||[],
         folio: String(row.folio??''),
         priority: String(row.priority??'').replace(/^P/i,''),
         title: row.title??'',
@@ -219,7 +232,7 @@ export class SnapshotRepository {
     else if(creating)throw Error('Completa la captura guiada.');
     if(payload.client!==undefined){const clients=(await this.catalogs()).clients;const c=clients.find(c=>catalogKey(c.name)===catalogKey(payload.client));if(!c)throw Error('Selecciona un cliente del catálogo.');body.client_id=c.id;}
     if(payload.owner!==undefined)body.owner_id=await this.lookupId('personnel','name',payload.owner);
-    const mapping={area:'area',businessUnit:'business_unit',priority:'priority',status:'operational_status',openedAt:'opened_at',dueAt:'due_at',resolvedAt:'resolved_at',serviceCategoryId:'service_category_id',catalogModelId:'catalog_model_id',catalogSerialId:'catalog_serial_id',log:'logbook',technicalFindings:'technical_findings',workPerformed:'work_performed',finalCondition:'final_condition'};
+    const mapping={area:'area',businessUnit:'business_unit',priority:'priority',status:'operational_status',openedAt:'opened_at',dueAt:'due_at',resolvedAt:'resolved_at',serviceCategoryId:'service_category_id',catalogModelId:'catalog_model_id',catalogSerialId:'catalog_serial_id',multiEquipment:'is_multi_equipment',log:'logbook',technicalFindings:'technical_findings',workPerformed:'work_performed',finalCondition:'final_condition'};
     for(const [key,column] of Object.entries(mapping))if(payload[key]!==undefined)body[column]=payload[key]||null;
     if(body.priority)body.priority='P'+String(body.priority).replace(/^P/,'');
     if(payload.catalogModelId!==undefined){
@@ -235,7 +248,13 @@ export class SnapshotRepository {
     const folio=await this.validateTicketFolio(payload.folio);
     const body=await this.ticketBody(payload,true);body.is_test=payload.isTest===true;body.operational_status=payload.status||'REGISTRADO';
     body.folio=folio;
-    const rows=await supabaseRequest('/rest/v1/tickets',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(body)});return rows[0];
+    const rows=await supabaseRequest('/rest/v1/tickets',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(body)});
+    const ticket=rows[0];
+    if(ticket&&payload.multiEquipment){
+      try{await this.syncTicketEquipment(ticket.id,payload.linkedEquipment);}
+      catch(error){const e=new Error('Se creó el ticket #'+ticket.folio+', pero faltó vincular equipos: '+error.message+'. Ábrelo y reintenta.');e.ticketCreatedId=ticket.id;throw e;}
+    }
+    return ticket;
   }
 
   async deleteTestTicket(id,folio) {
@@ -318,9 +337,18 @@ export class SnapshotRepository {
     const body=await this.ticketBody(changes);
     if(folio!==undefined)body.folio=folio;
     const rows=await supabaseRequest(`/rest/v1/tickets?id=${exact(id)}&select=*`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(body)});
-    if(!rows?.[0])throw Error('No se pudo actualizar el ticket.');return rows[0];
+    if(!rows?.[0])throw Error('No se pudo actualizar el ticket.');
+    if(changes.multiEquipment){
+      try{await this.syncTicketEquipment(id,changes.linkedEquipment);}
+      catch(error){throw Error('Se guardaron los datos generales pero falló el seguimiento multiequipo: '+error.message+'. Vuelve a abrir el ticket.');}
+    }
+    return rows[0];
   }
 
+  async syncTicketEquipment(ticketId,units) {
+    if(!this.canWrite()||!Array.isArray(units)||!units.length||units.length>100)throw Error('Equipos inválidos o edición no disponible.');
+    return supabaseRequest('/rest/v1/rpc/replace_ticket_equipment',{method:'POST',body:JSON.stringify({p_ticket_id:ticketId,p_units:units})});
+  }
   async updateTicketVisibility(id,currentlyHidden) {
     if (!this.canWrite()) throw Error('La edición de tickets no está disponible.');
     const body={

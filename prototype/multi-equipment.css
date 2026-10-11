@@ -1,0 +1,26 @@
+/* Gestión multiequipo opcional: accesible y compacta en escritorio, tableta y teléfono. */
+.multi-feature{border:1px solid var(--border);border-radius:12px;padding:14px;background:var(--surface);min-width:0}
+.multi-feature .multi-switch{display:flex;align-items:center;gap:11px;font-size:13px;cursor:pointer}
+.multi-switch input{width:19px;height:19px;accent-color:var(--primary);flex-shrink:0}
+.multi-switch strong,.multi-switch small{display:block}
+.multi-switch small{color:var(--muted);font-size:11px;margin-top:3px;line-height:1.4}
+.multi-panel{padding-top:15px;display:grid;gap:12px;min-width:0}
+.multi-panel[hidden]{display:none!important}
+.multi-rows{display:grid;gap:10px}
+.multi-unit{border:1px solid var(--border);border-radius:12px;padding:13px;background:var(--bg);min-width:0}
+.multi-unit-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:9px}
+.multi-unit-actions,.multi-catalog-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.multi-unit .multi-unit-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.multi-unit label,.multi-bulk-label{display:block;font-size:12px;font-weight:600;color:var(--text);min-width:0}
+.multi-unit input,.multi-unit select,.multi-unit textarea,.multi-bulk-label textarea{display:block;width:100%;min-width:0;margin:5px 0 0;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;font:inherit;font-size:13px}
+.multi-unit input:focus,.multi-unit textarea:focus,.multi-bulk-label textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
+.multi-catalog-actions{margin:8px 0 4px;gap:15px}
+.multi-followup{border-top:1px solid var(--border);padding-top:9px;margin-top:8px;display:grid;gap:9px}
+.multi-followup summary{cursor:pointer;font-weight:600;font-size:12px;color:var(--primary);margin-bottom:10px}
+.multi-followup>label{margin-top:9px}
+.multi-progress{color:var(--muted);font-size:12px}
+.multi-feature .definition-note{margin:0}
+.multi-feature .button.secondary{justify-self:start}
+.multi-unit .text-action{font-size:12px}
+.multi-bulk-label textarea{min-height:65px}
+@media(max-width:650px){.multi-unit .multi-unit-fields{grid-template-columns:1fr}.multi-feature,.multi-unit{padding:11px}.multi-unit-head{align-items:flex-start}.multi-unit-actions{width:100%}.multi-feature .button{max-width:100%}}

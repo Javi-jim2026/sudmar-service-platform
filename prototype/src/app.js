@@ -5,7 +5,8 @@ import {repository} from './repository.js';
 import {icon} from './icons.js';
 import {inventoryStatuses,renderInventoryEquipment,renderInventoryDetails} from './inventory.js';
 import {ticketsByVisibility,antecedentsBySerial} from './visibility.js';
-import {normalized, clean, blankFilters, isKnownStatus, isClosed, isActive, isOverdue, taskComplete, taskClosed, taskCategory, validSerial, unique, filterTickets, linkedTasks, metrics, countsBy, equipmentGroups, safeEvidenceUrl, toCsv} from './core.js';
+import {multiEquipmentMarkup,changeMultiMode,refreshMultiCatalogs,handleMultiAction,readMultiEquipment,multiSummary,updateMultiProgress} from './multi-equipment.js';
+import {normalized, clean, blankFilters, isKnownStatus, isClosed, isActive, isOverdue, taskComplete, taskClosed, taskCategory, validSerial, unique, filterTickets, linkedTasks, metrics, countsBy, equipmentGroups, ticketSerials, safeEvidenceUrl, toCsv} from './core.js';
 
 const $=id=>document.getElementById(id);
 const e=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -306,7 +307,7 @@ function renderTeam(tickets){
  const cards=people.map(person=>{const w=personWorkload(person,tickets,tasks);return `<button class="person-card" data-action="team-person" data-person="${e(person.name)}"><span class="person-card-top"><span class="avatar large">${e(person.name.split(/\s+/).slice(0,2).map(x=>x[0]).join(''))}</span><span class="number-badge">${n(w.pending.length)} pendientes</span></span><h2>${e(person.name)}</h2><h3>${e(person.title)}</h3><p>${e((person.operationalAreas||[person.area]).join(' · '))}</p><div class="person-tags">${person.fieldTechnician?'<span class="badge blue">Técnico de campo</span>':''}${person.fieldLead?'<span class="badge green">Responsable de campo</span>':''}</div><span class="entity-card-foot"><span><strong>${n(w.ownedTickets.length)}</strong> tickets</span><span><strong>${n(w.assignedTasks.length)}</strong> actividades</span><span>${n(w.overdue.length)} vencidas</span></span></button>`;}).join('');
  return `<div class="team-summary"><section class="panel"><div class="panel-header"><div><h2>Equipo de campo</h2><p>Personal habilitado para atención técnica en sitio</p></div><span class="number-badge">${fieldTeam.length} técnicos</span></div><div class="panel-body"><div class="field-team">${fieldTeam.map(person=>`<div class="field-person"><span class="avatar">${e(person.name.split(/\s+/).slice(0,2).map(x=>x[0]).join(''))}</span><span><strong>${e(person.name)}</strong><small>${e(person.fieldRole||'Técnico de campo')}</small></span></div>`).join('')}</div></div></section></div><div class="person-grid">${cards}</div>`;
 }
-function renderEquipmentHistory(tickets){const groups=equipmentGroups(tickets).sort((a,b)=>b.tickets.length-a.tickets.length);return `<div class="view-summary"><span><strong>${n(groups.length)}</strong> series registradas en esta vista</span><span>${n(tickets.filter(t=>!validSerial(t.serial)).length)} tickets sin serie identificable</span></div><div class="card-grid">${pageSlice(groups).map(g=>`<button class="entity-card" data-action="equipment" data-value="${e(g.serial)}"><span class="entity-card-top"><span class="entity-icon">${icon('engine')}</span><span class="number-badge">${g.tickets.length} tickets</span></span><h2>${e(g.models[0]||'Modelo sin registrar')}</h2><p>Serie: ${e(g.serial)}</p><p>${e(g.clients[0]||'Cliente sin registrar')}${g.clients.length>1?' y otros':''}</p><span class="entity-card-foot"><span><strong>${g.tickets.filter(isActive).length}</strong> activos</span><span>Ver servicios ↗</span></span></button>`).join('')}</div>${groups.length?pagination(groups.length):empty('Los tickets seleccionados no contienen un número de serie identificable.')}<p class="definition-note">Agrupación por serie registrada. Se conservan todos los modelos asociados; los movimientos anteriores que no están en el Excel quedan pendientes de incorporar.</p>`;}
+function renderEquipmentHistory(tickets){const groups=equipmentGroups(tickets).sort((a,b)=>b.tickets.length-a.tickets.length);return `<div class="view-summary"><span><strong>${n(groups.length)}</strong> series registradas en esta vista</span><span>${n(tickets.filter(t=>!ticketSerials(t).some(validSerial)).length)} tickets sin serie identificable</span></div><div class="card-grid">${pageSlice(groups).map(g=>`<button class="entity-card" data-action="equipment" data-value="${e(g.serial)}"><span class="entity-card-top"><span class="entity-icon">${icon('engine')}</span><span class="number-badge">${g.tickets.length} tickets</span></span><h2>${e(g.models[0]||'Modelo sin registrar')}</h2><p>Serie: ${e(g.serial)}</p><p>${e(g.clients[0]||'Cliente sin registrar')}${g.clients.length>1?' y otros':''}</p><span class="entity-card-foot"><span><strong>${g.tickets.filter(isActive).length}</strong> activos</span><span>Ver servicios ↗</span></span></button>`).join('')}</div>${groups.length?pagination(groups.length):empty('Los tickets seleccionados no contienen un número de serie identificable.')}<p class="definition-note">Agrupación por serie registrada. Se conservan todos los modelos asociados; los movimientos anteriores que no están en el Excel quedan pendientes de incorporar.</p>`;}
 function renderEquipment(tickets){
  const inventory=state.data.inventory||[];
  const tabs='<div class="view-summary inv-tabs"><div class="segments"><button data-action="inventory-tab" data-value="inventory" class="'+(state.inventoryTab==='inventory'?'active':'')+'">Inventario ('+n(inventory.filter(x=>!x.archived).length)+')</button><button data-action="inventory-tab" data-value="services" class="'+(state.inventoryTab==='services'?'active':'')+'">Historial de equipos con tickets</button></div></div>';
@@ -409,7 +410,7 @@ async function submitNewTicket(event){
  if(!repository.canWrite()){error.textContent='La conexión de escritura con Supabase todavía no está disponible.';return;}
  const button=event.submitter;button.disabled=true;
  try{await repository.createTicket({...readTicketFields('newTicket'),isTest:$('newTicketIsTest')?.checked===true});$('newTicketDialog').close();await refreshOperationalData();toast('Ticket creado y guardado en Supabase.');}
- catch(err){error.textContent=err.message||'No se pudo guardar el ticket.';}finally{button.disabled=false;}
+ catch(err){error.textContent=err.message||'No se pudo guardar el ticket.';if(err.ticketCreatedId){$('newTicketDialog').close();await refreshOperationalData();showTicketDetail(err.ticketCreatedId);toast(err.message);}}finally{button.disabled=false;}
 }
 async function submitNewTask(event){
  event.preventDefault();const error=$('newTaskError');error.textContent='';
@@ -444,7 +445,7 @@ function render(){if(!state.data)return;const tickets=filtered();const view=view
 function detailHeader(eyebrow,title){return `<div class="dialog-header"><div><span class="eyebrow">${e(eyebrow)}</span><h2 id="detailTitle">${e(title)}</h2></div><button class="icon-button" data-action="close-dialog" aria-label="Cerrar detalle">${icon('close')}</button></div>`;}
 function openDetail(html){$('detailContent').innerHTML=html;if(!$('detailDialog').open)$('detailDialog').showModal();$('detailDialog').scrollTop=0;}
 function detailField(label,value){return `<div class="detail-field"><span>${label}</span><strong>${e(value||'Sin registrar')}</strong></div>`;}
-function showEquipment(serial){const list=state.data.tickets.filter(t=>normalized(t.serial)===normalized(serial));const models=unique(list.map(t=>t.model));openDetail(detailHeader('SERVICIOS REGISTRADOS','Serie '+serial)+`<div class="detail-heading-title"><h3>${models.map(e).join(' · ')||'Modelo sin registrar'}</h3><p class="definition-note">Modelos tal como figuran en los tickets. El Excel no documenta necesariamente el motivo de sus diferencias.</p></div><div class="detail-section"><h3>${list.length} tickets asociados</h3>${sortRecent(list).map(t=>`<button class="task-row" data-action="ticket" data-id="${t.id}"><span class="entity-icon">${icon('ticket')}</span><span class="task-row-title">#${e(t.folio)} · ${e(t.title)}<small>${fmt(t.openedAt,true)} · ${e(t.client)}</small></span><span>${badge(t)}</span></button>`).join('')}</div>`);}
+function showEquipment(serial){const list=state.data.tickets.filter(t=>ticketSerials(t).some(s=>normalized(s)===normalized(serial)));const models=unique(list.map(t=>t.model));openDetail(detailHeader('SERVICIOS REGISTRADOS','Serie '+serial)+`<div class="detail-heading-title"><h3>${models.map(e).join(' · ')||'Modelo sin registrar'}</h3><p class="definition-note">Modelos tal como figuran en los tickets. El Excel no documenta necesariamente el motivo de sus diferencias.</p></div><div class="detail-section"><h3>${list.length} tickets asociados</h3>${sortRecent(list).map(t=>`<button class="task-row" data-action="ticket" data-id="${t.id}"><span class="entity-icon">${icon('ticket')}</span><span class="task-row-title">#${e(t.folio)} · ${e(t.title)}<small>${fmt(t.openedAt,true)} · ${e(t.client)}</small></span><span>${badge(t)}</span></button>`).join('')}</div>`);}
 function showSource(){const m=state.data.metadata;openDetail(detailHeader('INFORMACIÓN DE DATOS','Fuente operativa')+`<div class="dialog-body"><p>La operación actual se consulta desde Supabase. El Excel se conserva como fuente histórica de los tickets migrados.</p><div class="source-list">${[['Archivo',m.sourceFile],['Modificado en origen',fmt(m.sourceModifiedAt,true)],['Importado',fmt(m.importedAt,true)],['Tickets',n(m.counts.tickets)],['Actividades operativas',n(m.counts.tasks)],['Actividades históricas archivadas',n(m.archivedTaskCount||0)],['Actividades sin descripción',n(m.quality.tasksWithoutTitle)],['Estados sin clasificar',n(state.data.tickets.filter(t=>!isKnownStatus(t)).length)]].map(([label,value])=>`<div class="source-item"><span>${label}</span><strong>${e(value)}</strong></div>`).join('')}</div><p class="definition-note">Activos: estados reconocidos que no están cerrados ni cancelados. Fuera de plazo: tickets activos con meta anterior al ${fmt(today,true)}. Una carpeta enlazada no acredita que contenga evidencias.</p><p class="definition-note">Los valores originales permanecen en el histórico de cada ticket. Los filtros por fecha muestran registros del periodo; no reconstruyen cómo estaban los tickets en esa fecha.</p><details class="extra-details"><summary>Hojas conservadas del archivo</summary><div class="source-list">${m.sheets.map(s=>`<div class="source-item"><span>${e(s.name)}</span><strong>${n(s.nonemptyRows)} filas con contenido</strong></div>`).join('')}</div><p>Las hojas de referencia, instrucciones, resumen y calendario se conservan como datos de origen. Los tickets se calculan desde TICKETS. Las tareas operativas se calculan únicamente desde TAREAS_PLATAFORMA; la hoja TAREAS anterior se conserva como histórico y no participa en los indicadores.</p></details><button class="button secondary" data-action="install" style="margin-top:22px">Instalar en el teléfono ${icon('download')}</button></div>`);}
 
 function getSavedViews(){try{const data=JSON.parse(localStorage.getItem(config.storageKey)||'[]');return Array.isArray(data)?data.filter(v=>typeof v.name==='string'&&v.filters&&typeof v.filters==='object').slice(0,10):[];}catch{return [];}}
@@ -461,7 +462,11 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
    editor.querySelector('.work-items').insertAdjacentHTML('beforeend',workItemRow({id:crypto.randomUUID(),text:'',completed:false}));
    updateWorkSummary(editor);editor.querySelector('.work-item:last-child .work-text').focus();
  }
- if(a==='remove-work'){const editor=b.closest('.work-editor');b.closest('.work-item').remove();updateWorkSummary(editor);}
+ if(['multi-add','multi-duplicate','multi-remove','multi-apply-work'].includes(a)){
+    try{handleMultiAction(b,catalogs());if(a==='multi-add'||a==='multi-duplicate')b.closest('dialog')?.querySelector('.multi-unit:last-child .multi-model')?.focus();}
+    catch(error){toast(error.message||'No se pudo modificar la lista de equipos.');}
+  }
+  if(a==='remove-work'){const editor=b.closest('.work-editor');b.closest('.work-item').remove();updateWorkSummary(editor);}
  if(a==='new-ticket')openNewTicket();
  if(a==='new-task')openNewTask(b.dataset.folio||'');
  if(a==='close-dialog')b.closest('dialog')?.close();
@@ -548,7 +553,15 @@ document.addEventListener('change',event=>{
    const editor=$(event.target.id==='newTaskCategory'?'newTaskChecklist':'taskEditChecklist');
    editor.hidden=event.target.value!=='OPERACIONES';updateWorkSummary(editor);
  }
- if(event.target.id==='ticketVisibility'){state.ticketVisibility=['visible','hidden','all'].includes(event.target.value)?event.target.value:'visible';state.page=1;render();}
+ if(event.target.classList.contains('multi-enabled')){
+    const prefix=event.target.id.replace('MultiEnabled','');
+    changeMultiMode(prefix,catalogs());
+    if(prefix==='newTicket')renderNewTicketAntecedents();
+  }
+  if(event.target.classList.contains('multi-model')){const row=event.target.closest('.multi-unit');refreshMultiCatalogs(row,catalogs(),true);}
+  if(event.target.classList.contains('multi-status')){updateMultiProgress(event.target.closest('.multi-unit')?.dataset.prefix);}
+  if(event.target.classList.contains('multi-serial')&&event.target.closest('.multi-unit')?.dataset.prefix==='newTicket')renderNewTicketAntecedents();
+  if(event.target.id==='ticketVisibility'){state.ticketVisibility=['visible','hidden','all'].includes(event.target.value)?event.target.value:'visible';state.page=1;render();}
   if(event.target.id==='taskStatus'){state.taskStatus=event.target.value;state.page=1;render();}
  if(event.target.id==='taskOwner'){state.taskOwner=event.target.value;state.page=1;render();}
  if(event.target.id==='taskCategory'){state.taskCategory=event.target.value;state.page=1;render();}
@@ -567,7 +580,8 @@ document.addEventListener('change',event=>{
  }
 });
 document.addEventListener('input',event=>{
- if(event.target.id==='newTaskTicketSearch'){
+ if(event.target.classList?.contains('multi-serial')&&event.target.closest('.multi-unit')?.dataset.prefix==='newTicket')renderNewTicketAntecedents();
+  if(event.target.id==='newTaskTicketSearch'){
    const selected=$('newTaskTicket')?.value||'';
    renderActivityTicketOptions(event.target.value,selected);
  }
@@ -632,10 +646,12 @@ function ticketFields(prefix,t={}){
  field('Fecha de inicio',`<input id="${prefix}openedAt" name="openedAt" type="date" value="${e(t.openedAt||today)}" required>`)+
  field('Fecha objetivo',`<input id="${prefix}dueAt" name="dueAt" type="date" value="${e(t.dueAt||'')}">`)+
  `<h3 class="full-width">Equipo</h3>`+
- catalogControl(prefix,'model','Modelo',c.models.map(x=>x.name),model?.name||t.model||'','equipment_models')+
+   `<div id="${prefix}SingleEquipment" class="full-width"><div class="filter-fields">`+
+  catalogControl(prefix,'model','Modelo',c.models.map(x=>x.name),model?.name||t.model||'','equipment_models')+
  catalogControl(prefix,'serial','Número de serie',c.serials.filter(x=>x.model_id===model?.id).map(x=>x.serial_number),t.serial||'','equipment_serials')+
- (prefix==='newTicket'?'<div id="newTicketAntecedents" class="full-width ticket-antecedents" role="status" aria-live="polite"></div>':'')+
  field('Tipo de equipo',`<input id="${prefix}equipmentType" value="${e(model?.equipment_type||t.equipmentType||'')}" readonly>`)+
+ `</div></div>`+multiEquipmentMarkup(prefix,t,c)+
+ (prefix==='newTicket'?'<div id="newTicketAntecedents" class="full-width ticket-antecedents" role="status" aria-live="polite"></div>':'')+
  `<h3 class="full-width">Solicitud / incidencia reportada</h3>`+
  Object.entries(requestQuestions).map(([key,label])=>field(label,`<textarea id="${prefix}${key}" name="${key}" rows="2" maxlength="700" required>${e(t.requestContext?.[key]||'')}</textarea>`)).join('')+
  `<div class="full-width"><p id="${prefix}summary" class="note-text" aria-live="polite">${e(t.description||'El resumen se generará con los cuatro campos.')}</p></div>`;
@@ -654,15 +670,19 @@ function readTicketFields(prefix,original={}){
  if(!original.id||hasRequest)validateRequest(requestContext);
  if(!val('status'))throw Error('Selecciona el estado operativo.');
  if(val('dueAt')&&val('dueAt')<val('openedAt'))throw Error('La fecha objetivo no puede ser anterior al inicio.');
- return {folio:val('folio'),client:client.name,businessUnit,serviceCategoryId:category?.id||'',priority:val('priority'),status:val('status'),owner:val('owner'),area:val('area'),openedAt:val('openedAt'),dueAt:val('dueAt'),...(model?{catalogModelId:model.id,catalogSerialId:serial?.id||''}:{}),...(!original.id||hasRequest?{requestContext}:{})};
+ const linkedEquipment=readMultiEquipment(prefix,c);
+ return {folio:val('folio'),client:client.name,businessUnit,serviceCategoryId:category?.id||'',priority:val('priority'),status:val('status'),owner:val('owner'),area:val('area'),openedAt:val('openedAt'),dueAt:val('dueAt'),...(linkedEquipment?{catalogModelId:linkedEquipment[0].modelId,catalogSerialId:linkedEquipment[0].serialId}:(model?{catalogModelId:model.id,catalogSerialId:serial?.id||''}:{})),multiEquipment:Boolean(linkedEquipment),linkedEquipment:linkedEquipment||[],...(!original.id||hasRequest?{requestContext}:{})};
 }
 function renderNewTicketAntecedents(){
  const target=$('newTicketAntecedents');if(!target)return;
- const serial=$('newTicketserial')?.value||'',matches=antecedentsBySerial(state.data.tickets,serial);
+ const multi=$('newTicketMultiEnabled')?.checked;
+  const serials=multi?[...document.querySelectorAll('#newTicketMultiRows .multi-serial')].map(x=>clean(x.value)).filter(Boolean):[$('newTicketserial')?.value||''];
+  const matches=[...new Map(serials.flatMap(serial=>antecedentsBySerial(state.data.tickets,serial)).map(t=>[t.id,t])).values()];
+  const serial=multi?serials.join(' · '):serials[0];
  target.innerHTML=matches.length?`<strong>Antecedentes del equipo: ${matches.length} ticket(s)</strong><p>Esta serie ya tiene registros previos, incluidos los desactivados.</p><ul>${matches.slice(0,8).map(t=>`<li>Ticket #${e(t.folio)} · ${e(t.client||'Sin cliente')} · ${e(t.status||'Sin estado')}${t.operationalHidden?' · Desactivado':''}</li>`).join('')}</ul>${matches.length>8?'<p>Consulta el historial completo para ver todos los registros.</p>':''}`:'';
 }
 function openNewTicket(){
- $('newTicketForm').querySelector('.filter-fields').innerHTML=ticketFields('newTicket')+(config.features.testTicketDeletion?'<label class="full-width"><input id="newTicketIsTest" type="checkbox"> Ticket de prueba (solo podrá eliminarse mientras no registre trabajo real)</label>':'');$('newTicketError').textContent='';$('newTicketDialog').showModal();
+ $('newTicketForm').querySelector('.filter-fields').innerHTML=ticketFields('newTicket')+(config.features.testTicketDeletion?'<label class="full-width"><input id="newTicketIsTest" type="checkbox"> Ticket de prueba (solo podrá eliminarse mientras no registre trabajo real)</label>':'');$('newTicketError').textContent='';changeMultiMode('newTicket',catalogs());$('newTicketDialog').showModal();
 }
 function ticketVisibilitySection(ticket){
  const hidden=ticket.operationalHidden===true;
@@ -675,7 +695,7 @@ function ticketVisibilitySection(ticket){
 function showTicketDetail(id){
  const t=state.data.tickets.find(t=>t.id===id);if(!t)return;
  const tasks=state.data.tasks.filter(x=>x.ticketFolio===t.folio),url=safeEvidenceUrl(t.evidenceUrl);
- openDetail(detailHeader('SEGUIMIENTO DEL SERVICIO','Ticket #'+t.folio)+`<div class="detail-heading-title"><h3>${e(t.title)}</h3><div class="detail-badges">${badge(t)}${priority(t)}${t.operationalHidden?'<span class="badge slate">Desactivado</span>':''}</div></div>
+ openDetail(detailHeader('SEGUIMIENTO DEL SERVICIO','Ticket #'+t.folio)+`<div class="detail-heading-title"><h3>${e(t.title)}</h3><div class="detail-badges">${badge(t)}${priority(t)}${multiSummary(t)}${t.operationalHidden?'<span class="badge slate">Desactivado</span>':''}</div></div>
  <section class="detail-section sudmar-dual-summary"><h3>RESUMEN PARA CÉDULA</h3><p class="definition-note">Dos textos independientes, generados desde la captura guiada. Se actualizan al editar los campos.</p><div class="sudmar-summary-card"><h4>Solicitud / incidencia reportada</h4><p class="note-text" id="cedulaRequestText">${e(t.description||requestSummary(t.requestContext)||t.title||'Sin solicitud documentada.')}</p><button type="button" class="button secondary" data-action="copy-request">📋 Copiar solicitud</button></div><div class="sudmar-summary-card"><h4>Resolución / trabajos realizados</h4><p class="note-text" id="cedulaResolutionText">${e(resolutionSummary(t))}</p><button type="button" class="button secondary" data-action="copy-resolution">📋 Copiar resolución</button></div></section>
  <section class="detail-section"><div class="filter-fields">${ticketFields('ticketEdit',t)}
  <h3 class="full-width">Resolución y cierre</h3>
@@ -687,6 +707,7 @@ function showTicketDetail(id){
  <section class="detail-section"><h3>Actividades del ticket (${tasks.length})</h3><button class="button primary" data-action="new-task" data-folio="${e(t.folio)}">+ Agregar actividad</button>${tasks.map(x=>taskRow(x,true)).join('')}</section>
  ${ticketDeletionSection(t)}
  <section class="detail-section"><p>Cierre real: ${e(t.closedAt||'Sin cierre')}</p>${url?`<a href="${e(url)}" target="_blank" rel="noopener noreferrer">Abrir evidencias</a>`:''}</section>${ticketVisibilitySection(t)}`);
+  changeMultiMode('ticketEdit',catalogs());
 }
 function activityFields(prefix,task={}){
  const c=catalogs();
@@ -722,7 +743,7 @@ function showTaskDetail(id){
  openDetail(detailHeader('ACTIVIDAD · '+task.platformId,task.taskType||task.title)+`<section class="detail-section"><button class="text-action" data-action="ticket" data-id="${e(state.data.tickets.find(t=>t.folio===task.ticketFolio)?.id)}">Ticket #${e(task.ticketFolio)}</button>${task.title!==task.taskType?`<details><summary>Descripción histórica</summary><p>${e(task.title)}</p></details>`:''}${progressMarkup(task)}<div class="filter-fields">${activityFields('taskEdit',task)}</div><button class="button primary" data-action="save-task-update" data-id="${e(id)}">Guardar cambios</button></section>`);updateWorkSummary($('taskEditChecklist'));
 }
 
-function openCatalog(kind,prefix){
+function openCatalog(kind,prefix,multiRow=null){
  const labels={clients:'nuevo cliente',service_categories:'nueva categoría',equipment_models:'nuevo modelo',equipment_serials:'nuevo número de serie',activity_types:'nuevo tipo de actividad',activity_statuses:'nuevo estado de actividad'};
  let dialog=$('catalogDialog');if(!dialog){dialog=document.createElement('dialog');dialog.id='catalogDialog';dialog.className='small-dialog';document.body.append(dialog);}
  dialog.innerHTML=`<form id="catalogForm"><div class="dialog-header"><h2>Agregar ${labels[kind]}</h2><button type="button" data-action="close-dialog" class="icon-button" aria-label="Cerrar">×</button></div><div class="dialog-body">${field(kind==='equipment_serials'?'Número de serie':'Nombre','<input name="name" required maxlength="120" autocomplete="off">')}${kind==='equipment_models'?field('Tipo de equipo',`<input name="equipment_type" list="equipmentKinds" required maxlength="120"><datalist id="equipmentKinds">${unique(catalogs().models.map(m=>m.equipment_type)).map(t=>`<option value="${e(t)}"></option>`).join('')}</datalist>`):''}${kind==='activity_statuses'?field('Grupo estadístico obligatorio',selectControl('catalogGroup','group_code',['POR INICIAR','EN CURSO','DETENIDA','CERRADA']))+field('Definición','<textarea name="description" required maxlength="500" rows="2"></textarea>')+'<label><input type="checkbox" name="is_cancelled"> Es una cancelación (solo grupo CERRADA)</label>':''}<p id="catalogError" class="form-error" role="alert"></p></div><div class="dialog-footer"><button class="button primary" type="submit">Guardar en catálogo</button></div></form>`;
@@ -734,13 +755,14 @@ function openCatalog(kind,prefix){
    if(kind==='clients')existing=c.clients.find(x=>catalogKey(x.name)===catalogKey(name));
    if(kind==='service_categories'){body.business_unit=$(prefix+'businessUnit').value;if(!['SUDMAR','PRETTL'].includes(body.business_unit))throw Error('Selecciona primero SUDMAR o PRETTL.');existing=c.categories.find(x=>x.business_unit===body.business_unit&&catalogKey(x.name)===catalogKey(name));}
    if(kind==='equipment_models'){body.equipment_type=values.equipment_type.trim();existing=c.models.find(x=>catalogKey(x.name)===catalogKey(name));}
-   if(kind==='equipment_serials'){const model=c.models.find(x=>catalogKey(x.name)===catalogKey($(prefix+'model').value));if(!model)throw Error('Selecciona primero un modelo del catálogo.');body={model_id:model.id,serial_number:name};existing=c.serials.find(x=>x.model_id===model.id&&catalogKey(x.serial_number)===catalogKey(name));}
+   if(kind==='equipment_serials'){const modelName=multiRow?multiRow.querySelector('.multi-model').value:$(prefix+'model').value;const model=c.models.find(x=>catalogKey(x.name)===catalogKey(modelName));if(!model)throw Error('Selecciona primero un modelo del catálogo.');body={model_id:model.id,serial_number:name};existing=c.serials.find(x=>x.model_id===model.id&&catalogKey(x.serial_number)===catalogKey(name));}
    if(kind==='activity_types')existing=c.types.find(x=>catalogKey(x.name)===catalogKey(name));
    if(kind==='activity_statuses'){body={name:name.toUpperCase(),group_code:values.group_code,description:values.description,is_cancelled:new FormData(event.target).has('is_cancelled')};if(!body.group_code)throw Error('Selecciona un grupo estadístico.');if(body.is_cancelled&&body.group_code!=='CERRADA')throw Error('Una cancelación debe pertenecer a CERRADA.');}
    const row=existing||await repository.addCatalog(kind,body);
    state.data.catalogs=await repository.catalogs();
    const target={clients:'client',service_categories:'serviceCategory',equipment_models:'model',equipment_serials:'serial',activity_types:'taskType',activity_statuses:'status'}[kind];
-   const input=$(prefix+target);
+   const input=multiRow?.querySelector(kind==='equipment_models'?'.multi-model':'.multi-serial')||$(prefix+target);
+   if(multiRow)refreshMultiCatalogs(multiRow,catalogs());
    if(kind==='activity_statuses')input.innerHTML=catalogs().statuses.map(s=>`<option value="${e(s.name)}">${e(s.name)}</option>`).join('');
    if(kind==='clients'){const search=$(prefix+'clientSearch');search.value='';renderClientOptions(prefix);}
    input.value=row.name||row.serial_number;input.dispatchEvent(new Event('change',{bubbles:true}));dialog.close();toast(existing?'Se reutilizó el registro existente.':'Guardado en catálogo.');
@@ -751,6 +773,7 @@ function openCatalog(kind,prefix){
 document.addEventListener('click',async event=>{
  const b=event.target.closest('[data-action]');if(!b)return;
  if(b.dataset.action==='add-catalog')openCatalog(b.dataset.kind,b.dataset.prefix);
+  if(b.dataset.action==='multi-catalog'){const row=b.closest('.multi-unit');openCatalog(b.dataset.kind,row.dataset.prefix,row);}
  if(['copy-request','copy-resolution'].includes(b.dataset.action)){const text=$(b.dataset.action==='copy-request'?'cedulaRequestText':'cedulaResolutionText')?.textContent||'';try{await navigator.clipboard.writeText(text);toast('Resumen copiado para cédula.');}catch{toast('No se pudo copiar. Selecciona el resumen y cópialo manualmente.');}}
 });
 document.addEventListener('change',event=>{

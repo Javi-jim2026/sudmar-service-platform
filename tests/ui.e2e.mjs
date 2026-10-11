@@ -10,12 +10,25 @@ const browser=await chromium.launch({headless:true,...(process.env.BROWSER_PATH?
 const context=await browser.newContext({viewport:{width:1360,height:1000},serviceWorkers:'block',permissions:['clipboard-read','clipboard-write']});
 const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
 const day='2026-09-25';
-const tables={tickets:[{id:'seed',folio:'9000',client_id:'client',title:'Histórico',status:'COBRANZA',operational_hidden:false,legacy_status:'COBRANZA',stage:'Cobranza',business_unit:'SERVICIO',opened_at:day,owner_id:'person',source_serial:'89333065/0006',diagnosis:'Texto histórico'}],clients:[{id:'client',name:'Cliente prueba'}],personnel:[{id:'person',name:'Javier Jimenez',role:'Gerente Operativo',area:'Operaciones',operational_areas:['Operaciones']}],equipment:[],inventory_units:[{id:'inventory-a',source_row:1,serial_number:'89331070/0004',model:'ESE 340 CW/AS MPP',extraction_ref:'2211',product_line:'PREMIUM POWER',equipment_type:'GENERADORES A DIESEL',quantity:1,status:'ENTREGADO',archived:false,updated_at:'2026-10-08T00:00:00Z',source_snapshot:{serial_number:'89331070/0004'}},{id:'inventory-b',source_row:3,serial_number:'89331070/0004',model:'ESE 340 CW/AS MPP',extraction_ref:'2212',product_line:'PREMIUM POWER',equipment_type:'GENERADORES A DIESEL',quantity:1,status:'DISPONIBLE',archived:false,updated_at:'2026-10-08T00:00:00Z',source_snapshot:{serial_number:'89331070/0004'}}],tasks:[],equipment_models:[{id:'model',name:'ESE 250 BW/AS',equipment_type:'GENERADORES A DIESEL'}],equipment_serials:[{id:'serial',model_id:'model',serial_number:'89333065/0006'}],service_categories:[{id:'cat1',business_unit:'SUDMAR',name:'Cursos'},{id:'cat2',business_unit:'PRETTL',name:'Garantía'}],activity_types:[{id:'type1',name:'Diagnóstico'},{id:'type2',name:'Instalación'}],activity_statuses:[{name:'POR INICIAR',group_code:'POR INICIAR',description:'Aún no comienza'},{name:'EN EJECUCIÓN',group_code:'EN CURSO',description:'En ejecución'},{name:'EN ESPERA',group_code:'DETENIDA',description:'Dependencia externa'},{name:'BLOQUEADA',group_code:'DETENIDA',description:'Impedimento'},{name:'COMPLETADA',group_code:'CERRADA',description:'Terminó'},{name:'CANCELADA',group_code:'CERRADA',description:'Cancelada',is_cancelled:true}]};
+const tables={tickets:[{id:'seed',folio:'9000',client_id:'client',title:'Histórico',status:'COBRANZA',operational_hidden:false,legacy_status:'COBRANZA',stage:'Cobranza',business_unit:'SERVICIO',opened_at:day,owner_id:'person',source_serial:'89333065/0006',diagnosis:'Texto histórico'}],clients:[{id:'client',name:'Cliente prueba'}],personnel:[{id:'person',name:'Javier Jimenez',role:'Gerente Operativo',area:'Operaciones',operational_areas:['Operaciones']}],equipment:[],inventory_units:[{id:'inventory-a',source_row:1,serial_number:'89331070/0004',model:'ESE 340 CW/AS MPP',extraction_ref:'2211',product_line:'PREMIUM POWER',equipment_type:'GENERADORES A DIESEL',quantity:1,status:'ENTREGADO',archived:false,updated_at:'2026-10-08T00:00:00Z',source_snapshot:{serial_number:'89331070/0004'}},{id:'inventory-b',source_row:3,serial_number:'89331070/0004',model:'ESE 340 CW/AS MPP',extraction_ref:'2212',product_line:'PREMIUM POWER',equipment_type:'GENERADORES A DIESEL',quantity:1,status:'DISPONIBLE',archived:false,updated_at:'2026-10-08T00:00:00Z',source_snapshot:{serial_number:'89331070/0004'}}],tasks:[],ticket_equipment:[],equipment_models:[{id:'model',name:'ESE 250 BW/AS',equipment_type:'GENERADORES A DIESEL'},{id:'model2',name:'ESE 560 CW/AS',equipment_type:'GENERADORES A DIESEL'}],equipment_serials:[{id:'serial',model_id:'model',serial_number:'89333065/0006'},{id:'serial2',model_id:'model2',serial_number:'OTHER-560-001'}],service_categories:[{id:'cat1',business_unit:'SUDMAR',name:'Cursos'},{id:'cat2',business_unit:'PRETTL',name:'Garantía'}],activity_types:[{id:'type1',name:'Diagnóstico'},{id:'type2',name:'Instalación'}],activity_statuses:[{name:'POR INICIAR',group_code:'POR INICIAR',description:'Aún no comienza'},{name:'EN EJECUCIÓN',group_code:'EN CURSO',description:'En ejecución'},{name:'EN ESPERA',group_code:'DETENIDA',description:'Dependencia externa'},{name:'BLOQUEADA',group_code:'DETENIDA',description:'Impedimento'},{name:'COMPLETADA',group_code:'CERRADA',description:'Terminó'},{name:'CANCELADA',group_code:'CERRADA',description:'Cancelada',is_cancelled:true}]};
 let sequence=9001,rejectNext=false;
 await page.route('https://*.supabase.co/rest/v1/**',async route=>{
  const req=route.request(),url=new URL(req.url()),table=url.pathname.split('/').pop();let rows=tables[table]||[];
  for(const [key,val]of url.searchParams)if(val.startsWith('eq.'))rows=rows.filter(r=>key==='active'||String(r[key])===val.slice(3));
- if(table==='delete_test_ticket'){
+ if(table==='replace_ticket_equipment'){
+    const payload=req.postDataJSON(),ticket=tables.tickets.find(x=>x.id===payload.p_ticket_id);
+    if(!ticket?.is_multi_equipment)return route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({message:'Multiequipo no activado'})});
+    const units=payload.p_units;
+    if(new Set(units.map(x=>x.serialId)).size!==units.length)return route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({message:'Serie duplicada'})});
+    tables.ticket_equipment=tables.ticket_equipment.filter(x=>x.ticket_id!==payload.p_ticket_id);
+    units.forEach(u=>tables.ticket_equipment.push({
+      id:'unit-'+u.serialId,ticket_id:payload.p_ticket_id,model_id:u.modelId,serial_id:u.serialId,position:u.position,
+      status:u.status,technician:u.technician,attended_at:u.attendedAt,technical_findings:u.findings,
+      work_performed:u.workPerformed,final_condition:u.finalCondition,evidence_url:u.evidenceUrl
+    }));
+    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(units.length)});
+  }
+  if(table==='delete_test_ticket'){
   const body=req.postDataJSON(),ticket=tables.tickets.find(t=>t.id===body.p_ticket_id);
   if(rejectNext){rejectNext=false;return route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({message:'El ticket tiene evidencias. Debe cancelarse/archivarse.'})});}
   if(!ticket?.is_test||ticket.folio!==body.p_folio) return route.fulfill({status:400,body:'{}'});
@@ -196,6 +209,47 @@ try{
  await page.locator('#ticketVisibility').selectOption('visible');
  assert.equal(await page.locator('[data-action="ticket"][data-id="seed"]').count()>0,true);
 
- assert.deepEqual(errors,[]);console.log('All operational UI flows passed (desktop/tablet/mobile).');
+ // Gestión multiequipo: desactivada por defecto y sin afectar el flujo individual.
+  await click('[data-action="new-ticket"]');
+  assert.equal(await page.locator('#newTicketMultiEnabled').isChecked(),false);
+  await page.locator('#newTicketbusinessUnit').selectOption('PRETTL');
+  await page.locator('#newTicketclient').selectOption('Cliente prueba');
+  await fill('#newTicketserviceCategory','Garantía');
+  await fill('#newTicketfolio','MULTI-001');
+  await fill('#newTicketmodel','ESE 250 BW/AS');await change('#newTicketmodel');
+  await fill('#newTicketserial','89333065/0006');
+  for(const k of ['what','where','condition','required'])await fill('#newTicket'+k,'Falla recurrente de cargadores '+k);
+  await page.locator('#newTicketMultiEnabled').check();
+  assert.equal(await page.locator('#newTicketSingleEquipment').isVisible(),false);
+  assert.equal(await page.locator('#newTicketMultiRows .multi-unit').count(),1);
+  assert.equal(await page.locator('#newTicketMultiRows .multi-model').first().inputValue(),'ESE 250 BW/AS');
+  await click('#newTicketMultiRows [data-action="multi-duplicate"]');
+  assert.equal(await page.locator('#newTicketMultiRows .multi-unit').count(),2);
+  const second=page.locator('#newTicketMultiRows .multi-unit').nth(1);
+  await second.locator('.multi-model').fill('ESE 560 CW/AS');await second.locator('.multi-model').dispatchEvent('change');
+  await second.locator('.multi-serial').fill('OTHER-560-001');
+  await page.locator('#newTicketMultiRows .multi-followup summary').first().click();
+  await page.locator('#newTicketMultiRows .multi-status').first().selectOption('RESUELTO');
+  await page.locator('#newTicketMultiRows .multi-work').first().fill('Cargador sustituido y probado');
+  await click('#newTicketForm [type="submit"]');await page.locator('#newTicketDialog').waitFor({state:'hidden'});
+  const multi=tables.tickets.find(x=>x.folio==='MULTI-001');
+  assert.ok(multi);assert.equal(multi.is_multi_equipment,true);
+  assert.equal(tables.ticket_equipment.filter(x=>x.ticket_id===multi.id).length,2);
+  await click('[data-action="ticket"][data-id="'+multi.id+'"]');
+  assert.equal(await page.locator('#ticketEditMultiEnabled').isChecked(),true);
+  assert.equal(await page.locator('#ticketEditMultiRows .multi-unit').count(),2);
+  assert.match(await page.locator('#detailDialog').innerText(),/Multiequipo · 2 unidades · 1 resueltas/);
+  await page.locator('#ticketEditMultiRows .multi-unit').nth(1).locator('.multi-followup summary').click();
+  await page.locator('#ticketEditMultiRows .multi-unit').nth(1).locator('.multi-status').selectOption('RESUELTO');
+  await page.locator('#ticketEditMultiRows .multi-unit').nth(1).locator('.multi-condition').fill('Cargador operativo');
+  await click('#detailDialog [data-action="save-ticket-update"]');
+  await page.locator('#detailDialog').filter({hasText:'Multiequipo · 2 unidades · 2 resueltas'}).waitFor();
+  assert.equal(tables.ticket_equipment.filter(x=>x.ticket_id===multi.id&&x.status==='RESUELTO').length,2);
+  await click('#detailDialog [data-action="close-dialog"]');
+  await click('[data-action="new-ticket"]');
+  await fill('#newTicketserial','OTHER-560-001');
+  await page.locator('#newTicketAntecedents').filter({hasText:'Ticket #MULTI-001'}).waitFor();
+  await click('#newTicketDialog [data-action="close-dialog"]');
+  assert.deepEqual(errors,[]);console.log('All operational UI flows passed (desktop/tablet/mobile/multiequipo).');
 }finally{await browser.close();server.close();}
 
