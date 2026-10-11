@@ -13,12 +13,20 @@ export const taskClosed = t => t.statusGroup==='CERRADA' || taskComplete(t) || [
 export const validSerial = value => !['', '-', 'na', 'n/a', 's/n', 'sn', 'no aplica', 'sin serie', 'sin numero de serie', 'pendiente', 'varios', '#n/a'].includes(normalized(value));
 export const unique = items => [...new Set(items.filter(v => v !== null && v !== undefined && clean(v) !== '').map(clean))].sort((a,b) => a.localeCompare(b,'es',{numeric:true}));
 
+export function ticketSerials(t) {
+  return t.isMultiEquipment && t.linkedEquipment?.length ? unique(t.linkedEquipment.map(x=>x.serial)) : (t.serial?[t.serial]:[]);
+}
+export function ticketModels(t) {
+  return t.isMultiEquipment && t.linkedEquipment?.length ? unique(t.linkedEquipment.map(x=>x.model)) : (t.model?[t.model]:[]);
+}
 export function filterTickets(tickets, filters, today) {
   const query = normalized(filters.q);
   return tickets.filter(t => {
-    if (query && ![t.folio,t.title,t.client,t.model,t.serial,t.log,t.diagnosis].some(v=>normalized(v).includes(query))) return false;
+    if (query && ![t.folio,t.title,t.client,t.model,t.serial,...ticketModels(t),...ticketSerials(t),t.log,t.diagnosis].some(v=>normalized(v).includes(query))) return false;
     if (filters.folio && !normalized(t.folio).includes(normalized(filters.folio))) return false;
-    for (const key of ['priority','client','businessUnit','area','equipmentType','owner','status','model','serial']) {
+    if(filters.serial&&filters.serial!=='__EMPTY__'&&!ticketSerials(t).some(v=>clean(v)===clean(filters.serial)))return false;
+    if(filters.model&&filters.model!=='__EMPTY__'&&!ticketModels(t).some(v=>clean(v)===clean(filters.model)))return false;
+    for (const key of ['priority','client','businessUnit','area','equipmentType','owner','status']) {
       if (filters[key] === '__EMPTY__' && clean(t[key]) !== '') return false;
       if (filters[key] && filters[key] !== '__EMPTY__' && clean(t[key]) !== filters[key]) return false;
     }
@@ -53,12 +61,14 @@ export function countsBy(items, key) {
 export function equipmentGroups(tickets) {
   const groups = new Map();
   for (const ticket of tickets) {
-    if (!validSerial(ticket.serial)) continue;
-    const key = normalized(ticket.serial);
-    if (!groups.has(key)) groups.set(key,{key,serial:ticket.serial,tickets:[]});
-    groups.get(key).tickets.push(ticket);
+    for(const serial of ticketSerials(ticket)){
+      if(!validSerial(serial))continue;
+      const key=normalized(serial);
+      if(!groups.has(key))groups.set(key,{key,serial,tickets:[]});
+      if(!groups.get(key).tickets.some(x=>x.id===ticket.id))groups.get(key).tickets.push(ticket);
+    }
   }
-  return [...groups.values()].map(g=>({...g,models:unique(g.tickets.map(t=>t.model)),clients:unique(g.tickets.map(t=>t.client))}));
+  return [...groups.values()].map(g=>({...g,models:unique(g.tickets.flatMap(ticketModels)),clients:unique(g.tickets.map(t=>t.client))}));
 }
 
 export function safeEvidenceUrl(value) {

@@ -1,5 +1,5 @@
 // Visibilidad operativa independiente del estado y de los antecedentes históricos.
-import {normalized, validSerial} from './core.js';
+import {normalized, validSerial, ticketSerials} from './core.js';
 
 export const isOperationallyVisible = ticket => ticket.operationalHidden !== true;
 
@@ -13,6 +13,6 @@ export function ticketsByVisibility(tickets, mode='visible') {
 export function antecedentsBySerial(tickets, serial) {
   if (!validSerial(serial)) return [];
   const key=normalized(serial);
-  return tickets.filter(ticket=>normalized(ticket.serial)===key)
+  return tickets.filter(ticket=>ticketSerials(ticket).some(s=>normalized(s)===key))
     .sort((a,b)=>(b.openedAt||'').localeCompare(a.openedAt||''));
 }

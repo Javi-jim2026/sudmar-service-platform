@@ -1,0 +1,25 @@
+name: Validate Gestión Multiequipo
+on:
+  push:
+    branches: ["feature/multiequipment-20261011"]
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check JavaScript
+        run: |
+          node --check prototype/src/app.js
+          node --check prototype/src/multi-equipment.js
+          node --check prototype/src/repository.js
+          node --check prototype/src/core.js
+          node --check prototype/src/visibility.js
+          node --check tests/ui.e2e.mjs
+      - name: Core tests
+        run: npm test
+      - name: Playwright workflows
+        run: |
+          npm install --no-save --package-lock=false playwright@1.62.1
+          npx playwright install --with-deps chromium
+          node tests/ui.e2e.mjs
+          node tests/ticket-regressions.e2e.mjs
