@@ -228,6 +228,7 @@ try{
   const second=page.locator('#newTicketMultiRows .multi-unit').nth(1);
   await second.locator('.multi-model').fill('ESE 560 CW/AS');await second.locator('.multi-model').dispatchEvent('change');
   await second.locator('.multi-serial').fill('OTHER-560-001');
+  await page.locator('#newTicketMultiRows .multi-followup summary').first().click();
   await page.locator('#newTicketMultiRows .multi-status').first().selectOption('RESUELTO');
   await page.locator('#newTicketMultiRows .multi-work').first().fill('Cargador sustituido y probado');
   await click('#newTicketForm [type="submit"]');await page.locator('#newTicketDialog').waitFor({state:'hidden'});
@@ -238,6 +239,7 @@ try{
   assert.equal(await page.locator('#ticketEditMultiEnabled').isChecked(),true);
   assert.equal(await page.locator('#ticketEditMultiRows .multi-unit').count(),2);
   assert.match(await page.locator('#detailDialog').innerText(),/Multiequipo · 2 unidades · 1 resueltas/);
+  await page.locator('#ticketEditMultiRows .multi-unit').nth(1).locator('.multi-followup summary').click();
   await page.locator('#ticketEditMultiRows .multi-unit').nth(1).locator('.multi-status').selectOption('RESUELTO');
   await page.locator('#ticketEditMultiRows .multi-unit').nth(1).locator('.multi-condition').fill('Cargador operativo');
   await click('#detailDialog [data-action="save-ticket-update"]');
