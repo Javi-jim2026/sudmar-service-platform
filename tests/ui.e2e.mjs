@@ -263,6 +263,37 @@ try{
   await fill('#newTicketserial','OTHER-560-001');
   await page.locator('#newTicketAntecedents').filter({hasText:'Ticket #MULTI-001'}).waitFor();
   await click('#newTicketDialog [data-action="close-dialog"]');
+  // Caso histórico realista: el folio 2120 guarda 4 series en un campo y el nombre
+  // del modelo difiere del catálogo por el sufijo /AS.
+  const serialOriginal=['89331071/0004','89331071/0002','89331071/0003','89331071/0001'].join('\n');
+  tables.equipment_models.push({id:'m350',name:'ESE 350 IW/AS',equipment_type:'GENERADORES A DIESEL'});
+  for(const number of ['89331071/0004','89331071/0002','89331071/0003','89331071/0001']){
+    tables.equipment_serials.push({id:'ser-'+number,model_id:'m350',serial_number:number});
+  }
+  const originalTicket={id:'legacy2120',folio:'2120',client_id:'client',owner_id:'person',area:'COMERCIAL',
+    business_unit:'ALMACEN',operational_status:'CONCLUIDO',status:'CERRADO',
+    title:'ETIQUETADO DE ESE 350 IW',source_model:'ESE 350 IW',source_serial:serialOriginal,
+    is_multi_equipment:false,opened_at:'2025-12-18',due_at:'2025-12-22',closed_at:'2026-01-12',
+    operational_hidden:false};
+  tables.tickets.push(originalTicket);
+  await page.reload();await page.locator('#sourceDate').filter({hasText:'Supabase en línea'}).waitFor();
+  await click('[data-action="navigate"][data-view="tickets"]');
+  await click('[data-action="ticket"][data-id="legacy2120"]');
+  assert.equal(await page.locator('#ticketEditMultiEnabled').isChecked(),false);
+  assert.equal(await page.locator('#ticketEditMultiRows .multi-unit').count(),4);
+  assert.deepEqual(await page.locator('#ticketEditMultiRows .multi-serial').evaluateAll(xs=>xs.map(x=>x.value)),serialOriginal.split('\n'));
+  assert.deepEqual(await page.locator('#ticketEditMultiRows .multi-model').evaluateAll(xs=>xs.map(x=>x.value)),Array(4).fill('ESE 350 IW/AS'));
+  await page.locator('#ticketEditMultiEnabled').check();
+  assert.match(await page.locator('#ticketEditMultiPanel .multi-legacy-notice').innerText(),/ESE 350 IW\/AS/);
+  assert.equal(await page.locator('#ticketEditMultiRows .multi-unit').count(),4);
+  await click('#detailDialog [data-action="save-ticket-update"]');
+  await page.locator('#detailDialog .detail-badges').filter({hasText:'Multiequipo · 4 unidades'}).waitFor();
+  assert.equal(originalTicket.is_multi_equipment,true);
+  assert.equal(originalTicket.source_model,'ESE 350 IW');
+  assert.equal(originalTicket.source_serial,serialOriginal);
+  assert.equal(originalTicket.catalog_model_id,'m350');
+  assert.equal(tables.ticket_equipment.filter(x=>x.ticket_id==='legacy2120').length,4);
+  await click('#detailDialog [data-action="close-dialog"]');
   assert.deepEqual(errors,[]);console.log('All operational UI flows passed (desktop/tablet/mobile/multiequipo).');
 }finally{await browser.close();server.close();}
 

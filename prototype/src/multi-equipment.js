@@ -34,13 +34,37 @@ export function multiEquipmentRow(prefix,rawUnit={},catalogs={models:[],serials:
  <label>¿Cómo quedó? <textarea class="multi-condition" rows="2" maxlength="5000">${esc(unit.finalCondition)}</textarea></label>
  </details></div>`;
 }
+// Solo prepara una vista previa: no cambia ninguna fila del ticket histórico.
+export function legacyMultiEquipmentDraft(ticket,catalogs={}){
+ const fallback={units:[{model:ticket.model||'',serial:ticket.serial||''}],notice:''};
+ if(!ticket.id||ticket.isMultiEquipment===true)return fallback;
+ const serials=String(ticket.legacySourceSerial??ticket.serial??'')
+   .split(/[\r\n;,|]+/).map(s=>s.trim()).filter(Boolean);
+ if(serials.length<2||serials.length>100||new Set(serials.map(norm)).size!==serials.length)return fallback;
+ const models=Array.isArray(catalogs.models)?catalogs.models:[];
+ const catalogSerials=Array.isArray(catalogs.serials)?catalogs.serials:[];
+ const matches=serials.map(serial=>{
+   const choices=catalogSerials.filter(s=>norm(s.serial_number)===norm(serial))
+     .map(s=>models.find(m=>m.id===s.model_id)).filter(Boolean);
+   return choices.length===1?choices[0]:null;
+ });
+ const sameModel=matches.every(Boolean)&&matches.every(x=>x.id===matches[0].id);
+ const historicalModel=ticket.legacySourceModel||ticket.model||'';
+ const modelName=sameModel?matches[0].name:historicalModel;
+ const notice=sameModel&&norm(modelName)!==norm(historicalModel)
+   ? 'Se detectaron '+serials.length+' series históricas. El modelo original es «'+historicalModel+'»; sus series están registradas en el catálogo como «'+modelName+'». Verifica esta correspondencia antes de guardar.'
+   : 'Se detectaron '+serials.length+' series históricas. Revisa sus modelos y series antes de guardar; los campos originales se conservarán.';
+ return {units:serials.map(serial=>({model:modelName,serial})),notice};
+}
 export function multiEquipmentMarkup(prefix,t={},catalogs={}){
  const enabled=t.isMultiEquipment===true;
- const units=enabled&&t.linkedEquipment?.length?t.linkedEquipment:[{model:t.model||'',serial:t.serial||''}];
+ const draft=legacyMultiEquipmentDraft(t,catalogs);
+ const units=enabled&&t.linkedEquipment?.length?t.linkedEquipment:draft.units;
  return `<div class="multi-feature full-width" id="${prefix}MultiFeature">
  <label class="multi-switch"><input type="checkbox" id="${prefix}MultiEnabled" class="multi-enabled" ${enabled?'checked disabled':''}><span><strong>Gestión multiequipo</strong><small>Opcional · para incidencias que afectan varios equipos, incluso de distintos modelos.</small></span></label>
  <div id="${prefix}MultiPanel" class="multi-panel" ${enabled?'':'hidden'}>
  <p class="definition-note">Cada unidad conserva modelo, serie y resolución propios. Un solo ticket principal.</p>
+ ${draft.notice?'<p class="multi-legacy-notice">'+esc(draft.notice)+'</p>':''}
  <div id="${prefix}MultiRows" class="multi-rows">${units.map(u=>multiEquipmentRow(prefix,u,catalogs)).join('')}</div>
  <button type="button" class="button secondary" data-action="multi-add" data-prefix="${prefix}">+ Agregar equipo</button>
  <label class="multi-bulk-label">Trabajo común a varios equipos (opcional)<textarea id="${prefix}MultiCommonWork" rows="2" placeholder="Describe un trabajo realizado en todas las unidades seleccionadas."></textarea></label>
@@ -130,5 +154,5 @@ export function multiSummary(ticket){
  const rows=ticket.linkedEquipment||[];
  if(!ticket.isMultiEquipment)return '';
  const done=rows.filter(x=>x.status==='RESUELTO').length;
- return `<span class="badge blue">Multiequipo · ${rows.length} unidades · ${done} resueltas</span`;
+ return `<span class="badge blue">Multiequipo · ${rows.length} unidades · ${done} resueltas</span>`;
 }

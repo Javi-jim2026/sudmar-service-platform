@@ -111,6 +111,7 @@ export class SnapshotRepository {
         dueAt: dateOnly(row.due_at),
         closedAt: dateOnly(row.closed_at),
         resolvedAt: dateOnly(row.resolved_at),
+        legacySourceModel:row.source_model??'',legacySourceSerial:row.source_serial??'',
         model: row.catalog_model_id ? (catalogs.models.find(m=>m.id===row.catalog_model_id)?.name??row.source_model??'') : (row.source_model??unit?.model??''),
         serial: row.catalog_model_id ? (catalogs.serials.find(s=>s.id===row.catalog_serial_id)?.serial_number??row.source_serial??'') : (row.source_serial??unit?.serial_number??''),
         status: row.operational_status??'POR CLASIFICAR',
@@ -244,7 +245,7 @@ export class SnapshotRepository {
       const serial=catalogs.serials.find(s=>s.id===payload.catalogSerialId);
       if(payload.catalogModelId&&!model)throw Error('Modelo no disponible.');
       if(serial&&serial.model_id!==model?.id)throw Error('La serie no corresponde al modelo.');
-      if(model){body.source_model=model.name;body.source_serial=serial?.serial_number||null;}
+      if(model&&(creating||payload.multiEquipment!==true)){body.source_model=model.name;body.source_serial=serial?.serial_number||null;}
     }
     return body;
   }
