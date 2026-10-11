@@ -663,8 +663,15 @@ function readTicketFields(prefix,original={}){
  const category=c.categories.find(x=>x.business_unit===businessUnit&&catalogKey(x.name)===catalogKey(val('serviceCategory')));
  if(['SUDMAR','PRETTL'].includes(businessUnit)&&!category)throw Error('Selecciona o agrega una categoría para esta unidad.');
  const model=c.models.find(x=>catalogKey(x.name)===catalogKey(val('model'))),serial=c.serials.find(x=>x.model_id===model?.id&&catalogKey(x.serial_number)===catalogKey(val('serial')));
- if(val('model')&&!model&&val('model')!==original.model)throw Error('Selecciona o agrega el modelo al catálogo.');
- if(val('serial')&&!serial&&!(val('serial')===original.serial&&val('model')===original.model))throw Error('Selecciona o agrega una serie de este modelo.');
+ // No validar el campo de una sola serie cuando se activa multiequipo.
+ // Los input[type=text] normalizan los saltos de línea de tickets históricos.
+ const multiMode=$(prefix+'MultiEnabled')?.checked===true;
+ const historicalSerialUnchanged=Boolean(original.id&&val('model')===original.model&&
+   val('serial').replace(/\s/g,'')===String(original.serial||'').replace(/\s/g,''));
+ if(!multiMode){
+   if(val('model')&&!model&&val('model')!==original.model)throw Error('Selecciona o agrega el modelo al catálogo.');
+   if(val('serial')&&!serial&&!historicalSerialUnchanged)throw Error('Selecciona o agrega una serie de este modelo.');
+ }
  const requestContext=Object.fromEntries(Object.keys(requestQuestions).map(k=>[k,val(k)]));
  const hasRequest=Object.values(requestContext).some(Boolean);
  if(!original.id||hasRequest)validateRequest(requestContext);

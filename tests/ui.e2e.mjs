@@ -280,6 +280,11 @@ try{
   await click('[data-action="navigate"][data-view="tickets"]');
   await click('[data-action="ticket"][data-id="legacy2120"]');
   assert.equal(await page.locator('#ticketEditMultiEnabled').isChecked(),false);
+  // Editar otro campo no debe exigir recatalogar la serie histórica.
+  await click('#detailDialog [data-action="save-ticket-update"]');
+  await page.locator('#toast').filter({hasText:'Ticket actualizado'}).waitFor();
+  assert.equal(originalTicket.is_multi_equipment,false);
+  assert.equal(originalTicket.source_serial,serialOriginal);
   assert.equal(await page.locator('#ticketEditMultiRows .multi-unit').count(),4);
   assert.deepEqual(await page.locator('#ticketEditMultiRows .multi-serial').evaluateAll(xs=>xs.map(x=>x.value)),serialOriginal.split('\n'));
   assert.deepEqual(await page.locator('#ticketEditMultiRows .multi-model').evaluateAll(xs=>xs.map(x=>x.value)),Array(4).fill('ESE 350 IW/AS'));
