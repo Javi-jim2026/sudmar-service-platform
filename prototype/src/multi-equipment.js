@@ -32,7 +32,7 @@ export function multiEquipmentRow(prefix,rawUnit={},catalogs={models:[],serials:
  <label>¿Qué encontramos? <textarea class="multi-findings" rows="2" maxlength="5000">${esc(unit.findings)}</textarea></label>
  <label>¿Qué hicimos? <textarea class="multi-work" rows="2" maxlength="5000">${esc(unit.workPerformed)}</textarea></label>
  <label>¿Cómo quedó? <textarea class="multi-condition" rows="2" maxlength="5000">${esc(unit.finalCondition)}</textarea></label>
- </details></div`;
+ </details></div>`;
 }
 export function multiEquipmentMarkup(prefix,t={},catalogs={}){
  const enabled=t.isMultiEquipment===true;
@@ -46,7 +46,7 @@ export function multiEquipmentMarkup(prefix,t={},catalogs={}){
  <label class="multi-bulk-label">Trabajo común a varios equipos (opcional)<textarea id="${prefix}MultiCommonWork" rows="2" placeholder="Describe un trabajo realizado en todas las unidades seleccionadas."></textarea></label>
  <button type="button" class="button secondary small" data-action="multi-apply-work" data-prefix="${prefix}">Aplicar trabajo común a todos sin borrar lo existente</button>
  <p id="${prefix}MultiProgress" class="multi-progress" aria-live="polite"></p>
- </div></div`;
+ </div></div>`;
 }
 export function updateMultiProgress(prefix){
  const panel=document.getElementById(prefix+'MultiPanel');if(!panel)return;
