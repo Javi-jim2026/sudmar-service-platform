@@ -24,3 +24,6 @@
 .multi-unit .text-action{font-size:12px}
 .multi-bulk-label textarea{min-height:65px}
 @media(max-width:650px){.multi-unit .multi-unit-fields{grid-template-columns:1fr}.multi-feature,.multi-unit{padding:11px}.multi-unit-head{align-items:flex-start}.multi-unit-actions{width:100%}.multi-feature .button{max-width:100%}}
+
+/* Series históricas detectadas antes de convertir el ticket */
+.multi-legacy-notice{padding:11px 13px;border-radius:9px;border:1px solid #debc76;background:#fff8e9;color:#725019;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
