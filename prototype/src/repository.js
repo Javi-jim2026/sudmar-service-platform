@@ -233,7 +233,11 @@ export class SnapshotRepository {
     if(payload.client!==undefined){const clients=(await this.catalogs()).clients;const c=clients.find(c=>catalogKey(c.name)===catalogKey(payload.client));if(!c)throw Error('Selecciona un cliente del catálogo.');body.client_id=c.id;}
     if(payload.owner!==undefined)body.owner_id=await this.lookupId('personnel','name',payload.owner);
     const mapping={area:'area',businessUnit:'business_unit',priority:'priority',status:'operational_status',openedAt:'opened_at',dueAt:'due_at',resolvedAt:'resolved_at',serviceCategoryId:'service_category_id',catalogModelId:'catalog_model_id',catalogSerialId:'catalog_serial_id',multiEquipment:'is_multi_equipment',log:'logbook',technicalFindings:'technical_findings',workPerformed:'work_performed',finalCondition:'final_condition'};
-    for(const [key,column] of Object.entries(mapping))if(payload[key]!==undefined)body[column]=payload[key]||null;
+    for(const [key,column] of Object.entries(mapping)){
+      if(payload[key]===undefined)continue;
+      // FALSE es válido: no convertirlo en NULL para la columna NOT NULL.
+      body[column]=key==='multiEquipment' ? payload[key]===true : payload[key]||null;
+    }
     if(body.priority)body.priority='P'+String(body.priority).replace(/^P/,'');
     if(payload.catalogModelId!==undefined){
       const catalogs=await this.catalogs();const model=catalogs.models.find(m=>m.id===payload.catalogModelId);

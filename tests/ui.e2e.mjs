@@ -10,7 +10,7 @@ const browser=await chromium.launch({headless:true,...(process.env.BROWSER_PATH?
 const context=await browser.newContext({viewport:{width:1360,height:1000},serviceWorkers:'block',permissions:['clipboard-read','clipboard-write']});
 const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
 const day='2026-09-25';
-const tables={tickets:[{id:'seed',folio:'9000',client_id:'client',title:'Histórico',status:'COBRANZA',operational_hidden:false,legacy_status:'COBRANZA',stage:'Cobranza',business_unit:'SERVICIO',opened_at:day,owner_id:'person',source_serial:'89333065/0006',diagnosis:'Texto histórico'}],clients:[{id:'client',name:'Cliente prueba'}],personnel:[{id:'person',name:'Javier Jimenez',role:'Gerente Operativo',area:'Operaciones',operational_areas:['Operaciones']}],equipment:[],inventory_units:[{id:'inventory-a',source_row:1,serial_number:'89331070/0004',model:'ESE 340 CW/AS MPP',extraction_ref:'2211',product_line:'PREMIUM POWER',equipment_type:'GENERADORES A DIESEL',quantity:1,status:'ENTREGADO',archived:false,updated_at:'2026-10-08T00:00:00Z',source_snapshot:{serial_number:'89331070/0004'}},{id:'inventory-b',source_row:3,serial_number:'89331070/0004',model:'ESE 340 CW/AS MPP',extraction_ref:'2212',product_line:'PREMIUM POWER',equipment_type:'GENERADORES A DIESEL',quantity:1,status:'DISPONIBLE',archived:false,updated_at:'2026-10-08T00:00:00Z',source_snapshot:{serial_number:'89331070/0004'}}],tasks:[],ticket_equipment:[],equipment_models:[{id:'model',name:'ESE 250 BW/AS',equipment_type:'GENERADORES A DIESEL'},{id:'model2',name:'ESE 560 CW/AS',equipment_type:'GENERADORES A DIESEL'}],equipment_serials:[{id:'serial',model_id:'model',serial_number:'89333065/0006'},{id:'serial2',model_id:'model2',serial_number:'OTHER-560-001'}],service_categories:[{id:'cat1',business_unit:'SUDMAR',name:'Cursos'},{id:'cat2',business_unit:'PRETTL',name:'Garantía'}],activity_types:[{id:'type1',name:'Diagnóstico'},{id:'type2',name:'Instalación'}],activity_statuses:[{name:'POR INICIAR',group_code:'POR INICIAR',description:'Aún no comienza'},{name:'EN EJECUCIÓN',group_code:'EN CURSO',description:'En ejecución'},{name:'EN ESPERA',group_code:'DETENIDA',description:'Dependencia externa'},{name:'BLOQUEADA',group_code:'DETENIDA',description:'Impedimento'},{name:'COMPLETADA',group_code:'CERRADA',description:'Terminó'},{name:'CANCELADA',group_code:'CERRADA',description:'Cancelada',is_cancelled:true}]};
+const tables={tickets:[{id:'seed',folio:'9000',client_id:'client',title:'Histórico',status:'COBRANZA',operational_hidden:false,legacy_status:'COBRANZA',stage:'Cobranza',business_unit:'SERVICIO',opened_at:day,owner_id:'person',source_serial:'89333065/0006',diagnosis:'Texto histórico'}],clients:[{id:'client',name:'Cliente prueba'}],personnel:[{id:'person',name:'Javier Jimenez',role:'Gerente Operativo',area:'Operaciones',operational_areas:['Operaciones']},{id:'person2',name:'Daniel Hernandez',role:'Técnico',area:'Servicios',operational_areas:['Servicios']}],equipment:[],inventory_units:[{id:'inventory-a',source_row:1,serial_number:'89331070/0004',model:'ESE 340 CW/AS MPP',extraction_ref:'2211',product_line:'PREMIUM POWER',equipment_type:'GENERADORES A DIESEL',quantity:1,status:'ENTREGADO',archived:false,updated_at:'2026-10-08T00:00:00Z',source_snapshot:{serial_number:'89331070/0004'}},{id:'inventory-b',source_row:3,serial_number:'89331070/0004',model:'ESE 340 CW/AS MPP',extraction_ref:'2212',product_line:'PREMIUM POWER',equipment_type:'GENERADORES A DIESEL',quantity:1,status:'DISPONIBLE',archived:false,updated_at:'2026-10-08T00:00:00Z',source_snapshot:{serial_number:'89331070/0004'}}],tasks:[],ticket_equipment:[],equipment_models:[{id:'model',name:'ESE 250 BW/AS',equipment_type:'GENERADORES A DIESEL'},{id:'model2',name:'ESE 560 CW/AS',equipment_type:'GENERADORES A DIESEL'}],equipment_serials:[{id:'serial',model_id:'model',serial_number:'89333065/0006'},{id:'serial2',model_id:'model2',serial_number:'OTHER-560-001'}],service_categories:[{id:'cat1',business_unit:'SUDMAR',name:'Cursos'},{id:'cat2',business_unit:'PRETTL',name:'Garantía'}],activity_types:[{id:'type1',name:'Diagnóstico'},{id:'type2',name:'Instalación'}],activity_statuses:[{name:'POR INICIAR',group_code:'POR INICIAR',description:'Aún no comienza'},{name:'EN EJECUCIÓN',group_code:'EN CURSO',description:'En ejecución'},{name:'EN ESPERA',group_code:'DETENIDA',description:'Dependencia externa'},{name:'BLOQUEADA',group_code:'DETENIDA',description:'Impedimento'},{name:'COMPLETADA',group_code:'CERRADA',description:'Terminó'},{name:'CANCELADA',group_code:'CERRADA',description:'Cancelada',is_cancelled:true}]};
 let sequence=9001,rejectNext=false;
 await page.route('https://*.supabase.co/rest/v1/**',async route=>{
  const req=route.request(),url=new URL(req.url()),table=url.pathname.split('/').pop();let rows=tables[table]||[];
@@ -35,7 +35,15 @@ await page.route('https://*.supabase.co/rest/v1/**',async route=>{
   tables.tickets=tables.tickets.filter(t=>t.id!==ticket.id);
   return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(ticket.id)});
  }
- if(req.method()==='POST'){
+ if(table==='tickets'&&['POST','PATCH'].includes(req.method())){
+    const body=req.postDataJSON();
+    if(Object.hasOwn(body,'is_multi_equipment')&&typeof body.is_multi_equipment!=='boolean'){
+      return route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({
+        message:'null value in column "is_multi_equipment" of relation "tickets" violates not-null constraint'
+      })});
+    }
+  }
+  if(req.method()==='POST'){
   if(rejectNext){rejectNext=false;return route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({message:'Permiso denegado de prueba'})});}
   const row={id:'new-'+sequence,folio:String(sequence++),...req.postDataJSON(),updated_at:new Date().toISOString()};tables[table].push(row);rows=[row];
  }
@@ -113,7 +121,7 @@ try{
  assert.equal(tables.tickets.length,1);
  await fill('#newTicketfolio','MANUAL-001');
  await click('#newTicketForm [type="submit"]');await page.locator('#newTicketDialog').waitFor({state:'hidden'});
- const ticket=tables.tickets.at(-1);assert.equal(ticket.catalog_model_id,'model');assert.equal(ticket.catalog_serial_id,'serial');assert.equal(ticket.priority,'P2');assert.equal(ticket.operational_status,'REGISTRADO');assert.match(ticket.description,/Motor de arranque/);
+ const ticket=tables.tickets.at(-1);assert.equal(ticket.is_multi_equipment,false);assert.equal(ticket.catalog_model_id,'model');assert.equal(ticket.catalog_serial_id,'serial');assert.equal(ticket.priority,'P2');assert.equal(ticket.operational_status,'REGISTRADO');assert.match(ticket.description,/Motor de arranque/);
  assert.equal(ticket.folio,'MANUAL-001');
  await click('[data-action="new-ticket"]');assert.equal(await page.locator('#newTicketclient option[value="Cliente Nuevo"]').count(),1);
  await add('equipment_models','newTicket','Modelo nuevo',async()=>fill('#catalogForm [name="equipment_type"]','PORTATILES'));assert.equal(await page.locator('#newTicketequipmentType').inputValue(),'PORTATILES');
@@ -144,7 +152,12 @@ try{
   const caption=await page.locator('#'+id).locator('xpath=ancestor::label[1]').innerText();
   assert.ok(caption.includes(label),'No aparece la pregunta '+label);
  }
- await fill('#ticketEditTechnicalFindings','Batería descargada');await fill('#ticketEditWorkPerformed','Sustitución de batería');await fill('#ticketEditFinalCondition','Operativo');await page.locator('#ticketEditstatus').selectOption('CONCLUIDO');await click('[data-action="save-ticket-update"]');await page.locator('#cedulaResolutionText').filter({hasText:'Sustitución de batería'}).waitFor();
+ // Editar responsable de un ticket normal debe guardar false en Gestión multiequipo.
+  await page.locator('#ticketEditowner').selectOption('Daniel Hernandez');
+  await click('[data-action="save-ticket-update"]');
+  await page.locator('#toast').filter({hasText:'Ticket actualizado'}).waitFor();
+  assert.equal(ticket.owner_id,'person2');assert.equal(ticket.is_multi_equipment,false);
+  await fill('#ticketEditTechnicalFindings','Batería descargada');await fill('#ticketEditWorkPerformed','Sustitución de batería');await fill('#ticketEditFinalCondition','Operativo');await page.locator('#ticketEditstatus').selectOption('CONCLUIDO');await click('[data-action="save-ticket-update"]');await page.locator('#cedulaResolutionText').filter({hasText:'Sustitución de batería'}).waitFor();
  assert.equal(ticket.logbook,'Seguimiento histórico reservado: llamada y acuerdo anterior.');
  await click('[data-action="copy-resolution"]');assert.match(await page.evaluate(()=>navigator.clipboard.readText()),/Sustitución de batería/);await click('[data-action="copy-request"]');assert.match(await page.evaluate(()=>navigator.clipboard.readText()),/Motor de arranque/);
  await fill('#ticketEditfolio','9000');await click('[data-action="save-ticket-update"]');await page.locator('#toast').filter({hasText:'Ya existe'}).waitFor();
