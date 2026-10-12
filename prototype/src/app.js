@@ -138,7 +138,7 @@ function ticketDateDisplay(ticket,field=state.ticketDateField){
 }
 function ticketSortHeader(key,title){
   const active=state.ticketSortField===key,asc=state.ticketSortOrder==='asc';
-  const next=active?(asc?'ascendente':'descendente'):(key==='folio'?'mayor a menor':'más reciente a más antigua');
+  const next=active?(asc?(key==='folio'?'mayor a menor':'más reciente a más antigua'):(key==='folio'?'menor a mayor':'más antigua a más reciente')):(key==='folio'?'mayor a menor':'más reciente a más antigua');
   return `<th aria-sort="${active?(asc?'ascending':'descending'):'none'}"><button type="button" class="ticket-sort-button${active?' is-active':''}" data-action="ticket-sort" data-key="${key}" aria-label="Ordenar por ${title}, ${next}" title="Cambiar orden de ${title}">${title}<span class="ticket-sort-arrow" aria-hidden="true">${active?(asc?'↑':'↓'):'↕'}</span></button></th>`;
 }
 function ticketPageSizeControl(){return `<label class="ticket-page-size" for="ticketPageSize">Mostrar <select id="ticketPageSize" aria-label="Cantidad de tickets por página">${TICKET_PAGE_SIZES.map(x=>`<option value="${x}" ${state.ticketPageSize===x?'selected':''}>${x==='all'?'Todos':x}</option>`).join('')}</select> por página</label>`;}
