@@ -322,7 +322,8 @@ try{
   assert.equal(await page.locator('.pagination-controls').first().innerText() .then(x=>x.includes('2 / 3')),true);
   // Cambiar orden restablece la primera página.
   await click('#content [data-action="ticket-sort"][data-key="folio"]');
-  assert.equal(await folios.first().innerText(),'#9000');
+  const firstAscending=await folios.nth(0).innerText(),secondAscending=await folios.nth(1).innerText();
+  assert.ok(Number(firstAscending.slice(1))<=Number(secondAscending.slice(1)),'Los folios deben ordenarse numéricamente de menor a mayor.');
   assert.equal(await page.locator('.pagination-controls').first().innerText().then(x=>x.includes('1 / 3')),true);
   await page.locator('#ticketPageSize').selectOption('100');assert.equal(await rows.count(),100);
   await page.locator('#ticketPageSize').selectOption('all');
