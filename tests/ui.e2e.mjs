@@ -429,6 +429,8 @@ try{
   page.once('dialog',dialog=>dialog.accept());
   await click('#newTaskDialog [data-action="close-dialog"]');
 
+  // El seed puede encontrarse en otra página tras ordenar cientos de tickets.
+  await page.locator('#ticketPageSize').selectOption('all');
   await click('[data-action="ticket"][data-id="seed"]');
   await fill('#ticketEditTechnicalFindings','Hallazgo no guardado');
   page.once('dialog',dialog=>dialog.dismiss());
