@@ -1,0 +1,22 @@
+name: Validate Activity Evidence Copy
+on:
+  push:
+    branches: ["fix/evidence-links-from-activities-20261012"]
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check JavaScript
+        run: |
+          node --check prototype/src/app.js
+          node --check prototype/src/evidence-request.js
+          node --check tests/ui.e2e.mjs
+      - name: Run unit tests
+        run: npm test
+      - name: Run browser tests
+        run: |
+          npm install --no-save --package-lock=false playwright@1.62.1
+          npx playwright install --with-deps chromium
+          node tests/ui.e2e.mjs
+          node tests/ticket-regressions.e2e.mjs

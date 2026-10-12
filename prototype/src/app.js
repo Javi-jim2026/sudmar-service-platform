@@ -3,7 +3,7 @@ import {activityCategories, checklistProgress, validateChecklist, validateActivi
 import {config} from './config.js';
 import {sortTicketList,ticketPageLimit,filterTicketDatePresence,TICKET_PAGE_SIZES,TICKET_DATE_FIELDS,TICKET_DATE_PRESENCE} from './ticket-list.js';
 import {repository} from './repository.js';
-import {evidenceRequestMessage} from './evidence-request.js';
+import {evidenceFolders,evidenceRequestMessage} from './evidence-request.js';
 import {armUnsaved,clearUnsaved,confirmDiscard,isUnsaved,installUnsavedProtection} from './unsaved-guard.js';
 import {icon} from './icons.js';
 import {inventoryStatuses,renderInventoryEquipment,renderInventoryDetails} from './inventory.js';
@@ -757,9 +757,9 @@ function ticketVisibilitySection(ticket){
 }
 function showTicketDetail(id){
  const t=state.data.tickets.find(t=>t.id===id);if(!t)return;
- const tasks=state.data.tasks.filter(x=>x.ticketFolio===t.folio),url=safeEvidenceUrl(t.evidenceUrl);
+ const tasks=state.data.tasks.filter(x=>x.ticketFolio===t.folio),url=safeEvidenceUrl(t.evidenceUrl),hasEvidenceFolders=evidenceFolders(t,tasks).length>0;
  if(!openDetail(detailHeader('SEGUIMIENTO DEL SERVICIO','Ticket #'+t.folio)+`<div class="detail-heading-title"><h3>${e(t.title)}</h3><div class="detail-badges">${badge(t)}${priority(t)}${multiSummary(t)}${t.operationalHidden?'<span class="badge slate">Desactivado</span>':''}</div></div>
- <section class="detail-section sudmar-dual-summary"><h3>RESUMEN PARA CÉDULA</h3><p class="definition-note">Dos textos independientes, generados desde la captura guiada. Se actualizan al editar los campos.</p><div class="sudmar-summary-card"><h4>Solicitud / incidencia reportada</h4><p class="note-text" id="cedulaRequestText">${e(t.description||requestSummary(t.requestContext)||t.title||'Sin solicitud documentada.')}</p><button type="button" class="button secondary" data-action="copy-request">📋 Copiar solicitud</button></div><div class="sudmar-summary-card"><h4>Resolución / trabajos realizados</h4><p class="note-text" id="cedulaResolutionText">${e(resolutionSummary(t))}</p><button type="button" class="button secondary" data-action="copy-resolution">📋 Copiar resolución</button></div>${url?`<div class="sudmar-evidence-request-action"><button type="button" class="button secondary" data-action="copy-evidence-request" data-id="${e(t.id)}" title="Copiar mensaje para solicitar evidencias de este ticket">📁 Copiar solicitud de evidencias</button><p class="definition-note">Mensaje con folio, cliente, servicio y enlace de la carpeta.</p></div>`:''}</section>
+ <section class="detail-section sudmar-dual-summary"><h3>RESUMEN PARA CÉDULA</h3><p class="definition-note">Dos textos independientes, generados desde la captura guiada. Se actualizan al editar los campos.</p><div class="sudmar-summary-card"><h4>Solicitud / incidencia reportada</h4><p class="note-text" id="cedulaRequestText">${e(t.description||requestSummary(t.requestContext)||t.title||'Sin solicitud documentada.')}</p><button type="button" class="button secondary" data-action="copy-request">📋 Copiar solicitud</button></div><div class="sudmar-summary-card"><h4>Resolución / trabajos realizados</h4><p class="note-text" id="cedulaResolutionText">${e(resolutionSummary(t))}</p><button type="button" class="button secondary" data-action="copy-resolution">📋 Copiar resolución</button></div>${hasEvidenceFolders?`<div class="sudmar-evidence-request-action"><button type="button" class="button secondary" data-action="copy-evidence-request" data-id="${e(t.id)}" title="Copiar mensaje para solicitar evidencias de este ticket">📁 Copiar solicitud de evidencias</button><p class="definition-note">Mensaje con folio, cliente, servicio y enlaces de las actividades.</p></div>`:''}</section>
  <section class="detail-section"><div class="filter-fields">${ticketFields('ticketEdit',t)}
  <h3 class="full-width">Resolución y cierre</h3>
  ${field('¿Qué encontramos?',`<textarea id="ticketEditTechnicalFindings" rows="3" maxlength="5000">${e(t.technicalFindings)}</textarea>`,'Hallazgo / diagnóstico técnico: qué se encontró realmente al revisar.')}
@@ -840,7 +840,8 @@ document.addEventListener('click',async event=>{
  if(['copy-request','copy-resolution'].includes(b.dataset.action)){const text=$(b.dataset.action==='copy-request'?'cedulaRequestText':'cedulaResolutionText')?.textContent||'';try{await navigator.clipboard.writeText(text);toast('Resumen copiado para cédula.');}catch{toast('No se pudo copiar. Selecciona el resumen y cópialo manualmente.');}}
  if(b.dataset.action==='copy-evidence-request'){
   const ticket=state.data.tickets.find(t=>t.id===b.dataset.id);
-  const message=evidenceRequestMessage(ticket);
+  const activities=state.data.tasks.filter(task=>task.ticketFolio===ticket?.folio);
+   const message=evidenceRequestMessage(ticket,activities);
   if(!message){toast('Este ticket no tiene un enlace válido de carpeta de evidencias.');return;}
   try{await navigator.clipboard.writeText(message);toast('Solicitud de evidencias copiada. Lista para enviar por WhatsApp o correo.');}
   catch{toast('No se pudo copiar la solicitud. Revisa los permisos del portapapeles.');}
