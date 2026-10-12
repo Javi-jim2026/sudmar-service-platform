@@ -431,7 +431,7 @@ try{
 
   // El seed puede encontrarse en otra página tras ordenar cientos de tickets.
   await page.locator('#ticketPageSize').selectOption('all');
-  await click('[data-action="ticket"][data-id="seed"]');
+  await click('[data-action="ticket"][data-id="'+ticket.id+'"]');
   await fill('#ticketEditTechnicalFindings','Hallazgo no guardado');
   page.once('dialog',dialog=>dialog.dismiss());
   await click('#detailDialog [data-action="task"]');
