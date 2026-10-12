@@ -151,3 +151,15 @@ dialog{padding:0;border:1px solid #d8e4eb;border-radius:17px;box-shadow:0 20px 1
 .ticket-antecedents:not(:empty){background:#fff9eb;border:1px solid #f0d6a1;border-radius:10px;padding:12px 14px;color:var(--text);font-size:12px}
 .ticket-antecedents p{margin:6px 0}.ticket-antecedents ul{margin:8px 0 0 18px;padding:0}
 @media(max-width:700px){.visibility-control{width:100%;justify-content:space-between}.visibility-control select{flex:1;max-width:none}}
+
+/* Controles de orden y cantidad en el listado de tickets. */
+.ticket-table .ticket-sort-button{display:inline-flex;gap:6px;align-items:center;border:0;background:transparent;padding:4px 0;color:inherit;font:inherit;font-weight:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer;white-space:nowrap}
+.ticket-sort-button:hover,.ticket-sort-button.is-active{color:#185977}
+.ticket-sort-button:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+.ticket-sort-arrow{font-size:13px;line-height:1;color:var(--accent)}
+.ticket-page-size{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:var(--muted);font-size:10px}
+.ticket-page-size select,.ticket-mobile-sort select{min-height:30px;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:4px 8px;color:var(--text);font:inherit;cursor:pointer}
+.ticket-mobile-sort{display:none;align-items:center;justify-content:space-between;padding:10px 15px;border-bottom:1px solid var(--border);color:var(--muted);gap:12px;font-size:11px}
+.ticket-mobile-sort select{max-width:210px;min-width:130px}
+.pagination:has(.ticket-page-size){flex-wrap:wrap}
+@media(max-width:700px){.ticket-mobile-sort{display:flex}.pagination:has(.ticket-page-size){justify-content:space-between}.ticket-page-size{width:100%;justify-content:flex-start}}
