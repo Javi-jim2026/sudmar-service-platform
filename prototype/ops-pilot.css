@@ -46,3 +46,8 @@
 .ops-event-dialog{width:min(450px,95vw);border:1px solid #dbe4ee;border-radius:14px;padding:20px}.ops-event-dialog form{display:grid;gap:13px}.ops-dialog-actions{display:flex;justify-content:flex-end;gap:10px}
 .ops-loading{padding:30px;text-align:center;color:#64748b}
 @media(max-width:700px){.ops-form-grid{grid-template-columns:1fr}.ops-card{padding:13px}.ops-picker-popup{max-width:calc(100vw - 16px)}.ops-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.ops-nav-button{font-size:11px;white-space:nowrap;padding:8px}}
+
+/* Herramienta interna: copia el mensaje para pedir evidencias sólo si existe carpeta. */
+.sudmar-evidence-request-action{border-top:1px solid #dce7ef;padding-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sudmar-evidence-request-action .definition-note{margin:0;font-size:11px}
+@media(max-width:480px){.sudmar-evidence-request-action .button{width:100%;white-space:normal}}
