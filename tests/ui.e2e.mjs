@@ -502,6 +502,56 @@ try{
   assert.match(copiedEvidence,/fotografías, videos, reportes técnicos/);
   assert.match(copiedEvidence,/Agradecemos confirmar/);
   await click('#detailDialog [data-action="close-dialog"]');
+
+  // Caso real del #2680: no hay carpeta en tickets, sí en una actividad vinculada.
+  seedTicket.folder_url=null;
+  const activityId='activity-evidence-seed';
+  tables.tasks.push({
+   id:activityId,task_code:'ACT-000030',ticket_id:'seed',client_id:'client',
+   title:'Mantenimiento',task_type:'Mantenimiento',activity_status:'EN ESPERA',
+   evidence_url:'https://1drv.ms/f/c/CarpetaActividad',assignee_id:'person',created_at:day
+  });
+  await page.reload();
+  await page.locator('#sourceDate').filter({hasText:'Supabase en línea'}).waitFor();
+  await click('[data-action="navigate"][data-view="tickets"]');
+  await page.locator('#ticketPageSize').selectOption('all');
+  await click('[data-action="ticket"][data-id="seed"]');
+  const activityEvidenceButton=page.locator('#detailDialog [data-action="copy-evidence-request"]');
+  assert.equal(await activityEvidenceButton.count(),1,'La carpeta de una actividad debe habilitar el botón del ticket.');
+  await activityEvidenceButton.click();
+  await page.locator('#toast').filter({hasText:'Solicitud de evidencias copiada'}).waitFor();
+  const activityCopied=await page.evaluate(()=>navigator.clipboard.readText());
+  assert.match(activityCopied,/\*Ticket:\* #9000/);
+  assert.match(activityCopied,/https:\/\/1drv.ms\/f\/c\/CarpetaActividad/);
+  await click('#detailDialog [data-action="close-dialog"]');
+
+  tables.tasks.push({
+   id:'activity-evidence-second',task_code:'ACT-000031',ticket_id:'seed',client_id:'client',
+   title:'Inspección',task_type:'Inspección',activity_status:'EN ESPERA',
+   evidence_url:'https://1drv.ms/f/c/CarpetaSecundaria',assignee_id:'person',created_at:day
+  });
+  await page.reload();
+  await page.locator('#sourceDate').filter({hasText:'Supabase en línea'}).waitFor();
+  await click('[data-action="navigate"][data-view="tickets"]');
+  await page.locator('#ticketPageSize').selectOption('all');
+  await click('[data-action="ticket"][data-id="seed"]');
+  await click('#detailDialog [data-action="copy-evidence-request"]');
+  const multipleCopied=await page.evaluate(()=>navigator.clipboard.readText());
+  assert.match(multipleCopied,/Actividad ACT-000030 · Mantenimiento/);
+  assert.match(multipleCopied,/Actividad ACT-000031 · Inspección/);
+  assert.match(multipleCopied,/CarpetaActividad/);
+  assert.match(multipleCopied,/CarpetaSecundaria/);
+  await click('#detailDialog [data-action="close-dialog"]');
+
+  tables.tasks.find(t=>t.id===activityId).evidence_url=null;
+  tables.tasks.find(t=>t.id==='activity-evidence-second').evidence_url='javascript:alert(1)';
+  await page.reload();
+  await page.locator('#sourceDate').filter({hasText:'Supabase en línea'}).waitFor();
+  await click('[data-action="navigate"][data-view="tickets"]');
+  await page.locator('#ticketPageSize').selectOption('all');
+  await click('[data-action="ticket"][data-id="seed"]');
+  assert.equal(await page.locator('#detailDialog [data-action="copy-evidence-request"]').count(),0,'Sin ninguna carpeta válida el botón sigue oculto.');
+  await click('#detailDialog [data-action="close-dialog"]');
   assert.deepEqual(errors,[]);console.log('All operational UI flows passed (desktop/tablet/mobile/multiequipo).');
 }finally{await browser.close();server.close();}
 
