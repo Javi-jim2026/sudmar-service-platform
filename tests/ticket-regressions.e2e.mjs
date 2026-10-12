@@ -84,6 +84,9 @@ const fill=(selector,value)=>page.locator(selector).fill(value);
 try{
   await page.goto(`http://127.0.0.1:${server.address().port}/`);
   await page.locator('#sourceDate').filter({hasText:'Supabase en línea'}).waitFor();
+  // Este ensayo valida formularios; las confirmaciones nativas se prueban
+  // separadamente en ui.e2e.mjs.
+  await page.evaluate(()=>{window.confirm=()=>true;});
 
   // Existing commercial tickets with a full guided request must keep all four fields.
   await click('[data-action="ticket"][data-id="historic"]');
@@ -111,7 +114,7 @@ try{
     assert.equal(await page.locator('#newTicketwhere').isVisible(),true,`${area} debe mostrar ¿Dónde / en qué componente?`);
     assert.equal(await page.locator('#newTicketcondition').isVisible(),true,`${area} debe mostrar ¿En qué condición ocurre?`);
     assert.equal(await page.locator('#newTicketrequired').isVisible(),true,`${area} debe mostrar ¿Qué se requiere realizar?`);
-    await click('#newTicketDialog [data-action="close-dialog"]');
+   await click('#newTicketDialog [data-action="close-dialog"]');
   }
 
   // A new Commercial ticket must switch to the simplified request capture.
