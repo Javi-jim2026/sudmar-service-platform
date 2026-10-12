@@ -331,13 +331,13 @@ try{
   assert.equal(await page.locator('.pagination-controls button').first().isDisabled(),true);
   assert.equal(await page.locator('.pagination-controls button').last().isDisabled(),true);
   // Fechas ascendentes y descendentes; registros sin meta siempre al final.
-  await click('#content [data-action="ticket-sort"][data-key="dueAt"]');
+  await click('#content [data-action="ticket-sort"][data-key="date"]');
   assert.equal(await page.locator('#content .ticket-table th[aria-sort="descending"]').count(),1);
-  assert.equal(await page.locator('#content .ticket-table tbody tr:last-child .date-cell').innerText(),'Sin fecha');
+  assert.equal(await page.locator('#content .ticket-table tbody tr:last-child .date-cell').innerText(),'Meta no registrada');
   const recentDue=await page.locator('#content .ticket-table tbody tr:first-child .date-cell').innerText();
-  await click('#content [data-action="ticket-sort"][data-key="dueAt"]');
+  await click('#content [data-action="ticket-sort"][data-key="date"]');
   assert.equal(await page.locator('#content .ticket-table th[aria-sort="ascending"]').count(),1);
-  assert.equal(await page.locator('#content .ticket-table tbody tr:last-child .date-cell').innerText(),'Sin fecha');
+  assert.equal(await page.locator('#content .ticket-table tbody tr:last-child .date-cell').innerText(),'Meta no registrada');
   assert.notEqual(await page.locator('#content .ticket-table tbody tr:first-child .date-cell').innerText(),recentDue);
   // Visibilidad y filtros siguen funcionando y conservan el orden y la cantidad.
   await click('[data-action="filters"]');
@@ -356,6 +356,50 @@ try{
   await page.locator('#ticketPageSize').selectOption('50');
   assert.equal(await page.locator('.mobile-ticket').count(),50);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await page.setViewportSize({width:1360,height:1000});
+
+  // Selector único de fecha visualizada, filtro de disponibilidad y orden cronológico.
+  await page.setViewportSize({width:1360,height:1000});
+  await page.locator('#ticketPageSize').selectOption('all');
+  assert.equal(await page.locator('#ticketDateField').inputValue(),'dueAt');
+  assert.equal(await page.locator('#ticketDatePresence').inputValue(),'all');
+  await page.locator('#ticketDatePresence').selectOption('missing');
+  const liveTickets=tables.tickets.filter(x=>x.operational_hidden!==true);
+  const missingDue=liveTickets.filter(x=>!x.due_at).length;
+  assert.equal(await rows.count(),missingDue);
+  assert.equal(await page.locator('#ticketDatePresence').inputValue(),'missing');
+  assert.equal(await page.locator('#content .date-cell').filter({hasText:'Meta no registrada'}).count(),missingDue);
+  await page.locator('#ticketDatePresence').selectOption('with');
+  assert.equal(await rows.count(),liveTickets.length-missingDue);
+  await page.locator('#ticketDateField').selectOption('openedAt');
+  assert.equal(await page.locator('#content .ticket-table thead').innerText().then(s=>s.includes('FECHA DE INICIO')),true);
+  assert.equal(await rows.count(),liveTickets.filter(x=>!!x.opened_at).length);
+  await click('#content [data-action="ticket-sort"][data-key="date"]');
+  assert.equal(await page.locator('#content .ticket-table th[aria-sort="descending"]').count(),1);
+  const firstByOpened=await page.locator('#content .ticket-table tbody tr:first-child .date-cell').innerText();
+  await click('#content [data-action="ticket-sort"][data-key="date"]');
+  assert.notEqual(await page.locator('#content .ticket-table tbody tr:first-child .date-cell').innerText(),firstByOpened);
+  await page.locator('#ticketDatePresence').selectOption('missing');
+  assert.equal(await rows.count(),liveTickets.filter(x=>!x.opened_at).length);
+  await page.locator('#ticketDateField').selectOption('closedAt');
+  const missingRealClose=liveTickets.filter(x=>!x.closed_at).length;
+  assert.equal(await rows.count(),missingRealClose);
+  assert.equal(await page.locator('#content .date-cell').filter({hasText:'Cierre no registrado'}).count(),missingRealClose);
+  await page.locator('#ticketPageSize').selectOption('20');
+  assert.equal(await rows.count(),Math.min(20,missingRealClose));
+  // El diálogo de rango cronológico debe estar sincronizado con la fecha visible.
+  await click('[data-action="filters"]');
+  assert.equal(await page.locator('#filterForm [name="dateField"]').inputValue(),'closedAt');
+  await page.locator('#filterForm [name="dateField"]').selectOption('dueAt');
+  await click('#filterForm [type="submit"]');
+  assert.equal(await page.locator('#ticketDateField').inputValue(),'dueAt');
+  assert.equal(await page.locator('#ticketDatePresence').inputValue(),'missing');
+  await page.setViewportSize({width:390,height:850});
+  assert.equal(await page.locator('#ticketDateField').isVisible(),true);
+  assert.equal(await page.locator('#ticketDatePresence').isVisible(),true);
+  assert.match(await page.locator('.mobile-ticket-date').first().innerText(),/Meta no registrada/);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await page.locator('#ticketDatePresence').selectOption('all');
   await page.setViewportSize({width:1360,height:1000});
   assert.deepEqual(errors,[]);console.log('All operational UI flows passed (desktop/tablet/mobile/multiequipo).');
 }finally{await browser.close();server.close();}
