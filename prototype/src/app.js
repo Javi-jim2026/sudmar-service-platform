@@ -3,6 +3,7 @@ import {activityCategories, checklistProgress, validateChecklist, validateActivi
 import {config} from './config.js';
 import {sortTicketList,ticketPageLimit,filterTicketDatePresence,TICKET_PAGE_SIZES,TICKET_DATE_FIELDS,TICKET_DATE_PRESENCE} from './ticket-list.js';
 import {repository} from './repository.js';
+import {armUnsaved,clearUnsaved,confirmDiscard,isUnsaved,installUnsavedProtection} from './unsaved-guard.js';
 import {icon} from './icons.js';
 import {inventoryStatuses,renderInventoryEquipment,renderInventoryDetails} from './inventory.js';
 import {ticketsByVisibility,antecedentsBySerial} from './visibility.js';
@@ -41,6 +42,7 @@ const statusStyle={
 };
 const state={data:null,personnel:[],view:'dashboard',filters:blankFilters(),page:1,taskStatus:'all',taskOwner:'',taskCategory:'',calendarMonth:today.slice(0,7),calendarOwner:'',calendarClient:'',calendarKind:'all',calendarActivityStatus:'pending',clientTab:'operations',contactQuery:'',references:null,referenceError:false,inventoryTab:'inventory',inventoryQuery:'',inventoryStatus:'',inventoryArchiveMode:'active',inventoryPage:1,ticketVisibility:'visible',ticketSortField:'folio',ticketSortOrder:'desc',ticketPageSize:'20',ticketDateField:'dueAt',ticketDatePresence:'all'};
 let installEvent=null,toastTimer,searchTimer;
+installUnsavedProtection();
 const statusInfo=t=>statusStyle[normalized(t.status)]||(ticketStates[t.status]?{label:t.status,tone:t.status==='BLOQUEADO'?'red':'blue',color:'#2f80ed'}:{label:'Por clasificar',tone:'slate',color:'#788390'});
 const badge=t=>`<span class="badge ${statusInfo(t).tone}" title="Estado del ticket: ${e(t.status||'Sin registrar')}">${statusInfo(t).label}</span>`;
 const priority=t=>`<span class="priority p${['1','2','3','4'].includes(t.priority)?t.priority:'0'}"><i></i>${t.priority?`SLA-0${e(t.priority)}`:'Sin SLA'}</span>`;
@@ -433,8 +435,8 @@ async function submitNewTicket(event){
  event.preventDefault();const error=$('newTicketError');error.textContent='';
  if(!repository.canWrite()){error.textContent='La conexión de escritura con Supabase todavía no está disponible.';return;}
  const button=event.submitter;button.disabled=true;
- try{await repository.createTicket({...readTicketFields('newTicket'),isTest:$('newTicketIsTest')?.checked===true});$('newTicketDialog').close();await refreshOperationalData();toast('Ticket creado y guardado en Supabase.');}
- catch(err){error.textContent=err.message||'No se pudo guardar el ticket.';if(err.ticketCreatedId){$('newTicketDialog').close();await refreshOperationalData();showTicketDetail(err.ticketCreatedId);toast(err.message);}}finally{button.disabled=false;}
+ try{await repository.createTicket({...readTicketFields('newTicket'),isTest:$('newTicketIsTest')?.checked===true});clearUnsaved($('newTicketDialog'));$('newTicketDialog').close();await refreshOperationalData();toast('Ticket creado y guardado en Supabase.');}
+ catch(err){error.textContent=err.message||'No se pudo guardar el ticket.';if(err.ticketCreatedId){clearUnsaved($('newTicketDialog'));$('newTicketDialog').close();await refreshOperationalData();showTicketDetail(err.ticketCreatedId);toast(err.message);}}finally{button.disabled=false;}
 }
 async function submitNewTask(event){
  event.preventDefault();const error=$('newTaskError');error.textContent='';
@@ -446,6 +448,7 @@ async function submitNewTask(event){
    payload.checklist=validateChecklist(readChecklist($('newTaskChecklist')));
    validateActivity(payload);
    await repository.createTask(payload);
+   clearUnsaved($('newTaskDialog'));
    $('newTaskDialog').close();
    await refreshOperationalData();
    const ticket=state.data.tickets.find(t=>t.folio===payload.ticketFolio);
@@ -467,7 +470,15 @@ function render(){if(!state.data)return;const tickets=filtered();const view=view
 }
 
 function detailHeader(eyebrow,title){return `<div class="dialog-header"><div><span class="eyebrow">${e(eyebrow)}</span><h2 id="detailTitle">${e(title)}</h2></div><button class="icon-button" data-action="close-dialog" aria-label="Cerrar detalle">${icon('close')}</button></div>`;}
-function openDetail(html){$('detailContent').innerHTML=html;if(!$('detailDialog').open)$('detailDialog').showModal();$('detailDialog').scrollTop=0;}
+function openDetail(html){
+ const dialog=$('detailDialog');
+ if(!confirmDiscard(dialog))return false;
+ $('detailContent').innerHTML=html;
+ if(!dialog.open)dialog.showModal();
+ dialog.scrollTop=0;
+ if($('ticketEditfolio')||$('taskEditstatus'))armUnsaved(dialog,$('detailContent'));
+ return true;
+}
 function detailField(label,value){return `<div class="detail-field"><span>${label}</span><strong>${e(value||'Sin registrar')}</strong></div>`;}
 function showEquipment(serial){const list=state.data.tickets.filter(t=>ticketSerials(t).some(s=>normalized(s)===normalized(serial)));const models=unique(list.map(t=>t.model));openDetail(detailHeader('SERVICIOS REGISTRADOS','Serie '+serial)+`<div class="detail-heading-title"><h3>${models.map(e).join(' · ')||'Modelo sin registrar'}</h3><p class="definition-note">Modelos tal como figuran en los tickets. El Excel no documenta necesariamente el motivo de sus diferencias.</p></div><div class="detail-section"><h3>${list.length} tickets asociados</h3>${sortRecent(list).map(t=>`<button class="task-row" data-action="ticket" data-id="${t.id}"><span class="entity-icon">${icon('ticket')}</span><span class="task-row-title">#${e(t.folio)} · ${e(t.title)}<small>${fmt(t.openedAt,true)} · ${e(t.client)}</small></span><span>${badge(t)}</span></button>`).join('')}</div>`);}
 function showSource(){const m=state.data.metadata;openDetail(detailHeader('INFORMACIÓN DE DATOS','Fuente operativa')+`<div class="dialog-body"><p>La operación actual se consulta desde Supabase. El Excel se conserva como fuente histórica de los tickets migrados.</p><div class="source-list">${[['Archivo',m.sourceFile],['Modificado en origen',fmt(m.sourceModifiedAt,true)],['Importado',fmt(m.importedAt,true)],['Tickets',n(m.counts.tickets)],['Actividades operativas',n(m.counts.tasks)],['Actividades históricas archivadas',n(m.archivedTaskCount||0)],['Actividades sin descripción',n(m.quality.tasksWithoutTitle)],['Estados sin clasificar',n(state.data.tickets.filter(t=>!isKnownStatus(t)).length)]].map(([label,value])=>`<div class="source-item"><span>${label}</span><strong>${e(value)}</strong></div>`).join('')}</div><p class="definition-note">Activos: estados reconocidos que no están cerrados ni cancelados. Fuera de plazo: tickets activos con meta anterior al ${fmt(today,true)}. Una carpeta enlazada no acredita que contenga evidencias.</p><p class="definition-note">Los valores originales permanecen en el histórico de cada ticket. Los filtros por fecha muestran registros del periodo; no reconstruyen cómo estaban los tickets en esa fecha.</p><details class="extra-details"><summary>Hojas conservadas del archivo</summary><div class="source-list">${m.sheets.map(s=>`<div class="source-item"><span>${e(s.name)}</span><strong>${n(s.nonemptyRows)} filas con contenido</strong></div>`).join('')}</div><p>Las hojas de referencia, instrucciones, resumen y calendario se conservan como datos de origen. Los tickets se calculan desde TICKETS. Las tareas operativas se calculan únicamente desde TAREAS_PLATAFORMA; la hoja TAREAS anterior se conserva como histórico y no participa en los indicadores.</p></details><button class="button secondary" data-action="install" style="margin-top:22px">Instalar en el teléfono ${icon('download')}</button></div>`);}
@@ -493,8 +504,15 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
   }
   if(a==='remove-work'){const editor=b.closest('.work-editor');b.closest('.work-item').remove();updateWorkSummary(editor);}
  if(a==='new-ticket')openNewTicket();
- if(a==='new-task')openNewTask(b.dataset.folio||'');
- if(a==='close-dialog')b.closest('dialog')?.close();
+ if(a==='new-task'){
+  if(b.closest('#detailDialog')&&isUnsaved($('detailDialog'))){
+   if(!confirmDiscard($('detailDialog')))return;
+   const ticket=state.data.tickets.find(t=>t.folio===b.dataset.folio);
+   if(ticket)showTicketDetail(ticket.id);
+  }
+  openNewTask(b.dataset.folio||'');
+ }
+ if(a==='close-dialog'){const dialog=b.closest('dialog');if(dialog&&confirmDiscard(dialog))dialog.close();}
  if(a==='clear')clearFilters();
  if(a==='remove-filter'){state.filters[b.dataset.key]=blankFilters()[b.dataset.key];state.page=1;render();}
  if(a==='filter')setFilter(b.dataset.key,b.dataset.value);
@@ -503,6 +521,7 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
  if(a==='toggle-ticket-visibility'){(async()=>{
   const ticket=state.data.tickets.find(t=>t.id===b.dataset.id);
   if(!ticket||!repository.canWrite())return;
+  if(isUnsaved($('detailDialog'))&&!window.confirm('Hay cambios sin guardar en este ticket. Si continúas, se descartarán. ¿Continuar?'))return;
   const hiding=!ticket.operationalHidden;
   const message=hiding
    ?'¿Desactivar el ticket #'+ticket.folio+'? No aparecerá en resumen, calendario ni listados operativos. Permanecerá guardado como antecedente y podrás reactivarlo.'
@@ -511,6 +530,7 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
   b.disabled=true;
   try{
    await repository.updateTicketVisibility(ticket.id,ticket.operationalHidden);
+   clearUnsaved($('detailDialog'));
    await refreshOperationalData();showTicketDetail(ticket.id);
    toast(hiding?'Ticket desactivado y conservado en antecedentes.':'Ticket reactivado en Operaciones.');
   }catch(error){toast(error.message||'No se pudo cambiar la visibilidad del ticket.');}
@@ -523,6 +543,7 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
     const updated=await repository.updateTicket(b.dataset.id,{...readTicketFields('ticketEdit',original),
       technicalFindings:$('ticketEditTechnicalFindings').value,
       workPerformed:$('ticketEditWorkPerformed').value,finalCondition:$('ticketEditFinalCondition').value});
+    clearUnsaved($('detailDialog'));
     if(state.filters.folio===original.folio)state.filters.folio=updated.folio;
     if(state.filters.q===original.folio)state.filters.q=updated.folio;
     await refreshOperationalData();
@@ -540,6 +561,7 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
     validateActivity(changes);
     if(changes.taskType===task.taskType)delete changes.title;
     await repository.updateTask(b.dataset.id,changes,task.updatedAt);
+    clearUnsaved($('detailDialog'));
     await refreshOperationalData();
     showTaskDetail(b.dataset.id);
     updateWorkSummary($('taskEditChecklist'));
@@ -722,7 +744,7 @@ function renderNewTicketAntecedents(){
  target.innerHTML=matches.length?`<strong>Antecedentes del equipo: ${matches.length} ticket(s)</strong><p>Esta serie ya tiene registros previos, incluidos los desactivados.</p><ul>${matches.slice(0,8).map(t=>`<li>Ticket #${e(t.folio)} · ${e(t.client||'Sin cliente')} · ${e(t.status||'Sin estado')}${t.operationalHidden?' · Desactivado':''}</li>`).join('')}</ul>${matches.length>8?'<p>Consulta el historial completo para ver todos los registros.</p>':''}`:'';
 }
 function openNewTicket(){
- $('newTicketForm').querySelector('.filter-fields').innerHTML=ticketFields('newTicket')+(config.features.testTicketDeletion?'<label class="full-width"><input id="newTicketIsTest" type="checkbox"> Ticket de prueba (solo podrá eliminarse mientras no registre trabajo real)</label>':'');$('newTicketError').textContent='';changeMultiMode('newTicket',catalogs());$('newTicketDialog').showModal();
+ $('newTicketForm').querySelector('.filter-fields').innerHTML=ticketFields('newTicket')+(config.features.testTicketDeletion?'<label class="full-width"><input id="newTicketIsTest" type="checkbox"> Ticket de prueba (solo podrá eliminarse mientras no registre trabajo real)</label>':'');$('newTicketError').textContent='';changeMultiMode('newTicket',catalogs());$('newTicketDialog').showModal();armUnsaved($('newTicketDialog'),$('newTicketForm'));
 }
 function ticketVisibilitySection(ticket){
  const hidden=ticket.operationalHidden===true;
@@ -735,7 +757,7 @@ function ticketVisibilitySection(ticket){
 function showTicketDetail(id){
  const t=state.data.tickets.find(t=>t.id===id);if(!t)return;
  const tasks=state.data.tasks.filter(x=>x.ticketFolio===t.folio),url=safeEvidenceUrl(t.evidenceUrl);
- openDetail(detailHeader('SEGUIMIENTO DEL SERVICIO','Ticket #'+t.folio)+`<div class="detail-heading-title"><h3>${e(t.title)}</h3><div class="detail-badges">${badge(t)}${priority(t)}${multiSummary(t)}${t.operationalHidden?'<span class="badge slate">Desactivado</span>':''}</div></div>
+ if(!openDetail(detailHeader('SEGUIMIENTO DEL SERVICIO','Ticket #'+t.folio)+`<div class="detail-heading-title"><h3>${e(t.title)}</h3><div class="detail-badges">${badge(t)}${priority(t)}${multiSummary(t)}${t.operationalHidden?'<span class="badge slate">Desactivado</span>':''}</div></div>
  <section class="detail-section sudmar-dual-summary"><h3>RESUMEN PARA CÉDULA</h3><p class="definition-note">Dos textos independientes, generados desde la captura guiada. Se actualizan al editar los campos.</p><div class="sudmar-summary-card"><h4>Solicitud / incidencia reportada</h4><p class="note-text" id="cedulaRequestText">${e(t.description||requestSummary(t.requestContext)||t.title||'Sin solicitud documentada.')}</p><button type="button" class="button secondary" data-action="copy-request">📋 Copiar solicitud</button></div><div class="sudmar-summary-card"><h4>Resolución / trabajos realizados</h4><p class="note-text" id="cedulaResolutionText">${e(resolutionSummary(t))}</p><button type="button" class="button secondary" data-action="copy-resolution">📋 Copiar resolución</button></div></section>
  <section class="detail-section"><div class="filter-fields">${ticketFields('ticketEdit',t)}
  <h3 class="full-width">Resolución y cierre</h3>
@@ -746,7 +768,7 @@ function showTicketDetail(id){
  ${t.legacyStatus||t.legacyStage||t.legacyDiagnosis?`<details class="detail-section"><summary>Información histórica conservada</summary><p>Estado original: ${e(t.legacyStatus)} · Etapa original: ${e(t.legacyStage)}</p><p class="note-text">${e(t.legacyDiagnosis)}</p></details>`:''}
  <section class="detail-section"><h3>Actividades del ticket (${tasks.length})</h3><button class="button primary" data-action="new-task" data-folio="${e(t.folio)}">+ Agregar actividad</button>${tasks.map(x=>taskRow(x,true)).join('')}</section>
  ${ticketDeletionSection(t)}
- <section class="detail-section"><p>Cierre real: ${e(t.closedAt||'Sin cierre')}</p>${url?`<a href="${e(url)}" target="_blank" rel="noopener noreferrer">Abrir evidencias</a>`:''}</section>${ticketVisibilitySection(t)}`);
+ <section class="detail-section"><p>Cierre real: ${e(t.closedAt||'Sin cierre')}</p>${url?`<a href="${e(url)}" target="_blank" rel="noopener noreferrer">Abrir evidencias</a>`:''}</section>${ticketVisibilitySection(t)}`))return;
   changeMultiMode('ticketEdit',catalogs());
 }
 function activityFields(prefix,task={}){
@@ -776,11 +798,11 @@ function readActivityFields(prefix,task={}){
 function openNewTask(ticketFolio=''){
  const form=$('newTaskForm');form.reset();
  form.querySelector('.filter-fields').innerHTML=field('Buscar ticket principal','<input id="newTaskTicketSearch" placeholder="Folio, cliente, modelo o serie">')+field('Ticket de esta actividad','<select id="newTaskTicket" name="ticketFolio" required></select>')+activityFields('newTask',{ticketFolio});
- renderActivityTicketOptions('',ticketFolio);updateWorkSummary($('newTaskChecklist'));$('newTaskError').textContent='';$('newTaskDialog').showModal();
+ renderActivityTicketOptions('',ticketFolio);updateWorkSummary($('newTaskChecklist'));$('newTaskError').textContent='';$('newTaskDialog').showModal();armUnsaved($('newTaskDialog'),$('newTaskForm'));
 }
 function showTaskDetail(id){
  const task=state.data.tasks.find(x=>x.id===id);if(!task)return;
- openDetail(detailHeader('ACTIVIDAD · '+task.platformId,task.taskType||task.title)+`<section class="detail-section"><button class="text-action" data-action="ticket" data-id="${e(state.data.tickets.find(t=>t.folio===task.ticketFolio)?.id)}">Ticket #${e(task.ticketFolio)}</button>${task.title!==task.taskType?`<details><summary>Descripción histórica</summary><p>${e(task.title)}</p></details>`:''}${progressMarkup(task)}<div class="filter-fields">${activityFields('taskEdit',task)}</div><button class="button primary" data-action="save-task-update" data-id="${e(id)}">Guardar cambios</button></section>`);updateWorkSummary($('taskEditChecklist'));
+ if(!openDetail(detailHeader('ACTIVIDAD · '+task.platformId,task.taskType||task.title)+`<section class="detail-section"><button class="text-action" data-action="ticket" data-id="${e(state.data.tickets.find(t=>t.folio===task.ticketFolio)?.id)}">Ticket #${e(task.ticketFolio)}</button>${task.title!==task.taskType?`<details><summary>Descripción histórica</summary><p>${e(task.title)}</p></details>`:''}${progressMarkup(task)}<div class="filter-fields">${activityFields('taskEdit',task)}</div><button class="button primary" data-action="save-task-update" data-id="${e(id)}">Guardar cambios</button></section>`))return;updateWorkSummary($('taskEditChecklist'));
 }
 
 function openCatalog(kind,prefix,multiRow=null){

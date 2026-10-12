@@ -111,7 +111,8 @@ try{
     assert.equal(await page.locator('#newTicketwhere').isVisible(),true,`${area} debe mostrar ¿Dónde / en qué componente?`);
     assert.equal(await page.locator('#newTicketcondition').isVisible(),true,`${area} debe mostrar ¿En qué condición ocurre?`);
     assert.equal(await page.locator('#newTicketrequired').isVisible(),true,`${area} debe mostrar ¿Qué se requiere realizar?`);
-    await click('#newTicketDialog [data-action="close-dialog"]');
+    page.once('dialog',dialog=>dialog.accept());
+   await click('#newTicketDialog [data-action="close-dialog"]');
   }
 
   // A new Commercial ticket must switch to the simplified request capture.

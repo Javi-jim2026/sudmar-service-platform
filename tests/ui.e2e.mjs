@@ -126,6 +126,7 @@ try{
  await click('[data-action="new-ticket"]');assert.equal(await page.locator('#newTicketclient option[value="Cliente Nuevo"]').count(),1);
  await add('equipment_models','newTicket','Modelo nuevo',async()=>fill('#catalogForm [name="equipment_type"]','PORTATILES'));assert.equal(await page.locator('#newTicketequipmentType').inputValue(),'PORTATILES');
  await add('equipment_serials','newTicket','SERIE-NUEVA');assert.equal(tables.equipment_serials.at(-1).model_id,tables.equipment_models.at(-1).id);
+ page.once('dialog',dialog=>dialog.accept());
  await click('#newTicketDialog [data-action="close-dialog"]');
  await click('[data-action="new-task"]');await fill('#newTaskTicketSearch',ticket.folio);await page.locator('#newTaskTicket').selectOption(ticket.folio);
  await fill('#newTasktaskType','Instalación');await page.locator('#newTaskowner').selectOption('Javier Jimenez');await fill('#newTasknotes','Requerimiento original');await fill('#newTaskantecedentFolio','9000');
@@ -212,6 +213,7 @@ try{
  await fill('#newTicketserial','89333065/0006');
  await page.locator('#newTicketAntecedents').filter({hasText:'Ticket #9000'}).waitFor();
  assert.match(await page.locator('#newTicketAntecedents').innerText(),/Desactivado/);
+ page.once('dialog',dialog=>dialog.accept());
  await click('#newTicketDialog [data-action="close-dialog"]');
  await click('[data-action="ticket"][data-id="seed"]');
  page.once('dialog',dialog=>dialog.accept());
@@ -262,6 +264,7 @@ try{
   await click('[data-action="new-ticket"]');
   await fill('#newTicketserial','OTHER-560-001');
   await page.locator('#newTicketAntecedents').filter({hasText:'Ticket #MULTI-001'}).waitFor();
+  page.once('dialog',dialog=>dialog.accept());
   await click('#newTicketDialog [data-action="close-dialog"]');
   // Caso histórico realista: el folio 2120 guarda 4 series en un campo y el nombre
   // del modelo difiere del catálogo por el sufijo /AS.
@@ -401,6 +404,57 @@ try{
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   await page.locator('#ticketDatePresence').selectOption('all');
   await page.setViewportSize({width:1360,height:1000});
+
+  // Protección al cerrar: sin cambios no alerta, con captura sí alerta.
+  await click('[data-action="new-ticket"]');
+  await click('#newTicketDialog [data-action="close-dialog"]');
+  assert.equal(await page.locator('#newTicketDialog').isVisible(),false);
+  await click('[data-action="new-ticket"]');
+  await fill('#newTicketrequired','Captura temporal sin guardar');
+  page.once('dialog',async dialog=>{assert.match(dialog.message(),/cambios sin guardar/i);await dialog.dismiss();});
+  await click('#newTicketDialog [data-action="close-dialog"]');
+  assert.equal(await page.locator('#newTicketrequired').inputValue(),'Captura temporal sin guardar');
+  page.once('dialog',dialog=>dialog.dismiss());
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#newTicketDialog').isVisible(),true);
+  page.once('dialog',dialog=>dialog.accept());
+  await page.keyboard.press('Escape');
+  await page.locator('#newTicketDialog').waitFor({state:'hidden'});
+
+  await click('[data-action="new-task"]');
+  await fill('#newTasknotes','Actividad sin guardar');
+  page.once('dialog',dialog=>dialog.dismiss());
+  await click('#newTaskDialog [data-action="close-dialog"]');
+  assert.equal(await page.locator('#newTasknotes').inputValue(),'Actividad sin guardar');
+  page.once('dialog',dialog=>dialog.accept());
+  await click('#newTaskDialog [data-action="close-dialog"]');
+
+  await click('[data-action="ticket"][data-id="seed"]');
+  await fill('#ticketEditTechnicalFindings','Hallazgo no guardado');
+  page.once('dialog',dialog=>dialog.dismiss());
+  await click('#detailDialog [data-action="task"]');
+  assert.equal(await page.locator('#ticketEditTechnicalFindings').inputValue(),'Hallazgo no guardado');
+  page.once('dialog',dialog=>dialog.accept());
+  await click('#detailDialog [data-action="task"]');
+  await page.locator('#taskEditnotes').waitFor();
+  await fill('#taskEditnotes','Edición de actividad no guardada');
+  page.once('dialog',dialog=>dialog.dismiss());
+  await click('#detailDialog [data-action="ticket"]');
+  assert.equal(await page.locator('#taskEditnotes').inputValue(),'Edición de actividad no guardada');
+  page.once('dialog',dialog=>dialog.accept());
+  await click('#detailDialog [data-action="ticket"]');
+  await page.locator('#ticketEditfolio').waitFor();
+  await fill('#ticketEditTechnicalFindings','Guardado validado');
+  await click('#detailDialog [data-action="save-ticket-update"]');
+  await page.locator('#toast').filter({hasText:'Ticket actualizado'}).waitFor();
+  await click('#detailDialog [data-action="close-dialog"]');
+  assert.equal(await page.locator('#detailDialog').isVisible(),false);
+  await click('[data-action="new-ticket"]');
+  await fill('#newTicketrequired','Datos de captura no guardados');
+  assert.equal(await page.evaluate(()=>{const event=new Event('beforeunload',{cancelable:true});window.dispatchEvent(event);return event.defaultPrevented;}),true);
+  page.once('dialog',dialog=>dialog.accept());
+  await click('#newTicketDialog [data-action="close-dialog"]');
+  await page.locator('#newTicketDialog').waitFor({state:'hidden'});
   assert.deepEqual(errors,[]);console.log('All operational UI flows passed (desktop/tablet/mobile/multiequipo).');
 }finally{await browser.close();server.close();}
 
