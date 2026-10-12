@@ -457,6 +457,51 @@ try{
   page.once('dialog',dialog=>dialog.accept());
   await click('#newTicketDialog [data-action="close-dialog"]');
   await page.locator('#newTicketDialog').waitFor({state:'hidden'});
+
+  // Botón de evidencias: sólo con una carpeta URL válida, sin modificar el ticket.
+  await page.reload();
+  await page.locator('#sourceDate').filter({hasText:'Supabase en línea'}).waitFor();
+  await click('[data-action="navigate"][data-view="tickets"]');
+  await page.locator('#ticketPageSize').selectOption('all');
+  await click('[data-action="ticket"][data-id="seed"]');
+  assert.equal(await page.locator('#detailDialog [data-action="copy-evidence-request"]').count(),0,'Sin carpeta no aparece el botón.');
+  await click('#detailDialog [data-action="close-dialog"]');
+
+  const seedTicket=tables.tickets.find(x=>x.id==='seed');
+  seedTicket.folder_url='javascript:alert(1)';
+  await page.reload();
+  await page.locator('#sourceDate').filter({hasText:'Supabase en línea'}).waitFor();
+  await click('[data-action="navigate"][data-view="tickets"]');
+  await page.locator('#ticketPageSize').selectOption('all');
+  await click('[data-action="ticket"][data-id="seed"]');
+  assert.equal(await page.locator('#detailDialog [data-action="copy-evidence-request"]').count(),0,'Un enlace inválido no crea botón.');
+  await click('#detailDialog [data-action="close-dialog"]');
+
+  seedTicket.folder_url='https://1drv.ms/f/example?e=carpetaPrueba';
+  await page.reload();
+  await page.locator('#sourceDate').filter({hasText:'Supabase en línea'}).waitFor();
+  await click('[data-action="navigate"][data-view="tickets"]');
+  await page.locator('#ticketPageSize').selectOption('all');
+  await click('[data-action="ticket"][data-id="seed"]');
+  const evidenceButton=page.locator('#detailDialog [data-action="copy-evidence-request"]');
+  assert.equal(await evidenceButton.count(),1,'Con una carpeta válida aparece el botón.');
+  const afterResolution=await evidenceButton.evaluate(button=>{
+    const resolution=document.querySelector('#detailDialog [data-action="copy-resolution"]');
+    return Boolean(button.closest('.sudmar-dual-summary') && resolution && (resolution.compareDocumentPosition(button)&Node.DOCUMENT_POSITION_FOLLOWING));
+  });
+  assert.ok(afterResolution,'El botón debe situarse debajo de las opciones para cédula.');
+  await evidenceButton.click();
+  await page.locator('#toast').filter({hasText:'Solicitud de evidencias copiada'}).waitFor();
+  const copiedEvidence=await page.evaluate(()=>navigator.clipboard.readText());
+  assert.match(copiedEvidence,/📁 \*SOLICITUD DE EVIDENCIAS\*/);
+  assert.match(copiedEvidence,/\*Ticket:\* #9000/);
+  assert.match(copiedEvidence,/\*Cliente:\* Cliente prueba/);
+  assert.match(copiedEvidence,/\*Servicio:\* Histórico/);
+  assert.match(copiedEvidence,/Favor de cargar las evidencias/);
+  assert.match(copiedEvidence,/https:\/\/1drv\.ms\/f\/example\?e=carpetaPrueba/);
+  assert.match(copiedEvidence,/fotografías, videos, reportes técnicos/);
+  assert.match(copiedEvidence,/Agradecemos confirmar/);
+  await click('#detailDialog [data-action="close-dialog"]');
   assert.deepEqual(errors,[]);console.log('All operational UI flows passed (desktop/tablet/mobile/multiequipo).');
 }finally{await browser.close();server.close();}
 
