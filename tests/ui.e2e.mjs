@@ -299,6 +299,64 @@ try{
   assert.equal(originalTicket.catalog_model_id,'m350');
   assert.equal(tables.ticket_equipment.filter(x=>x.ticket_id==='legacy2120').length,4);
   await click('#detailDialog [data-action="close-dialog"]');
+  // Orden y paginación sobre TODOS los tickets filtrados, no sólo sobre los 20 de la página actual.
+  const bulkTickets=Array.from({length:125},(_,i)=>({
+    id:'pagination-'+i,folio:String(10000+i),client_id:'client',owner_id:'person',
+    title:'Prueba paginación '+i,area:'OPERACIONES',business_unit:'SUDMAR',
+    operational_status:'REGISTRADO',status:'REGISTRADO',priority:'P2',
+    opened_at:'2026-01-01',
+    due_at:i===124?null:new Date(Date.UTC(2026,0,i+1)).toISOString().slice(0,10),
+    operational_hidden:false
+  }));
+  tables.tickets.push(...bulkTickets);
+  await page.reload();await page.locator('#sourceDate').filter({hasText:'Supabase en línea'}).waitFor();
+  await click('[data-action="navigate"][data-view="tickets"]');
+  const rows=page.locator('#content .ticket-table tbody tr'),folios=page.locator('#content .ticket-table tbody tr .folio');
+  assert.equal(await page.locator('#ticketPageSize').inputValue(),'20');
+  assert.equal(await rows.count(),20);
+  assert.equal(await folios.first().innerText(),'#10124');
+  assert.equal(await page.locator('#content [data-action="ticket-sort"][data-key="folio"]').getAttribute('aria-label'),'Ordenar por Ticket / equipo, menor a mayor');
+  await page.locator('#ticketPageSize').selectOption('50');
+  assert.equal(await rows.count(),50);
+  await click('#content [data-action="page"][data-delta="1"]');
+  assert.equal(await page.locator('.pagination-controls').first().innerText() .then(x=>x.includes('2 / 3')),true);
+  // Cambiar orden restablece la primera página.
+  await click('#content [data-action="ticket-sort"][data-key="folio"]');
+  const firstAscending=await folios.nth(0).innerText(),secondAscending=await folios.nth(1).innerText();
+  assert.ok(Number(firstAscending.slice(1))<=Number(secondAscending.slice(1)),'Los folios deben ordenarse numéricamente de menor a mayor.');
+  assert.equal(await page.locator('.pagination-controls').first().innerText().then(x=>x.includes('1 / 3')),true);
+  await page.locator('#ticketPageSize').selectOption('100');assert.equal(await rows.count(),100);
+  await page.locator('#ticketPageSize').selectOption('all');
+  assert.equal(await rows.count(),tables.tickets.filter(x=>x.operational_hidden!==true).length);
+  assert.equal(await page.locator('.pagination-controls button').first().isDisabled(),true);
+  assert.equal(await page.locator('.pagination-controls button').last().isDisabled(),true);
+  // Fechas ascendentes y descendentes; registros sin meta siempre al final.
+  await click('#content [data-action="ticket-sort"][data-key="dueAt"]');
+  assert.equal(await page.locator('#content .ticket-table th[aria-sort="descending"]').count(),1);
+  assert.equal(await page.locator('#content .ticket-table tbody tr:last-child .date-cell').innerText(),'Sin fecha');
+  const recentDue=await page.locator('#content .ticket-table tbody tr:first-child .date-cell').innerText();
+  await click('#content [data-action="ticket-sort"][data-key="dueAt"]');
+  assert.equal(await page.locator('#content .ticket-table th[aria-sort="ascending"]').count(),1);
+  assert.equal(await page.locator('#content .ticket-table tbody tr:last-child .date-cell').innerText(),'Sin fecha');
+  assert.notEqual(await page.locator('#content .ticket-table tbody tr:first-child .date-cell').innerText(),recentDue);
+  // Visibilidad y filtros siguen funcionando y conservan el orden y la cantidad.
+  await click('[data-action="filters"]');
+  await page.locator('#filterForm [name="priority"]').selectOption('2');
+  await click('#filterForm [type="submit"]');
+  assert.equal(await rows.count(),bulkTickets.length+1); // Ticket creado anteriormente con SLA-02.
+  assert.equal(await page.locator('#ticketPageSize').inputValue(),'all');
+  assert.equal(await page.locator('#content .ticket-table th[aria-sort="ascending"]').count(),1);
+  await page.locator('#ticketPageSize').selectOption('20');
+  assert.equal(await rows.count(),20);
+  await click('[data-action="clear"]');
+  // La selección de orden está disponible también cuando la tabla se oculta en móvil.
+  await page.setViewportSize({width:390,height:850});
+  await page.locator('#ticketMobileSort').selectOption('folio:desc');
+  assert.equal(await page.locator('.mobile-ticket').first().locator('.folio').innerText(),'#10124');
+  await page.locator('#ticketPageSize').selectOption('50');
+  assert.equal(await page.locator('.mobile-ticket').count(),50);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await page.setViewportSize({width:1360,height:1000});
   assert.deepEqual(errors,[]);console.log('All operational UI flows passed (desktop/tablet/mobile/multiequipo).');
 }finally{await browser.close();server.close();}
 
