@@ -163,3 +163,10 @@ dialog{padding:0;border:1px solid #d8e4eb;border-radius:17px;box-shadow:0 20px 1
 .ticket-mobile-sort select{max-width:210px;min-width:130px}
 .pagination:has(.ticket-page-size){flex-wrap:wrap}
 @media(max-width:700px){.ticket-mobile-sort{display:flex}.pagination:has(.ticket-page-size){justify-content:space-between}.ticket-page-size{width:100%;justify-content:flex-start}}
+
+/* Selector de fecha y registros con/sin fecha, en el encabezado de Tickets. */
+.ticket-date-controls{display:flex;align-items:end;gap:12px;flex-wrap:wrap}
+.ticket-date-controls label{display:flex;flex-direction:column;gap:4px;color:var(--muted);font-size:10px;white-space:nowrap}
+.ticket-date-controls select{min-height:33px;max-width:190px;min-width:118px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:6px 9px;font-size:11px;cursor:pointer}
+.mobile-ticket-date{display:block;font-size:10px;color:#627f90;margin:5px 0 10px}
+@media(max-width:700px){.ticket-date-controls{width:100%;gap:8px}.ticket-date-controls label{flex:1;min-width:126px}.ticket-date-controls select{width:100%;max-width:none}}

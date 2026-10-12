@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {TICKET_PAGE_SIZES,sortTicketList,ticketPageLimit} from '../prototype/src/ticket-list.js';
+import {TICKET_PAGE_SIZES,TICKET_DATE_FIELDS,filterTicketDatePresence,sortTicketList,ticketPageLimit} from '../prototype/src/ticket-list.js';
 
 test('folios are sorted numerically and the original collection is unchanged',()=>{
   const data=[{folio:'2'},{folio:'100'},{folio:'10'},{folio:'PRUEBA-1'},{folio:'001'}];
@@ -23,4 +23,29 @@ test('page selection supports 20, 50, 100 and all without loading other view pag
   assert.equal(ticketPageLimit('50',329),50);
   assert.equal(ticketPageLimit('100',329),100);
   assert.equal(ticketPageLimit('invalid',329),20);
+});
+
+test('date selection sorts each date independently; empty dates remain last',()=>{
+ const data=[
+  {folio:'200',openedAt:'2026-02-01',dueAt:null,closedAt:'2026-03-02'},
+  {folio:'300',openedAt:'2026-04-01',dueAt:'2026-06-01',closedAt:null},
+  {folio:'100',openedAt:'2026-01-01',dueAt:'2026-02-01',closedAt:'2026-01-05'}
+ ];
+ assert.deepEqual(Object.keys(TICKET_DATE_FIELDS),['openedAt','dueAt','closedAt']);
+ assert.deepEqual(sortTicketList(data,'date','desc','openedAt').map(x=>x.folio),['300','200','100']);
+ assert.deepEqual(sortTicketList(data,'date','asc','closedAt').map(x=>x.folio),['100','200','300']);
+ assert.deepEqual(sortTicketList(data,'date','desc','dueAt').map(x=>x.folio),['300','100','200']);
+ assert.deepEqual(sortTicketList(data,'date','asc','dueAt').map(x=>x.folio),['100','300','200']);
+ assert.equal(data[0].folio,'200');
+});
+test('filter with and without a selected date, combined with any prior ticket filters',()=>{
+ const data=[{folio:'1',openedAt:'2026-01-01',dueAt:'',closedAt:null},
+  {folio:'2',openedAt:'2026-02-01',dueAt:'2026-03-01',closedAt:''},
+  {folio:'3',openedAt:'2026-03-01',dueAt:null,closedAt:'2026-04-01'}];
+ assert.deepEqual(filterTicketDatePresence(data,'dueAt','missing').map(x=>x.folio),['1','3']);
+ assert.deepEqual(filterTicketDatePresence(data,'dueAt','with').map(x=>x.folio),['2']);
+ assert.deepEqual(filterTicketDatePresence(data,'openedAt','missing'),[]);
+ assert.deepEqual(filterTicketDatePresence(data,'closedAt','with').map(x=>x.folio),['3']);
+ assert.deepEqual(filterTicketDatePresence(data,'closedAt','missing').map(x=>x.folio),['1','2']);
+ assert.deepEqual(filterTicketDatePresence(data,'dueAt','all'),data);
 });
