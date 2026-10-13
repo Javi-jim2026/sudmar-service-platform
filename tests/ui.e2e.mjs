@@ -168,7 +168,7 @@ try{
  assert.equal(ticket.folio,'EDITADO-002');assert.equal(tables.tasks[0].ticket_id,ticket.id);
  assert.match(await page.locator('#detailDialog').innerText(),/Actividades del ticket \(1\)/);
  await page.locator('#ticketEditstatus').selectOption('EN EJECUCIÓN');await Promise.all([page.waitForResponse(r=>r.request().method()==='PATCH'&&r.url().includes('/tickets?')),click('[data-action="save-ticket-update"]')]);await page.locator('#detailDialog .detail-badges').filter({hasText:'EN EJECUCIÓN'}).waitFor();assert.equal(tables.tickets.at(-1).operational_status,'EN EJECUCIÓN');
- await click('#detailDialog [data-action="close-dialog"]');await click('[data-action="filters"]');await page.locator('#filterForm [name="equipmentType"]').selectOption('GENERADORES A DIESEL');await click('#filterForm [data-action="multi-only"][data-field="priority"][data-value="2"]');await click('#filterForm [type="submit"]');assert.match(await page.locator('#resultAnnouncement').innerText(),/1 tickets/);
+ await click('#detailDialog [data-action="close-dialog"]');await click('[data-action="filters"]');await page.locator('#filterForm [name="equipmentType"]').selectOption('GENERADORES A DIESEL');await page.locator('#filterForm .filter-multi[data-multi-key="priority"] summary').click();await click('#filterForm [data-action="multi-only"][data-field="priority"][data-value="2"]');await click('#filterForm [type="submit"]');assert.match(await page.locator('#resultAnnouncement').innerText(),/1 tickets/);
  // Filters allow multiple values and preserve previously saved view formats.
  await click('[data-action="filters"]');
  await page.locator('#filterForm .filter-multi[data-multi-key="status"] summary').click();
@@ -176,18 +176,23 @@ try{
  await click('#filterForm [type="submit"]');
  assert.ok((await page.locator('#filterChips').innerText()).includes('Sin concluidos'));
  await click('[data-action="filters"]');
+ await page.locator('#filterForm .filter-multi[data-multi-key="status"] summary').click();
  await click('#filterForm [data-action="multi-only"][data-field="status"][data-value="COBRANZA"]');
  await click('#filterForm [type="submit"]');
  assert.match(await page.locator('#resultAnnouncement').innerText(),/0 tickets/);
  await click('[data-action="filters"]');
+ await page.locator('#filterForm .filter-multi[data-multi-key="status"] summary').click();
  await click('#filterForm [data-action="multi-all"][data-field="status"]');
+ await page.locator('#filterForm .filter-multi[data-multi-key="priority"] summary').click();
  await click('#filterForm [data-action="multi-all"][data-field="priority"]');
  await click('#filterForm [type="submit"]');
  assert.match(await page.locator('#resultAnnouncement').innerText(),/1 tickets/);
  await click('[data-action="save-view"]');await fill('#saveViewForm [name="viewName"]','Filtro múltiple prueba');await click('#saveViewForm [type="submit"]');
  assert.ok((await page.locator('#savedViews option').allTextContents()).includes('Filtro múltiple prueba'));
  await click('[data-action="filters"]');
+ await page.locator('#filterForm .filter-multi[data-multi-key="status"] summary').click();
  await click('#filterForm [data-action="multi-only"][data-field="status"][data-value="EN EJECUCIÓN"]');
+ await page.locator('#filterForm .filter-multi[data-multi-key="priority"] summary').click();
  await click('#filterForm [data-action="multi-only"][data-field="priority"][data-value="2"]');
  await click('#filterForm [type="submit"]');
  await click('[data-action="save-view"]');await fill('#saveViewForm [name="viewName"]','Específicos prueba');await click('#saveViewForm [type="submit"]');
