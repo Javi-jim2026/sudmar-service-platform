@@ -9,7 +9,7 @@ import {icon} from './icons.js';
 import {inventoryStatuses,renderInventoryEquipment,renderInventoryDetails} from './inventory.js';
 import {ticketsByVisibility,antecedentsBySerial} from './visibility.js';
 import {multiEquipmentMarkup,changeMultiMode,refreshMultiCatalogs,handleMultiAction,readMultiEquipment,multiSummary,updateMultiProgress} from './multi-equipment.js';
-import {normalized, clean, blankFilters, isKnownStatus, isClosed, isActive, isOverdue, taskComplete, taskClosed, taskCategory, validSerial, unique, filterTickets, linkedTasks, metrics, countsBy, equipmentGroups, ticketSerials, safeEvidenceUrl, toCsv} from './core.js';
+import {MULTI_FILTER_KEYS, normalized, clean, blankFilters, isKnownStatus, isClosed, isActive, isOverdue, taskComplete, taskClosed, taskCategory, validSerial, unique, filterTickets, linkedTasks, metrics, countsBy, equipmentGroups, ticketSerials, safeEvidenceUrl, toCsv} from './core.js';
 
 const $=id=>document.getElementById(id);
 const e=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -104,16 +104,97 @@ const currentTasks=()=>tasksInScope().filter(t=>{
 
 function hydrateIcons(root=document){root.querySelectorAll('[data-icon]').forEach(el=>el.innerHTML=icon(el.dataset.icon));root.querySelectorAll('[data-icon-before]').forEach(el=>{el.insertAdjacentHTML('afterbegin',icon(el.dataset.iconBefore));delete el.dataset.iconBefore;});}
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,3800);}
-function readLocation(){const params=new URLSearchParams(location.search);state.view=views[params.get('view')]?params.get('view'):'dashboard';const defaults=blankFilters();for(const key of Object.keys(defaults)){if(params.has(key))defaults[key]=typeof defaults[key]==='boolean'?params.get(key)==='1':params.get(key);}if(!['openedAt','dueAt','closedAt'].includes(defaults.dateField))defaults.dateField='openedAt';for(const key of ['from','to'])if(defaults[key]&&!/^\d{4}-\d{2}-\d{2}$/.test(defaults[key]))defaults[key]='';state.filters=defaults;if(state.view==='tickets'&&params.has('dateField')&&Object.hasOwn(TICKET_DATE_FIELDS,defaults.dateField))state.ticketDateField=defaults.dateField;state.page=1;}
-function writeLocation(){try{const params=new URLSearchParams();if(state.view!=='dashboard')params.set('view',state.view);const defaults=blankFilters();for(const[key,value]of Object.entries(state.filters))if(value&&value!==defaults[key])params.set(key,typeof value==='boolean'?'1':value);history.replaceState(null,'',location.pathname+(params.size?'?'+params.toString():'')+location.hash);}catch{/* A standalone downloaded preview may restrict history. */}}
+function readLocation(){
+ const params=new URLSearchParams(location.search);
+ state.view=views[params.get('view')]?params.get('view'):'dashboard';
+ const defaults=blankFilters();
+ for(const key of Object.keys(defaults)){
+  if(!params.has(key))continue;
+  const values=params.getAll(key);
+  defaults[key]=typeof defaults[key]==='boolean'?params.get(key)==='1':MULTI_FILTER_KEYS.includes(key)&&values.length>1?[...new Set(values.filter(Boolean))]:params.get(key);
+ }
+ if(!['openedAt','dueAt','closedAt'].includes(defaults.dateField))defaults.dateField='openedAt';
+ for(const key of ['from','to'])if(defaults[key]&&!/^\d{4}-\d{2}-\d{2}$/.test(defaults[key]))defaults[key]='';
+ state.filters=defaults;
+ if(state.view==='tickets'&&params.has('dateField')&&Object.hasOwn(TICKET_DATE_FIELDS,defaults.dateField))state.ticketDateField=defaults.dateField;
+ state.page=1;
+}
+function writeLocation(){
+ try{
+  const params=new URLSearchParams();
+  if(state.view!=='dashboard')params.set('view',state.view);
+  const defaults=blankFilters();
+  for(const[key,value]of Object.entries(state.filters)){
+   if(Array.isArray(value)){for(const item of value)if(typeof item==='string'&&item)params.append(key,item);}
+   else if(value&&value!==defaults[key])params.set(key,typeof value==='boolean'?'1':value);
+  }
+  history.replaceState(null,'',location.pathname+(params.size?'?'+params.toString():'')+location.hash);
+ }catch{/* Standalone preview may restrict history. */}
+}
 function navigate(view){if(!views[view])return;state.view=view;if(view==='tickets')state.filters.dateField=state.ticketDateField;state.page=1;render();window.scrollTo({top:0,behavior:'instant'});}
 
 function renderNav(){for(const id of ['desktopNav','mobileNav']){$(id).innerHTML=Object.entries(views).map(([key,v])=>`<button class="${id==='desktopNav'?'nav-button ':''}${key===state.view?'active':''}" data-action="navigate" data-view="${key}" ${key===state.view?'aria-current="page"':''} aria-label="${v.label}">${icon(v.icon)}<span>${v.label}</span>${id==='desktopNav'&&key==='tickets'?`<small class="nav-count">${n(ticketsByVisibility(state.data.tickets).length)}</small>`:''}</button>`).join('');}}
-function activeFilters(){return Object.entries(state.filters).filter(([key,value])=>key!=='dateField'&&Boolean(value));}
-function renderFilterChips(){const active=activeFilters();$('filterCount').textContent=active.length;$('filterCount').hidden=!active.length;$('filterChips').innerHTML=active.map(([key,value])=>`<button class="filter-chip" data-action="remove-filter" data-key="${key}" aria-label="Quitar filtro ${e(filterLabels[key])}"><span>${e(filterLabels[key])}${typeof value==='boolean'?'':': '+e(value==='__EMPTY__'?'Sin registrar':key==='priority'?'SLA-0'+value:value)}</span>${icon('close')}</button>`).join('')+(active.length?'<button class="clear-chips" data-action="clear">Limpiar todo</button>':'');}
+function activeFilters(){return Object.entries(state.filters).filter(([key,value])=>key!=='dateField'&&(Array.isArray(value)?value.length>0:Boolean(value)));}
+function filterValueLabel(key,value){return value==='__EMPTY__'?'Sin registrar':key==='priority'?'SLA-0'+value:value;}
+function filterChipLabel(key,value){return Array.isArray(value)?value.length<=2?value.map(v=>filterValueLabel(key,v)).join(' + '):value.length+' seleccionados':filterValueLabel(key,value);}
+function renderFilterChips(){
+ const active=activeFilters();
+ $('filterCount').textContent=active.length;$('filterCount').hidden=!active.length;
+ $('filterChips').innerHTML=active.map(([key,value])=>`<button class="filter-chip" data-action="remove-filter" data-key="${key}" aria-label="Quitar filtro ${e(filterLabels[key])}"><span>${e(filterLabels[key])}${typeof value==='boolean'?'':': '+e(filterChipLabel(key,value))}</span>${icon('close')}</button>`).join('')+(active.length?'<button class="clear-chips" data-action="clear">Limpiar todo</button>':'');
+}
 function options(values,selected,placeholder='Todos'){return `<option value="">${e(placeholder)}</option>`+values.map(value=>`<option value="${e(value)}" ${value===selected?'selected':''}>${e(value||'Sin registrar')}</option>`).join('');}
-function openFilters(){if(state.view==='tickets')state.filters.dateField=state.ticketDateField;const f=state.filters;const selects=['priority','client','businessUnit','area','equipmentType','owner','status','model','serial'];$('filterFields').innerHTML=`<label class="field">Folio del ticket<input name="folio" value="${e(f.folio)}" inputmode="numeric" placeholder="Ej. 2650"></label>`+selects.map(key=>{const values=unique(state.data.tickets.map(t=>t[key]));return `<label class="field">${filterLabels[key]}<select name="${key}">${key==='priority'?'<option value="">Todos</option>'+values.map(v=>`<option value="${e(v)}" ${v===f[key]?'selected':''}>SLA-0${e(v)}</option>`).join(''):options(values,f[key])}${state.data.tickets.some(t=>!t[key])?`<option value="__EMPTY__" ${f[key]==='__EMPTY__'?'selected':''}>Sin registrar</option>`:''}</select></label>`;}).join('')+`<label class="field full-width">Filtrar fechas por<select name="dateField"><option value="openedAt" ${f.dateField==='openedAt'?'selected':''}>Inicio del ticket</option><option value="dueAt" ${f.dateField==='dueAt'?'selected':''}>Meta de cierre</option><option value="closedAt" ${f.dateField==='closedAt'?'selected':''}>Cierre real</option></select></label><label class="field">Desde<input type="date" name="from" value="${e(f.from)}"></label><label class="field">Hasta<input type="date" name="to" value="${e(f.to)}"></label><label class="checkbox-field"><input type="checkbox" name="overdue" ${f.overdue?'checked':''}> Solo fuera de plazo</label><label class="checkbox-field"><input type="checkbox" name="activeOnly" ${f.activeOnly?'checked':''}> Solo tickets activos</label><p class="definition-note full-width">El periodo filtra las fechas registradas. El estado y el área muestran la operación actual; no reconstruyen estados pasados.</p>`;$('filterError').textContent='';$('filtersDialog').showModal();}
-function applyFormFilters(close=true){const form=new FormData($('filterForm'));const next={...state.filters};for(const key of Object.keys(next)){if(key==='q')continue;next[key]=typeof next[key]==='boolean'?form.has(key):clean(form.get(key));}if(next.from&&next.to&&next.from>next.to){$('filterError').textContent='La fecha inicial debe ser anterior o igual a la fecha final.';return false;}state.filters=next;if(state.view==='tickets'&&Object.hasOwn(TICKET_DATE_FIELDS,next.dateField))state.ticketDateField=next.dateField;state.page=1;if(close)$('filtersDialog').close();render();return true;}
+function multiFilterField(key,values,missing,current){
+ const all=missing?[...values,'__EMPTY__']:values;
+ const selected=current===''?all:Array.isArray(current)?current:[current];
+ const chosen=all.filter(value=>selected.includes(value)),count=chosen.length;
+ const summary=count===all.length?'Todos':!count?'Ninguno seleccionado':count===1?filterValueLabel(key,chosen[0]):count+' seleccionados';
+ const search=['client','owner','area'].includes(key)?`<input class="multi-filter-search" type="search" aria-label="Buscar ${e(filterLabels[key])}" placeholder="Buscar opción…">`:'';
+ return `<fieldset class="field multi-filter-field" data-multi-filter="${key}">
+  <legend>${e(filterLabels[key])}</legend>
+  <details class="multi-filter-dropdown">
+   <summary><span class="multi-filter-selected">${e(summary)}</span><span class="multi-filter-chevron" aria-hidden="true">▾</span></summary>
+   <div class="multi-filter-panel">
+    <div class="multi-filter-actions"><button type="button" data-action="multi-filter-all">Seleccionar todos</button><button type="button" data-action="multi-filter-none">Desmarcar todos</button>${key==='status'?'<button type="button" data-action="multi-filter-without-concluded">Excluir concluidos</button>':''}</div>
+    ${search}
+    <div class="multi-filter-options" role="group" aria-label="${e(filterLabels[key])}">
+    ${all.map(value=>`<label class="multi-filter-option"><input type="checkbox" name="multi-${key}" value="${e(value)}" ${selected.includes(value)?'checked':''}><span>${e(filterValueLabel(key,value))}</span></label>`).join('')}
+    </div>
+   </div>
+  </details>
+ </fieldset>`;
+}
+function updateMultiFilterSummary(field){
+ if(!field)return;
+ const boxes=[...field.querySelectorAll('.multi-filter-option input')],chosen=boxes.filter(box=>box.checked);
+ const label=chosen.length===boxes.length?'Todos':!chosen.length?'Ninguno seleccionado':chosen.length===1?filterValueLabel(field.dataset.multiFilter,chosen[0].value):chosen.length+' seleccionados';
+ field.querySelector('.multi-filter-selected').textContent=label;
+}
+function openFilters(){
+ if(state.view==='tickets')state.filters.dateField=state.ticketDateField;
+ const f=state.filters,selects=['priority','client','businessUnit','area','equipmentType','owner','status','model','serial'];
+ $('filterFields').innerHTML=`<label class="field">Folio del ticket<input name="folio" value="${e(f.folio)}" inputmode="numeric" placeholder="Ej. 2650"></label>`+
+ selects.map(key=>{
+  const values=unique(state.data.tickets.map(t=>t[key])),missing=state.data.tickets.some(t=>!t[key]);
+  if(MULTI_FILTER_KEYS.includes(key))return multiFilterField(key,values,missing,f[key]);
+  return `<label class="field">${filterLabels[key]}<select name="${key}">${options(values,f[key])}${missing?`<option value="__EMPTY__" ${f[key]==='__EMPTY__'?'selected':''}>Sin registrar</option>`:''}</select></label>`;
+ }).join('')+`<label class="field full-width">Filtrar fechas por<select name="dateField"><option value="openedAt" ${f.dateField==='openedAt'?'selected':''}>Inicio del ticket</option><option value="dueAt" ${f.dateField==='dueAt'?'selected':''}>Meta de cierre</option><option value="closedAt" ${f.dateField==='closedAt'?'selected':''}>Cierre real</option></select></label><label class="field">Desde<input type="date" name="from" value="${e(f.from)}"></label><label class="field">Hasta<input type="date" name="to" value="${e(f.to)}"></label><label class="checkbox-field"><input type="checkbox" name="overdue" ${f.overdue?'checked':''}> Solo fuera de plazo</label><label class="checkbox-field"><input type="checkbox" name="activeOnly" ${f.activeOnly?'checked':''}> Solo tickets activos</label><p class="definition-note full-width">El periodo filtra las fechas registradas. El estado y el área muestran la operación actual; no reconstruyen estados pasados. Cada selector múltiple muestra cualquiera de sus opciones marcadas y todos los filtros se combinan.</p>`;
+ $('filterError').textContent='';$('filtersDialog').showModal();
+}
+function applyFormFilters(close=true){
+ const form=new FormData($('filterForm')),next={...state.filters};
+ for(const key of Object.keys(next)){
+  if(key==='q')continue;
+  if(MULTI_FILTER_KEYS.includes(key)){
+   const all=[...$('filterForm').querySelectorAll(`input[name="multi-${key}"]`)],selected=all.filter(box=>box.checked).map(box=>box.value);
+   if(all.length&&!selected.length){$('filterError').textContent='Selecciona al menos una opción en '+filterLabels[key]+' o utiliza "Seleccionar todos".';return false;}
+   next[key]=!all.length||selected.length===all.length?'':selected.length===1?selected[0]:selected;
+  }else next[key]=typeof next[key]==='boolean'?form.has(key):clean(form.get(key));
+ }
+ if(next.from&&next.to&&next.from>next.to){$('filterError').textContent='La fecha inicial debe ser anterior o igual a la fecha final.';return false;}
+ state.filters=next;
+ if(state.view==='tickets'&&Object.hasOwn(TICKET_DATE_FIELDS,next.dateField))state.ticketDateField=next.dateField;
+ state.page=1;if(close)$('filtersDialog').close();render();return true;
+}
 function clearFilters(){state.filters=blankFilters();state.ticketDatePresence='all';if(state.view==='tickets')state.filters.dateField=state.ticketDateField;state.taskOwner='';state.taskStatus='all';state.taskCategory='';state.contactQuery='';state.page=1;$('globalSearch').value='';$('filtersDialog').close();render();}
 function setFilter(key,value,view='tickets'){state.filters[key]=value;if(key==='status'){state.filters.activeOnly=false;state.filters.overdue=false;}navigate(view);}
 
