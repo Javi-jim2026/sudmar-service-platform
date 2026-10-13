@@ -179,7 +179,8 @@ try{
  await page.locator('#filterForm [data-multi-filter="status"] [data-action="multi-filter-without-concluded"]').click();
  const statusCount=await page.locator('#filterForm input[name="multi-status"]:checked').count();
  assert.ok(statusCount>0);
- await page.locator('#filterForm input[name="multi-status"][value="COBRANZA"]').uncheck();
+ assert.ok(statusCount>1,'La muestra debe ofrecer varios estados para probar selección múltiple');
+ await page.locator('#filterForm input[name="multi-status"]:checked').first().uncheck();
  await click('#filterForm [type="submit"]');
  assert.equal(await page.locator('#filterChips .filter-chip').filter({hasText:'Estado'}).count(),1);
  assert.ok(new URL(page.url()).searchParams.getAll('status').length>=1);
