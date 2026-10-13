@@ -378,7 +378,8 @@ try{
   assert.notEqual(await page.locator('#content .ticket-table tbody tr:first-child .date-cell').innerText(),recentDue);
   // Visibilidad y filtros siguen funcionando y conservan el orden y la cantidad.
   await click('[data-action="filters"]');
-  await page.locator('#filterForm [name="priority"]').selectOption('2');
+  await page.locator('#filterForm .filter-multi[data-multi-key="priority"] summary').click();
+  await click('#filterForm [data-action="multi-only"][data-field="priority"][data-value="2"]');
   await click('#filterForm [type="submit"]');
   assert.equal(await rows.count(),bulkTickets.length+1); // Ticket creado anteriormente con SLA-02.
   assert.equal(await page.locator('#ticketPageSize').inputValue(),'all');
