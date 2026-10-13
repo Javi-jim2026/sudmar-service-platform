@@ -168,7 +168,29 @@ try{
  assert.equal(ticket.folio,'EDITADO-002');assert.equal(tables.tasks[0].ticket_id,ticket.id);
  assert.match(await page.locator('#detailDialog').innerText(),/Actividades del ticket \(1\)/);
  await page.locator('#ticketEditstatus').selectOption('EN EJECUCIÓN');await Promise.all([page.waitForResponse(r=>r.request().method()==='PATCH'&&r.url().includes('/tickets?')),click('[data-action="save-ticket-update"]')]);await page.locator('#detailDialog .detail-badges').filter({hasText:'EN EJECUCIÓN'}).waitFor();assert.equal(tables.tickets.at(-1).operational_status,'EN EJECUCIÓN');
- await click('#detailDialog [data-action="close-dialog"]');await click('[data-action="filters"]');await page.locator('#filterForm [name="equipmentType"]').selectOption('GENERADORES A DIESEL');await page.locator('#filterForm [name="priority"]').selectOption('2');await click('#filterForm [type="submit"]');assert.match(await page.locator('#resultAnnouncement').innerText(),/1 tickets/);
+ await click('#detailDialog [data-action="close-dialog"]');await click('[data-action="filters"]');await page.locator('#filterForm [name="equipmentType"]').selectOption('GENERADORES A DIESEL');await page.locator('#filterForm [data-multi-filter="priority"] summary').click();
+  await page.locator('#filterForm [data-multi-filter="priority"] [data-action="multi-filter-none"]').click();
+  await page.locator('#filterForm input[name="multi-priority"][value="2"]').check();await click('#filterForm [type="submit"]');assert.match(await page.locator('#resultAnnouncement').innerText(),/1 tickets/);
+ // El panel permite seleccionar varias opciones y excluir estados específicos.
+ await click('[data-action="filters"]');
+ for(const key of ['status','priority','area','owner','client','businessUnit'])
+   assert.equal(await page.locator('#filterForm .multi-filter-field[data-multi-filter="'+key+'"]').count(),1);
+ await click('#filterForm [data-multi-filter="status"] summary');
+ await page.locator('#filterForm [data-multi-filter="status"] [data-action="multi-filter-without-concluded"]').click();
+ const statusCount=await page.locator('#filterForm input[name="multi-status"]:checked').count();
+ assert.ok(statusCount>0);
+ await page.locator('#filterForm input[name="multi-status"][value="COBRANZA"]').uncheck();
+ await click('#filterForm [type="submit"]');
+ assert.equal(await page.locator('#filterChips .filter-chip').filter({hasText:'Estado'}).count(),1);
+ assert.ok(new URL(page.url()).searchParams.getAll('status').length>=1);
+ // Guardar y restaurar no convierte ni pierde la selección múltiple.
+ await click('[data-action="save-view"]');
+ await fill('#saveViewForm [name="viewName"]','Prueba varios estados');
+ await click('#saveViewForm [type="submit"]');
+ await click('[data-action="clear"]');
+ await page.locator('#savedViews').selectOption({label:'Prueba varios estados'});
+ assert.equal(await page.locator('#filterChips .filter-chip').filter({hasText:'Estado'}).count(),1);
+ await click('[data-action="clear"]');
  for(const width of [390,768,1360]){await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await click('[data-action="new-ticket"]');assert.equal(await page.locator('#newTicketDialog').isVisible(),true);await page.screenshot({path:`${process.env.SCREENSHOT_DIR||'.'}/ui-${width}.png`,fullPage:true});await click('#newTicketDialog [data-action="close-dialog"]');}
  // Deletion is only in ticket details; protected historical records cannot be marked.
  await page.setViewportSize({width:1360,height:1000});
@@ -344,7 +366,9 @@ try{
   assert.notEqual(await page.locator('#content .ticket-table tbody tr:first-child .date-cell').innerText(),recentDue);
   // Visibilidad y filtros siguen funcionando y conservan el orden y la cantidad.
   await click('[data-action="filters"]');
-  await page.locator('#filterForm [name="priority"]').selectOption('2');
+  await page.locator('#filterForm [data-multi-filter="priority"] summary').click();
+  await page.locator('#filterForm [data-multi-filter="priority"] [data-action="multi-filter-none"]').click();
+  await page.locator('#filterForm input[name="multi-priority"][value="2"]').check();
   await click('#filterForm [type="submit"]');
   assert.equal(await rows.count(),bulkTickets.length+1); // Ticket creado anteriormente con SLA-02.
   assert.equal(await page.locator('#ticketPageSize').inputValue(),'all');
