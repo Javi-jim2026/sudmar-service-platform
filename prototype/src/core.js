@@ -1,6 +1,7 @@
 // Pure domain functions: the UI, a future API adapter and tests share these rules.
 export const normalized = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 export const clean = value => String(value ?? '').trim();
+export const MULTI_FILTER_KEYS=Object.freeze(['status','priority','area','owner','client','businessUnit']);
 export const blankFilters = () => ({ q: '', folio: '', priority: '', client: '', businessUnit: '', area: '', equipmentType:'', owner: '', status: '', model: '', serial: '', from: '', to: '', dateField: 'openedAt', overdue: false, activeOnly: false });
 const terminal = new Set(['cerrado', 'cancelado', 'cancelada', 'aprobada', 'aprobado', 'concluida', 'concluido']);
 const known = new Set(['registrado','programado','en ejecucion','bloqueado','pendiente de validacion','abierto', 'cerrado', 'cancelado', 'cancelada', 'en espera', 'cobranza', 'inactivo', 'consigna', 'nueva', 'asignada', 'aceptada', 'en proceso', 'pausada', 'esperando info', 'bloqueada', 'pendiente validacion', 'pendiente validación', 'aprobada', 'aprobado', 'concluida', 'concluido']);
@@ -27,8 +28,14 @@ export function filterTickets(tickets, filters, today) {
     if(filters.serial&&filters.serial!=='__EMPTY__'&&!ticketSerials(t).some(v=>clean(v)===clean(filters.serial)))return false;
     if(filters.model&&filters.model!=='__EMPTY__'&&!ticketModels(t).some(v=>clean(v)===clean(filters.model)))return false;
     for (const key of ['priority','client','businessUnit','area','equipmentType','owner','status']) {
-      if (filters[key] === '__EMPTY__' && clean(t[key]) !== '') return false;
-      if (filters[key] && filters[key] !== '__EMPTY__' && clean(t[key]) !== filters[key]) return false;
+      const selection=filters[key];
+      if(Array.isArray(selection)){
+        // Opciones del mismo filtro: OR; filtros diferentes: AND.
+        if(!selection.some(v=>typeof v==='string'&&(v==='__EMPTY__'?clean(t[key])==='':clean(t[key])===v)))return false;
+      }else{
+        if(selection==='__EMPTY__'&&clean(t[key])!=='')return false;
+        if(selection&&selection!=='__EMPTY__'&&clean(t[key])!==selection)return false;
+      }
     }
     const date = t[['openedAt','dueAt','closedAt'].includes(filters.dateField) ? filters.dateField : 'openedAt'];
     if (filters.from && (!date || date < filters.from)) return false;
