@@ -51,3 +51,20 @@ test('Operational task categories keep new task types and classify historical wo
  assert.equal(taskCategory({title:'Cotizar refacciones'}),'COTIZACION');
  assert.equal(taskCategory({title:'Dar seguimiento al cliente'}),'SEGUIMIENTO');
 });
+
+test('Ticket multi-select combines OR within each filter and AND between different filters',()=>{
+ const tickets=[
+  {folio:'1',status:'ABIERTO',priority:'1',area:'Operaciones',owner:'Javier',client:'A',businessUnit:'PRETTL'},
+  {folio:'2',status:'BLOQUEADO',priority:'2',area:'Servicios',owner:'Daniel',client:'B',businessUnit:'SUDMAR'},
+  {folio:'3',status:'CONCLUIDO',priority:'2',area:'Servicios',owner:'Daniel',client:'B',businessUnit:'SUDMAR'},
+  {folio:'4',status:'CANCELADO',priority:'3',area:'Operaciones',owner:'Javier',client:'A',businessUnit:'PRETTL'},
+  {folio:'5',status:'EN ESPERA',priority:'',area:'',owner:'',client:'',businessUnit:'SUDMAR'}
+ ];
+ assert.deepEqual(filterTickets(tickets,{...blankFilters(),status:['ABIERTO','BLOQUEADO','CANCELADO','EN ESPERA']},today).map(t=>t.folio),['1','2','4','5']);
+ const combo={...blankFilters(),status:['ABIERTO','BLOQUEADO'],priority:['1','2'],area:['Operaciones','Servicios'],owner:['Javier','Daniel'],client:['A','B'],businessUnit:['PRETTL','SUDMAR']};
+ assert.deepEqual(filterTickets(tickets,combo,today).map(t=>t.folio),['1','2']);
+ assert.deepEqual(filterTickets(tickets,{...combo,client:['A']},today).map(t=>t.folio),['1']);
+ assert.deepEqual(filterTickets(tickets,{...blankFilters(),owner:['__EMPTY__'],priority:['__EMPTY__']},today).map(t=>t.folio),['5']);
+ assert.deepEqual(filterTickets(tickets,{...blankFilters(),status:'CONCLUIDO'},today).map(t=>t.folio),['3']);
+ assert.equal(filterTickets(tickets,{...blankFilters(),status:[]},today).length,0);
+});
