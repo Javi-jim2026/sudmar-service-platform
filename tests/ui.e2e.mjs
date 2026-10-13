@@ -177,7 +177,7 @@ try{
  assert.ok((await page.locator('#filterChips').innerText()).includes('Sin concluidos'));
  await click('[data-action="filters"]');
  await page.locator('#filterForm .filter-multi[data-multi-key="status"] summary').click();
- await click('#filterForm [data-action="multi-only"][data-field="status"][data-value="COBRANZA"]');
+ await click('#filterForm [data-action="multi-only"][data-field="status"][data-value="POR CLASIFICAR"]');
  await click('#filterForm [type="submit"]');
  assert.match(await page.locator('#resultAnnouncement').innerText(),/0 tickets/);
  await click('[data-action="filters"]');
