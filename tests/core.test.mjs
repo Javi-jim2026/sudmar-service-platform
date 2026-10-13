@@ -51,3 +51,25 @@ test('Operational task categories keep new task types and classify historical wo
  assert.equal(taskCategory({title:'Cotizar refacciones'}),'COTIZACION');
  assert.equal(taskCategory({title:'Dar seguimiento al cliente'}),'SEGUIMIENTO');
 });
+
+
+test('Multiple ticket filters select unions within fields and intersections between fields',()=>{
+ const sample=[
+  {folio:'1',status:'ABIERTO',priority:'1',area:'Operaciones',client:'Cliente A',owner:'Javier'},
+  {folio:'2',status:'BLOQUEADO',priority:'2',area:'Operaciones',client:'Cliente B',owner:'Daniel'},
+  {folio:'3',status:'CONCLUIDO',priority:'1',area:'Operaciones',client:'Cliente A',owner:'Javier'},
+  {folio:'4',status:'EN PROCESO',priority:'3',area:'Servicios',client:'Cliente A',owner:'Daniel'},
+  {folio:'5',status:'NUEVO ESTADO',priority:'2',area:'Servicios',client:'Cliente B',owner:'Daniel'},
+  {folio:'6',status:'CONCLUIDA',priority:'2',area:'Servicios',client:'Cliente A',owner:'Daniel'},
+  {folio:'7',status:'ABIERTO',priority:'1',area:'',client:'',owner:''}
+ ];
+ const where=(fields)=>filterTickets(sample,{...blankFilters(),...fields},today).map(t=>t.folio);
+ assert.deepEqual(where({status:['ABIERTO','BLOQUEADO']}),['1','2','7']);
+ assert.deepEqual(where({status:['ABIERTO','BLOQUEADO'],priority:['1']}),['1','7']);
+ assert.deepEqual(where({status:{excludeConcluded:true}}),['1','2','4','5','7']);
+ assert.deepEqual(where({status:{excludeConcluded:true},client:['Cliente A']}),['1','4']);
+ assert.deepEqual(where({status:'CONCLUIDO'}),['3']);
+ assert.deepEqual(where({area:['__EMPTY__']}),['7']);
+ assert.deepEqual(where({owner:['Daniel','Javier'],client:['Cliente B']}),['2','5']);
+ assert.deepEqual(where({priority:'2',area:'Servicios'}),['5','6']);
+});

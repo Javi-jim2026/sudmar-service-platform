@@ -2,6 +2,21 @@
 export const normalized = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 export const clean = value => String(value ?? '').trim();
 export const blankFilters = () => ({ q: '', folio: '', priority: '', client: '', businessUnit: '', area: '', equipmentType:'', owner: '', status: '', model: '', serial: '', from: '', to: '', dateField: 'openedAt', overdue: false, activeOnly: false });
+// Multiple values use OR within a field; fields are combined with AND.
+// The exclusion preset remains dynamic when future operational states are added.
+export const MULTI_FILTER_KEYS = ['status','priority','area','owner','client','businessUnit'];
+export const isConcludedStatus = value => ['concluido','concluida'].includes(normalized(value));
+export function parseMultiFilter(value) {
+  if (Array.isArray(value)) return [...new Set(value.filter(item=>typeof item==='string'&&item.length<250))].slice(0,100);
+  if (value && typeof value==='object') return value.excludeConcluded===true ? {excludeConcluded:true} : '';
+  return typeof value==='string' ? value : '';
+}
+export function multiFilterAllows(selection, value, key='') {
+  if (!selection || (Array.isArray(selection)&&selection.length===0)) return true;
+  if (key==='status' && selection?.excludeConcluded===true) return !isConcludedStatus(value);
+  const allowed=Array.isArray(selection)?selection:[selection];
+  return allowed.some(option=>option==='__EMPTY__' ? clean(value)==='' : clean(value)===option);
+}
 const terminal = new Set(['cerrado', 'cancelado', 'cancelada', 'aprobada', 'aprobado', 'concluida', 'concluido']);
 const known = new Set(['registrado','programado','en ejecucion','bloqueado','pendiente de validacion','abierto', 'cerrado', 'cancelado', 'cancelada', 'en espera', 'cobranza', 'inactivo', 'consigna', 'nueva', 'asignada', 'aceptada', 'en proceso', 'pausada', 'esperando info', 'bloqueada', 'pendiente validacion', 'pendiente validación', 'aprobada', 'aprobado', 'concluida', 'concluido']);
 export const isKnownStatus = t => known.has(normalized(t.status));
@@ -26,10 +41,9 @@ export function filterTickets(tickets, filters, today) {
     if (filters.folio && !normalized(t.folio).includes(normalized(filters.folio))) return false;
     if(filters.serial&&filters.serial!=='__EMPTY__'&&!ticketSerials(t).some(v=>clean(v)===clean(filters.serial)))return false;
     if(filters.model&&filters.model!=='__EMPTY__'&&!ticketModels(t).some(v=>clean(v)===clean(filters.model)))return false;
-    for (const key of ['priority','client','businessUnit','area','equipmentType','owner','status']) {
-      if (filters[key] === '__EMPTY__' && clean(t[key]) !== '') return false;
-      if (filters[key] && filters[key] !== '__EMPTY__' && clean(t[key]) !== filters[key]) return false;
-    }
+    for (const key of MULTI_FILTER_KEYS) if (!multiFilterAllows(filters[key], t[key], key)) return false;
+    if (filters.equipmentType === '__EMPTY__' && clean(t.equipmentType) !== '') return false;
+    if (filters.equipmentType && filters.equipmentType !== '__EMPTY__' && clean(t.equipmentType) !== filters.equipmentType) return false;
     const date = t[['openedAt','dueAt','closedAt'].includes(filters.dateField) ? filters.dateField : 'openedAt'];
     if (filters.from && (!date || date < filters.from)) return false;
     if (filters.to && (!date || date > filters.to)) return false;
