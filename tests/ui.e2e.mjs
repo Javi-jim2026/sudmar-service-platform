@@ -141,7 +141,7 @@ try{
   const recurrence=page.locator('#detailDialog .ticket-serial-history');
   await recurrence.filter({hasText:'89333065/0006'}).waitFor();
   assert.match(await recurrence.innerText(),/Ticket #9000/);
-  assert.equal(await recurrence.locator('[data-action="ticket"][data-id="seed"]').count(),1);
+  assert.equal(await recurrence.locator('[data-action="serial-history-ticket"][data-id="seed"]').count(),1);
   assert.equal(await recurrence.evaluate(el=>Boolean(el.compareDocumentPosition(document.querySelector('#detailDialog [data-action="copy-request"]'))&Node.DOCUMENT_POSITION_FOLLOWING)),true);
 
  await click('#detailDialog [data-action="task"]');
