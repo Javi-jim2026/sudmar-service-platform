@@ -129,12 +129,24 @@ try{
  page.once('dialog',dialog=>dialog.accept());
  await click('#newTicketDialog [data-action="close-dialog"]');
  await click('[data-action="new-task"]');await fill('#newTaskTicketSearch',ticket.folio);await page.locator('#newTaskTicket').selectOption(ticket.folio);
+  // El antecedente de la serie acompaña también la captura de actividades.
+  await page.locator('#newTaskSerialHistory').filter({hasText:'89333065/0006'}).waitFor();
+  assert.match(await page.locator('#newTaskSerialHistory').innerText(),/Ticket #9000/);
  await fill('#newTasktaskType','Instalación');await page.locator('#newTaskowner').selectOption('Javier Jimenez');await fill('#newTasknotes','Requerimiento original');await fill('#newTaskantecedentFolio','9000');
  for(let i=0;i<16;i++){await click('#newTaskChecklist [data-action="add-work"]');await page.locator('#newTaskChecklist .work-text').last().fill('Trabajo '+i);if(i<10)await page.locator('#newTaskChecklist .work-completed').last().check();}
  await page.locator('#newTaskChecklist [data-action="remove-work"]').last().click();assert.match(await page.locator('#newTaskChecklist .work-summary').innerText(),/67%/);
  rejectNext=true;await click('#newTaskForm [type="submit"]');await page.locator('#newTaskError').filter({hasText:'Permiso denegado'}).waitFor();assert.equal(await page.locator('#newTaskChecklist .work-item').count(),15);
  await click('#newTaskForm [type="submit"]');await page.locator('#newTaskDialog').waitFor({state:'hidden'});assert.equal(tables.tasks.length,1);assert.equal(tables.tasks[0].antecedent_ticket_id,'seed');
- await click('#detailDialog [data-action="task"]');await page.locator('#taskEditChecklist .work-completed').nth(10).check();
+  // El aviso se mantiene visible al abrir un ticket ya creado, sobre los botones de copiar.
+  const recurrence=page.locator('#detailDialog .ticket-serial-history');
+  await recurrence.filter({hasText:'89333065/0006'}).waitFor();
+  assert.match(await recurrence.innerText(),/Ticket #9000/);
+  assert.equal(await recurrence.locator('[data-action="serial-history-ticket"][data-id="seed"]').count(),1);
+  assert.equal(await recurrence.evaluate(el=>Boolean(el.compareDocumentPosition(document.querySelector('#detailDialog [data-action="copy-request"]'))&Node.DOCUMENT_POSITION_FOLLOWING)),true);
+
+ await click('#detailDialog [data-action="task"]');
+  await page.locator('#detailDialog .ticket-serial-history').filter({hasText:'Ticket #9000'}).waitFor();
+  await page.locator('#taskEditChecklist .work-completed').nth(10).check();
  await add('activity_statuses','taskEdit','Esperando acceso',async()=>{await page.locator('#catalogGroup').selectOption('DETENIDA');await fill('#catalogForm [name="description"]','Falta autorización de acceso al sitio.');});
  await click('[data-action="save-task-update"]');await page.locator('#toast').filter({hasText:'Actividad actualizada'}).waitFor();
  await page.locator('#taskEditstatus').selectOption('COMPLETADA');await click('[data-action="save-task-update"]');await page.locator('#toast').filter({hasText:'resultado y la resolución'}).waitFor();

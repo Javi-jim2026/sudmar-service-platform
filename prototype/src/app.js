@@ -7,7 +7,7 @@ import {evidenceFolders,evidenceRequestMessage} from './evidence-request.js';
 import {armUnsaved,clearUnsaved,confirmDiscard,isUnsaved,installUnsavedProtection} from './unsaved-guard.js';
 import {icon} from './icons.js';
 import {inventoryStatuses,renderInventoryEquipment,renderInventoryDetails} from './inventory.js';
-import {ticketsByVisibility,antecedentsBySerial} from './visibility.js';
+import {ticketsByVisibility,antecedentsBySerial,relatedTicketSerials} from './visibility.js';
 import {multiEquipmentMarkup,changeMultiMode,refreshMultiCatalogs,handleMultiAction,readMultiEquipment,multiSummary,updateMultiProgress} from './multi-equipment.js';
 import {normalized, clean, blankFilters, MULTI_FILTER_KEYS, isConcludedStatus, parseMultiFilter, isKnownStatus, isClosed, isActive, isOverdue, taskComplete, taskClosed, taskCategory, validSerial, unique, filterTickets, linkedTasks, metrics, countsBy, equipmentGroups, ticketSerials, safeEvidenceUrl, toCsv} from './core.js';
 
@@ -416,6 +416,13 @@ function renderActivityTicketOptions(query='',selected=''){
  select.innerHTML='<option value="">Seleccionar ticket</option>'+matches.map(t=>`<option value="${e(t.folio)}" ${String(t.folio)===String(selected)?'selected':''}>#${e(t.folio)} · ${e(t.client||'Sin cliente')} · ${e(t.title||'Sin título')}${t.model?' · '+e(t.model):''}${isClosed(t)?' · '+e(t.status):''}${t.operationalHidden?' · DESACTIVADO':''}</option>`).join('');
  const help=$('newTaskTicketSearch')?.closest('.field')?.querySelector('.field-help');
  if(help) help.textContent=normalized(query)?(matches.length+' coincidencia'+(matches.length===1?'':'s')+' encontradas.'):'Mostrando los 40 tickets activos más recientes. Escribe para buscar en todos.';
+ renderNewTaskSerialHistory();
+}
+function renderNewTaskSerialHistory(){
+ const target=$('newTaskSerialHistory');if(!target)return;
+ const folio=$('newTaskTicket')?.value||'';
+ const ticket=state.data.tickets.find(t=>t.folio===folio);
+ target.innerHTML=ticket?serialHistoryMarkup(ticket,false):'';
 }
 function progressMarkup(task){
  const p=checklistProgress(task);
@@ -492,7 +499,7 @@ function openDetail(html){
  return true;
 }
 function detailField(label,value){return `<div class="detail-field"><span>${label}</span><strong>${e(value||'Sin registrar')}</strong></div>`;}
-function showEquipment(serial){const list=state.data.tickets.filter(t=>ticketSerials(t).some(s=>normalized(s)===normalized(serial)));const models=unique(list.map(t=>t.model));openDetail(detailHeader('SERVICIOS REGISTRADOS','Serie '+serial)+`<div class="detail-heading-title"><h3>${models.map(e).join(' · ')||'Modelo sin registrar'}</h3><p class="definition-note">Modelos tal como figuran en los tickets. El Excel no documenta necesariamente el motivo de sus diferencias.</p></div><div class="detail-section"><h3>${list.length} tickets asociados</h3>${sortRecent(list).map(t=>`<button class="task-row" data-action="ticket" data-id="${t.id}"><span class="entity-icon">${icon('ticket')}</span><span class="task-row-title">#${e(t.folio)} · ${e(t.title)}<small>${fmt(t.openedAt,true)} · ${e(t.client)}</small></span><span>${badge(t)}</span></button>`).join('')}</div>`);}
+function showEquipment(serial){const list=antecedentsBySerial(state.data.tickets,serial);const models=unique(list.map(t=>t.model));openDetail(detailHeader('SERVICIOS REGISTRADOS','Serie '+serial)+`<div class="detail-heading-title"><h3>${models.map(e).join(' · ')||'Modelo sin registrar'}</h3><p class="definition-note">Modelos tal como figuran en los tickets. El Excel no documenta necesariamente el motivo de sus diferencias.</p></div><div class="detail-section"><h3>${list.length} tickets asociados</h3>${sortRecent(list).map(t=>`<button class="task-row" data-action="ticket" data-id="${t.id}"><span class="entity-icon">${icon('ticket')}</span><span class="task-row-title">#${e(t.folio)} · ${e(t.title)}<small>${fmt(t.openedAt,true)} · ${e(t.client)}</small></span><span>${badge(t)}</span></button>`).join('')}</div>`);}
 function showSource(){const m=state.data.metadata;openDetail(detailHeader('INFORMACIÓN DE DATOS','Fuente operativa')+`<div class="dialog-body"><p>La operación actual se consulta desde Supabase. El Excel se conserva como fuente histórica de los tickets migrados.</p><div class="source-list">${[['Archivo',m.sourceFile],['Modificado en origen',fmt(m.sourceModifiedAt,true)],['Importado',fmt(m.importedAt,true)],['Tickets',n(m.counts.tickets)],['Actividades operativas',n(m.counts.tasks)],['Actividades históricas archivadas',n(m.archivedTaskCount||0)],['Actividades sin descripción',n(m.quality.tasksWithoutTitle)],['Estados sin clasificar',n(state.data.tickets.filter(t=>!isKnownStatus(t)).length)]].map(([label,value])=>`<div class="source-item"><span>${label}</span><strong>${e(value)}</strong></div>`).join('')}</div><p class="definition-note">Activos: estados reconocidos que no están cerrados ni cancelados. Fuera de plazo: tickets activos con meta anterior al ${fmt(today,true)}. Una carpeta enlazada no acredita que contenga evidencias.</p><p class="definition-note">Los valores originales permanecen en el histórico de cada ticket. Los filtros por fecha muestran registros del periodo; no reconstruyen cómo estaban los tickets en esa fecha.</p><details class="extra-details"><summary>Hojas conservadas del archivo</summary><div class="source-list">${m.sheets.map(s=>`<div class="source-item"><span>${e(s.name)}</span><strong>${n(s.nonemptyRows)} filas con contenido</strong></div>`).join('')}</div><p>Las hojas de referencia, instrucciones, resumen y calendario se conservan como datos de origen. Los tickets se calculan desde TICKETS. Las tareas operativas se calculan únicamente desde TAREAS_PLATAFORMA; la hoja TAREAS anterior se conserva como histórico y no participa en los indicadores.</p></details><button class="button secondary" data-action="install" style="margin-top:22px">Instalar en el teléfono ${icon('download')}</button></div>`);}
 
 function getSavedViews(){try{const data=JSON.parse(localStorage.getItem(config.storageKey)||'[]');return Array.isArray(data)?data.filter(v=>typeof v.name==='string'&&v.filters&&typeof v.filters==='object').slice(0,10):[];}catch{return [];}}
@@ -530,6 +537,7 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
  if(a==='remove-filter'){state.filters[b.dataset.key]=blankFilters()[b.dataset.key];state.page=1;render();}
  if(a==='filter')setFilter(b.dataset.key,b.dataset.value);
  if(a==='ticket')showTicketDetail(b.dataset.id);
+ if(a==='serial-history-ticket')showTicketDetail(b.dataset.id);
  if(a==='delete-ticket')confirmTicketDeletion(b.dataset.id);
  if(a==='toggle-ticket-visibility'){(async()=>{
   const ticket=state.data.tickets.find(t=>t.id===b.dataset.id);
@@ -631,7 +639,8 @@ document.addEventListener('change',event=>{
    }
    if(event.target.id==='ticketPageSize'){const value=event.target.value;if(TICKET_PAGE_SIZES.includes(value)){state.ticketPageSize=value;state.page=1;render();}}
    if(event.target.id==='ticketMobileSort'){const [key,order]=event.target.value.split(':');if(['folio','dueAt'].includes(key)&&['asc','desc'].includes(order)){state.ticketSortField=key;state.ticketSortOrder=order;state.page=1;render();}}
-  if(event.target.id==='taskStatus'){state.taskStatus=event.target.value;state.page=1;render();}
+  if(event.target.id==='newTaskTicket')renderNewTaskSerialHistory();
+ if(event.target.id==='taskStatus'){state.taskStatus=event.target.value;state.page=1;render();}
  if(event.target.id==='taskOwner'){state.taskOwner=event.target.value;state.page=1;render();}
  if(event.target.id==='taskCategory'){state.taskCategory=event.target.value;state.page=1;render();}
  if(event.target.id==='calendarMonthPicker'){state.calendarMonth=event.target.value||today.slice(0,7);render();}
@@ -760,6 +769,27 @@ function renderNewTicketAntecedents(){
 function openNewTicket(){
  $('newTicketForm').querySelector('.filter-fields').innerHTML=ticketFields('newTicket')+(config.features.testTicketDeletion?'<label class="full-width"><input id="newTicketIsTest" type="checkbox"> Ticket de prueba (solo podrá eliminarse mientras no registre trabajo real)</label>':'');$('newTicketError').textContent='';changeMultiMode('newTicket',catalogs());$('newTicketDialog').showModal();armUnsaved($('newTicketDialog'),$('newTicketForm'));
 }
+function serialHistoryMarkup(ticket,interactive=true){
+ if(!ticket)return '';
+ const groups=relatedTicketSerials(state.data.tickets,ticket);
+ if(!groups.length)return '';
+ const total=new Set(groups.flatMap(group=>group.tickets.map(t=>t.id))).size;
+ return `<aside class="ticket-serial-history" aria-label="Historial relacionado por número de serie">
+  <div class="ticket-serial-history-heading"><span class="ticket-serial-history-icon" aria-hidden="true">↻</span><div>
+   <strong>Reincidencia de equipo · antecedentes por número de serie</strong>
+   <p>${n(total)} ticket${total===1?'':'s'} relacionado${total===1?'':'s'} con este equipo, incluidos los desactivados.</p>
+  </div></div>
+  ${groups.map(group=>`<div class="ticket-serial-history-group">
+   <div class="ticket-serial-history-serial">Serie <strong>${e(group.serial)}</strong> · ${n(group.tickets.length)} registro${group.tickets.length===1?'':'s'} relacionado${group.tickets.length===1?'':'s'}</div>
+   <div class="ticket-serial-history-links">${group.tickets.slice(0,5).map(other=>{
+    const label=`Ticket #${other.folio} · ${other.status||'Sin estado'} · ${other.client||'Sin cliente'} · ${other.openedAt?fmt(other.openedAt,true):'Sin fecha'}${other.operationalHidden?' · Desactivado':''}`;
+    return interactive?`<button type="button" class="ticket-serial-history-link" data-action="serial-history-ticket" data-id="${e(other.id)}" title="Abrir atención relacionada">${e(label)}</button>`:`<span class="ticket-serial-history-link static">${e(label)}</span>`;
+   }).join('')}</div>
+   ${group.tickets.length>5&&interactive?`<button type="button" class="ticket-serial-history-more" data-action="equipment" data-value="${e(group.serial)}">Ver historial completo de la serie ↗</button>`:''}
+  </div>`).join('')}
+  <p class="ticket-serial-history-note">La coincidencia de serie documenta atenciones relacionadas, pero no confirma que sea la misma falla.</p>
+ </aside>`;
+}
 function ticketVisibilitySection(ticket){
  const hidden=ticket.operationalHidden===true;
  return `<section class="detail-section ticket-visibility-section"><h3>Visibilidad en Operaciones</h3>
@@ -772,6 +802,7 @@ function showTicketDetail(id){
  const t=state.data.tickets.find(t=>t.id===id);if(!t)return;
  const tasks=state.data.tasks.filter(x=>x.ticketFolio===t.folio),url=safeEvidenceUrl(t.evidenceUrl),hasEvidenceFolders=evidenceFolders(t,tasks).length>0;
  if(!openDetail(detailHeader('SEGUIMIENTO DEL SERVICIO','Ticket #'+t.folio)+`<div class="detail-heading-title"><h3>${e(t.title)}</h3><div class="detail-badges">${badge(t)}${priority(t)}${multiSummary(t)}${t.operationalHidden?'<span class="badge slate">Desactivado</span>':''}</div></div>
+ ${serialHistoryMarkup(t)}
  <section class="detail-section sudmar-dual-summary"><h3>RESUMEN PARA CÉDULA</h3><p class="definition-note">Dos textos independientes, generados desde la captura guiada. Se actualizan al editar los campos.</p><div class="sudmar-summary-card"><h4>Solicitud / incidencia reportada</h4><p class="note-text" id="cedulaRequestText">${e(t.description||requestSummary(t.requestContext)||t.title||'Sin solicitud documentada.')}</p><button type="button" class="button secondary" data-action="copy-request">📋 Copiar solicitud</button></div><div class="sudmar-summary-card"><h4>Resolución / trabajos realizados</h4><p class="note-text" id="cedulaResolutionText">${e(resolutionSummary(t))}</p><button type="button" class="button secondary" data-action="copy-resolution">📋 Copiar resolución</button></div>${hasEvidenceFolders?`<div class="sudmar-evidence-request-action"><button type="button" class="button secondary" data-action="copy-evidence-request" data-id="${e(t.id)}" title="Copiar mensaje para solicitar evidencias de este ticket">📁 Copiar solicitud de evidencias</button><p class="definition-note">Mensaje con folio, cliente, servicio y enlaces de las actividades.</p></div>`:''}</section>
  <section class="detail-section"><div class="filter-fields">${ticketFields('ticketEdit',t)}
  <h3 class="full-width">Resolución y cierre</h3>
@@ -811,12 +842,12 @@ function readActivityFields(prefix,task={}){
 }
 function openNewTask(ticketFolio=''){
  const form=$('newTaskForm');form.reset();
- form.querySelector('.filter-fields').innerHTML=field('Buscar ticket principal','<input id="newTaskTicketSearch" placeholder="Folio, cliente, modelo o serie">')+field('Ticket de esta actividad','<select id="newTaskTicket" name="ticketFolio" required></select>')+activityFields('newTask',{ticketFolio});
+ form.querySelector('.filter-fields').innerHTML=field('Buscar ticket principal','<input id="newTaskTicketSearch" placeholder="Folio, cliente, modelo o serie">')+field('Ticket de esta actividad','<select id="newTaskTicket" name="ticketFolio" required></select>')+'<div id="newTaskSerialHistory" class="full-width" aria-live="polite"></div>'+activityFields('newTask',{ticketFolio});
  renderActivityTicketOptions('',ticketFolio);updateWorkSummary($('newTaskChecklist'));$('newTaskError').textContent='';$('newTaskDialog').showModal();armUnsaved($('newTaskDialog'),$('newTaskForm'));
 }
 function showTaskDetail(id){
  const task=state.data.tasks.find(x=>x.id===id);if(!task)return;
- if(!openDetail(detailHeader('ACTIVIDAD · '+task.platformId,task.taskType||task.title)+`<section class="detail-section"><button class="text-action" data-action="ticket" data-id="${e(state.data.tickets.find(t=>t.folio===task.ticketFolio)?.id)}">Ticket #${e(task.ticketFolio)}</button>${task.title!==task.taskType?`<details><summary>Descripción histórica</summary><p>${e(task.title)}</p></details>`:''}${progressMarkup(task)}<div class="filter-fields">${activityFields('taskEdit',task)}</div><button class="button primary" data-action="save-task-update" data-id="${e(id)}">Guardar cambios</button></section>`))return;updateWorkSummary($('taskEditChecklist'));
+ if(!openDetail(detailHeader('ACTIVIDAD · '+task.platformId,task.taskType||task.title)+serialHistoryMarkup(state.data.tickets.find(t=>t.folio===task.ticketFolio))+`<section class="detail-section"><button class="text-action" data-action="ticket" data-id="${e(state.data.tickets.find(t=>t.folio===task.ticketFolio)?.id)}">Ticket #${e(task.ticketFolio)}</button>${task.title!==task.taskType?`<details><summary>Descripción histórica</summary><p>${e(task.title)}</p></details>`:''}${progressMarkup(task)}<div class="filter-fields">${activityFields('taskEdit',task)}</div><button class="button primary" data-action="save-task-update" data-id="${e(id)}">Guardar cambios</button></section>`))return;updateWorkSummary($('taskEditChecklist'));
 }
 
 function openCatalog(kind,prefix,multiRow=null){

@@ -189,3 +189,21 @@ dialog{padding:0;border:1px solid #d8e4eb;border-radius:17px;box-shadow:0 20px 1
 .filter-multi-item input{width:17px;height:17px;flex-shrink:0;accent-color:#167d9b}
 .filter-multi-item>button{padding:4px 8px;flex-shrink:0}
 @media(max-width:700px){.filter-multi summary{min-height:46px;font-size:14px}.filter-multi-item{min-height:40px}.filter-multi-item label{font-size:13px}}
+
+/* Historial de equipos: vista de solo lectura, calculada a partir de números de serie. */
+.ticket-serial-history{margin:0 25px 18px;padding:15px 17px;border:1px solid #ead6a4;border-left:4px solid #c3912f;background:#fffaf0;border-radius:11px;color:var(--text)}
+.ticket-serial-history-heading{display:flex;gap:11px;align-items:flex-start}
+.ticket-serial-history-heading strong{display:block;font-size:13px;color:#65480f;line-height:1.5}
+.ticket-serial-history-heading p{margin:4px 0 0;color:#796849;font-size:11px;line-height:1.6}
+.ticket-serial-history-icon{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#f9e9c5;color:#7b5a1e;font-size:22px;flex-shrink:0}
+.ticket-serial-history-group{margin:10px 0 0;padding:10px 0 0;border-top:1px solid #efdfbc}
+.ticket-serial-history-serial{font-size:11px;color:#675a42;margin-bottom:8px;overflow-wrap:anywhere}
+.ticket-serial-history-links{display:flex;flex-wrap:wrap;gap:7px;max-height:180px;overflow:auto}
+.ticket-serial-history-link{border:1px solid #e3cb9b;background:#fff;color:#6b4c1b;border-radius:6px;font-size:10px;line-height:1.45;padding:7px 9px;text-align:left;white-space:normal;overflow-wrap:anywhere;max-width:100%}
+button.ticket-serial-history-link:hover{background:#ffefcb;border-color:#bd974a}
+.ticket-serial-history-link.static{display:inline-block;color:#78694e;background:#fffdf8}
+.ticket-serial-history-more{display:inline-block;border:0;background:none;padding:8px 0 0;font-size:11px;color:#825f22;text-decoration:underline;text-align:left}
+.ticket-serial-history-note{font-size:10px;color:#786d5c;line-height:1.6;margin-top:11px}
+#newTaskSerialHistory:empty{display:none}
+#newTaskSerialHistory .ticket-serial-history{margin:0}
+@media(max-width:700px){.ticket-serial-history{margin:0 15px 15px;padding:13px}.ticket-serial-history-links{flex-direction:column}.ticket-serial-history-link{width:100%}.ticket-serial-history-heading strong{font-size:12px}}
