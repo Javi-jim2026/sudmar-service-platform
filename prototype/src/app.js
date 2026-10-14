@@ -798,10 +798,30 @@ function ticketVisibilitySection(ticket){
   ${repository.canWrite()?`<button type="button" class="button secondary" data-action="toggle-ticket-visibility" data-id="${e(ticket.id)}">${hidden?'Reactivar ticket':'Desactivar y ocultar ticket'}</button>`:'<p class="definition-note">Edición no disponible.</p>'}
  </section>`;
 }
+function ticketHeaderSummary(t){
+ const equipment=t.isMultiEquipment&&t.linkedEquipment?.length
+   ?t.linkedEquipment
+   :[{model:t.model,serial:t.serial}];
+ const models=[...new Set(equipment.map(x=>String(x.model||'').trim()).filter(Boolean))];
+ const serials=[...new Set(equipment.map(x=>String(x.serial||'').trim()).filter(Boolean))];
+ const fields=[
+  ['Cliente',t.client],
+  ['Unidad',t.businessUnit],
+  ['Equipo',models.length?models.join(' · '):'Sin modelo registrado'],
+  ['Núm. de serie',serials.length?serials.join(' · '):'Sin serie registrada'],
+  ['Fecha de inicio',t.openedAt?fmt(t.openedAt,true):'Sin fecha'],
+  ['Responsable',t.owner]
+ ];
+ return `<section class="ticket-header-summary" aria-label="Datos principales del ticket">
+  ${fields.map(([label,value])=>`<div class="ticket-header-fact"><span>${e(label)}</span><strong>${e(value||'Sin registrar')}</strong></div>`).join('')}
+  ${t.isMultiEquipment?`<div class="ticket-header-equipment-count">${n(equipment.length)} equipos registrados en este ticket</div>`:''}
+ </section>`;
+}
 function showTicketDetail(id){
  const t=state.data.tickets.find(t=>t.id===id);if(!t)return;
  const tasks=state.data.tasks.filter(x=>x.ticketFolio===t.folio),url=safeEvidenceUrl(t.evidenceUrl),hasEvidenceFolders=evidenceFolders(t,tasks).length>0;
  if(!openDetail(detailHeader('SEGUIMIENTO DEL SERVICIO','Ticket #'+t.folio)+`<div class="detail-heading-title"><h3>${e(t.title)}</h3><div class="detail-badges">${badge(t)}${priority(t)}${multiSummary(t)}${t.operationalHidden?'<span class="badge slate">Desactivado</span>':''}</div></div>
+ ${ticketHeaderSummary(t)}
  ${serialHistoryMarkup(t)}
  <section class="detail-section sudmar-dual-summary"><h3>RESUMEN PARA CÉDULA</h3><p class="definition-note">Dos textos independientes, generados desde la captura guiada. Se actualizan al editar los campos.</p><div class="sudmar-summary-card"><h4>Solicitud / incidencia reportada</h4><p class="note-text" id="cedulaRequestText">${e(t.description||requestSummary(t.requestContext)||t.title||'Sin solicitud documentada.')}</p><button type="button" class="button secondary" data-action="copy-request">📋 Copiar solicitud</button></div><div class="sudmar-summary-card"><h4>Resolución / trabajos realizados</h4><p class="note-text" id="cedulaResolutionText">${e(resolutionSummary(t))}</p><button type="button" class="button secondary" data-action="copy-resolution">📋 Copiar resolución</button></div>${hasEvidenceFolders?`<div class="sudmar-evidence-request-action"><button type="button" class="button secondary" data-action="copy-evidence-request" data-id="${e(t.id)}" title="Copiar mensaje para solicitar evidencias de este ticket">📁 Copiar solicitud de evidencias</button><p class="definition-note">Mensaje con folio, cliente, servicio y enlaces de las actividades.</p></div>`:''}</section>
  <section class="detail-section"><div class="filter-fields">${ticketFields('ticketEdit',t)}
