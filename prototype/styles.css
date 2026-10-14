@@ -207,3 +207,12 @@ button.ticket-serial-history-link:hover{background:#ffefcb;border-color:#bd974a}
 #newTaskSerialHistory:empty{display:none}
 #newTaskSerialHistory .ticket-serial-history{margin:0}
 @media(max-width:700px){.ticket-serial-history{margin:0 15px 15px;padding:13px}.ticket-serial-history-links{flex-direction:column}.ticket-serial-history-link{width:100%}.ticket-serial-history-heading strong{font-size:12px}}
+
+/* Resumen visible del ticket, sin modificar sus datos ni el formulario de edición. */
+.ticket-header-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px 20px;margin:0 25px 18px;padding:16px 18px;border:1px solid #dce7ed;border-radius:12px;background:#f6fafc}
+.ticket-header-fact{min-width:0;display:flex;flex-direction:column;gap:5px}
+.ticket-header-fact span{font-size:10px;letter-spacing:.35px;text-transform:uppercase;color:#607f91;font-weight:650}
+.ticket-header-fact strong{font-size:13px;color:#102b43;line-height:1.45;overflow-wrap:anywhere}
+.ticket-header-equipment-count{grid-column:1/-1;font-size:11px;color:#567588;font-weight:600}
+@media(max-width:700px){.ticket-header-summary{grid-template-columns:repeat(2,minmax(0,1fr));margin:0 16px 16px;padding:13px;gap:13px}.ticket-header-fact strong{font-size:12px}}
+@media(max-width:390px){.ticket-header-summary{grid-template-columns:1fr}}

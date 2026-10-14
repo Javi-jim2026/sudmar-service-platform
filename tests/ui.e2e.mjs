@@ -138,6 +138,17 @@ try{
  rejectNext=true;await click('#newTaskForm [type="submit"]');await page.locator('#newTaskError').filter({hasText:'Permiso denegado'}).waitFor();assert.equal(await page.locator('#newTaskChecklist .work-item').count(),15);
  await click('#newTaskForm [type="submit"]');await page.locator('#newTaskDialog').waitFor({state:'hidden'});assert.equal(tables.tasks.length,1);assert.equal(tables.tasks[0].antecedent_ticket_id,'seed');
   // El aviso se mantiene visible al abrir un ticket ya creado, sobre los botones de copiar.
+  // Encabezado compacto con datos críticos, previo al historial de antecedentes.
+  const quick=page.locator('#detailDialog .ticket-header-summary');
+  await quick.waitFor();
+  const quickText=await quick.innerText();
+  assert.match(quickText,/Cliente/i);
+  assert.match(quickText,/Equipo/i);
+  assert.match(quickText,/Núm. de serie/i);
+  assert.match(quickText,/Fecha de inicio/i);
+  assert.match(quickText,/Responsable/i);
+  assert.match(quickText,/89333065\/0006/);
+  assert.equal(await quick.evaluate(el=>Boolean(el.compareDocumentPosition(document.querySelector('#detailDialog .ticket-serial-history'))&Node.DOCUMENT_POSITION_FOLLOWING)),true);
   const recurrence=page.locator('#detailDialog .ticket-serial-history');
   await recurrence.filter({hasText:'89333065/0006'}).waitFor();
   assert.match(await recurrence.innerText(),/Ticket #9000/);
