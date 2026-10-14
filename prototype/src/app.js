@@ -537,6 +537,7 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
  if(a==='remove-filter'){state.filters[b.dataset.key]=blankFilters()[b.dataset.key];state.page=1;render();}
  if(a==='filter')setFilter(b.dataset.key,b.dataset.value);
  if(a==='ticket')showTicketDetail(b.dataset.id);
+ if(a==='serial-history-ticket')showTicketDetail(b.dataset.id);
  if(a==='delete-ticket')confirmTicketDeletion(b.dataset.id);
  if(a==='toggle-ticket-visibility'){(async()=>{
   const ticket=state.data.tickets.find(t=>t.id===b.dataset.id);
@@ -782,7 +783,7 @@ function serialHistoryMarkup(ticket,interactive=true){
    <div class="ticket-serial-history-serial">Serie <strong>${e(group.serial)}</strong> · ${n(group.tickets.length)} registro${group.tickets.length===1?'':'s'} relacionado${group.tickets.length===1?'':'s'}</div>
    <div class="ticket-serial-history-links">${group.tickets.slice(0,5).map(other=>{
     const label=`Ticket #${other.folio} · ${other.status||'Sin estado'} · ${other.client||'Sin cliente'} · ${other.openedAt?fmt(other.openedAt,true):'Sin fecha'}${other.operationalHidden?' · Desactivado':''}`;
-    return interactive?`<button type="button" class="ticket-serial-history-link" data-action="ticket" data-id="${e(other.id)}" title="Abrir atención relacionada">${e(label)}</button>`:`<span class="ticket-serial-history-link static">${e(label)}</span>`;
+    return interactive?`<button type="button" class="ticket-serial-history-link" data-action="serial-history-ticket" data-id="${e(other.id)}" title="Abrir atención relacionada">${e(label)}</button>`:`<span class="ticket-serial-history-link static">${e(label)}</span>`;
    }).join('')}</div>
    ${group.tickets.length>5&&interactive?`<button type="button" class="ticket-serial-history-more" data-action="equipment" data-value="${e(group.serial)}">Ver historial completo de la serie ↗</button>`:''}
   </div>`).join('')}
