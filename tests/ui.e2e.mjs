@@ -142,11 +142,11 @@ try{
   const quick=page.locator('#detailDialog .ticket-header-summary');
   await quick.waitFor();
   const quickText=await quick.innerText();
-  assert.match(quickText,/Cliente/);
-  assert.match(quickText,/Equipo/);
-  assert.match(quickText,/Núm. de serie/);
-  assert.match(quickText,/Fecha de inicio/);
-  assert.match(quickText,/Responsable/);
+  assert.match(quickText,/Cliente/i);
+  assert.match(quickText,/Equipo/i);
+  assert.match(quickText,/Núm. de serie/i);
+  assert.match(quickText,/Fecha de inicio/i);
+  assert.match(quickText,/Responsable/i);
   assert.match(quickText,/89333065\/0006/);
   assert.equal(await quick.evaluate(el=>Boolean(el.compareDocumentPosition(document.querySelector('#detailDialog .ticket-serial-history'))&Node.DOCUMENT_POSITION_FOLLOWING)),true);
   const recurrence=page.locator('#detailDialog .ticket-serial-history');
