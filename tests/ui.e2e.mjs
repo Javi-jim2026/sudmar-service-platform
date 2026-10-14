@@ -130,7 +130,6 @@ try{
  await click('#newTicketDialog [data-action="close-dialog"]');
  await click('[data-action="new-task"]');await fill('#newTaskTicketSearch',ticket.folio);await page.locator('#newTaskTicket').selectOption(ticket.folio);
   // El antecedente de la serie acompaña también la captura de actividades.
-  await page.locator('#newTaskSerialHistory').filter({hasText:'333301/0011'}).count().catch(()=>0);
   await page.locator('#newTaskSerialHistory').filter({hasText:'89333065/0006'}).waitFor();
   assert.match(await page.locator('#newTaskSerialHistory').innerText(),/Ticket #9000/);
  await fill('#newTasktaskType','Instalación');await page.locator('#newTaskowner').selectOption('Javier Jimenez');await fill('#newTasknotes','Requerimiento original');await fill('#newTaskantecedentFolio','9000');
