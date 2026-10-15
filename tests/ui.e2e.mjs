@@ -156,6 +156,13 @@ try{
   assert.equal(await recurrence.evaluate(el=>Boolean(el.compareDocumentPosition(document.querySelector('#detailDialog [data-action="copy-request"]'))&Node.DOCUMENT_POSITION_FOLLOWING)),true);
 
  await click('#detailDialog [data-action="task"]');
+  // La actividad reabierta debe mostrar la vinculación en la parte superior.
+  const parentSummary=page.locator('#detailDialog .activity-parent-summary');
+  await parentSummary.waitFor();
+  assert.match(await parentSummary.innerText(),/Ticket principal de esta actividad/i);
+  assert.match(await parentSummary.innerText(),new RegExp('Ticket #'+ticket.folio));
+  assert.equal(await parentSummary.locator('[data-action="ticket"]').count(),1);
+
   await page.locator('#detailDialog .ticket-serial-history').filter({hasText:'Ticket #9000'}).waitFor();
   await page.locator('#taskEditChecklist .work-completed').nth(10).check();
  await add('activity_statuses','taskEdit','Esperando acceso',async()=>{await page.locator('#catalogGroup').selectOption('DETENIDA');await fill('#catalogForm [name="description"]','Falta autorización de acceso al sitio.');});
