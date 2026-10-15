@@ -216,3 +216,12 @@ button.ticket-serial-history-link:hover{background:#ffefcb;border-color:#bd974a}
 .ticket-header-equipment-count{grid-column:1/-1;font-size:11px;color:#567588;font-weight:600}
 @media(max-width:700px){.ticket-header-summary{grid-template-columns:repeat(2,minmax(0,1fr));margin:0 16px 16px;padding:13px;gap:13px}.ticket-header-fact strong{font-size:12px}}
 @media(max-width:390px){.ticket-header-summary{grid-template-columns:1fr}}
+
+/* Referencia principal de la actividad: siempre visible al volver a abrirla. */
+.activity-parent-summary{margin:18px 25px 0;padding:14px 17px;border:1px solid #cddfe9;border-left:4px solid #2285ac;border-radius:11px;background:#f2f8fb}
+.activity-parent-summary>span{font-size:10px;text-transform:uppercase;letter-spacing:.45px;font-weight:700;color:#55788c}
+.activity-parent-main{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:7px}
+.activity-parent-main strong{font-size:18px;color:#0e2c43}
+.activity-parent-summary p{margin:8px 0 0;font-size:12px;color:#476b80;overflow-wrap:anywhere;line-height:1.5}
+.activity-parent-unavailable{font-size:11px;color:#876b44}
+@media(max-width:700px){.activity-parent-summary{margin:14px 16px 0;padding:13px}.activity-parent-main strong{font-size:16px}}
