@@ -16,7 +16,7 @@ const e=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;',
 const n=value=>new Intl.NumberFormat('es-MX').format(value);
 const fmt=(value,full=false)=>value ? new Intl.DateTimeFormat('es-MX',{day:'2-digit',month:'short',...(full?{year:'numeric'}:{})}).format(new Date(value.slice(0,10)+'T12:00:00')) : 'Sin fecha';
 const today=new Intl.DateTimeFormat('en-CA',{timeZone:config.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-const views={dashboard:{label:'Resumen',icon:'grid',title:'Centro de operaciones',subtitle:'La información de tu operación, en un solo lugar.'},tickets:{label:'Tickets',icon:'ticket',title:'Control de tickets',subtitle:'Consulta, filtra y sigue cada solicitud de servicio.'},tasks:{label:'Actividades',icon:'tasks',title:'Actividades de los tickets',subtitle:'Cada actividad ligada a un ticket, con responsable, estado y fecha compromiso.'},calendar:{label:'Calendario',icon:'calendar',title:'Calendario operativo',subtitle:'Planea aperturas de tickets y actividades por fecha, responsable y duración.'},team:{label:'Personal',icon:'users',title:'Personal y responsabilidades',subtitle:'Carga de trabajo, áreas, cargos y capacidad de atención en campo.'},equipment:{label:'Equipos',icon:'engine',title:'Equipos y servicios',subtitle:'Consulta los servicios registrados para cada número de serie.'},clients:{label:'Clientes',icon:'users',title:'Clientes y contactos',subtitle:'La operación por cliente y el directorio del Excel.'}};
+const views={dashboard:{label:'Resumen',icon:'grid',title:'Centro de operaciones',subtitle:'La información de tu operación, en un solo lugar.'},tickets:{label:'Tickets',icon:'ticket',title:'Control de tickets',subtitle:'Consulta, filtra y sigue cada solicitud de servicio.'},tasks:{label:'Actividades',icon:'tasks',title:'Actividades de los tickets',subtitle:'Cada actividad ligada a un ticket, con responsable, estado y fecha compromiso.'},calendar:{label:'Calendario',icon:'calendar',title:'Calendario operativo',subtitle:'Planea aperturas de tickets y actividades por fecha, responsable y duración.'},team:{label:'Personal',icon:'users',title:'Personal y responsabilidades',subtitle:'Carga de trabajo, áreas, cargos y capacidad de atención en campo.'},equipment:{label:'Equipos',icon:'engine',title:'Equipos y servicios',subtitle:'Consulta los servicios registrados para cada número de serie.'},clients:{label:'Clientes',icon:'users',title:'Clientes y contactos',subtitle:'La operación por cliente y el directorio del Excel.'},reports:{label:'Reportes técnicos',icon:'tasks',title:'Reportes técnicos',subtitle:'Acceso a los formularios de servicio, evaluación y pruebas con carga.'}};
 const filterLabels={q:'Búsqueda',folio:'Folio',priority:'SLA técnico',client:'Cliente',businessUnit:'Unidad de negocio',area:'Área',equipmentType:'Tipo de equipo',owner:'Responsable del ticket',status:'Estado',model:'Modelo',serial:'Serie',from:'Desde',to:'Hasta',overdue:'Fuera de plazo',activeOnly:'Tickets activos'};
 const statusStyle={
   abierto:{label:'Abierto',tone:'blue',color:'#2f80ed'},
@@ -477,6 +477,14 @@ async function submitNewTask(event){
  finally{button.disabled=false;}
 }
 
+function renderTechnicalReports(){
+ const forms=[
+  {title:'Servicio y diagnóstico',description:'Inspección técnica, diagnóstico y evidencia de servicios.',url:'https://javi-jim2026.github.io/sudmar-diagnostico/'},
+  {title:'Evaluación de fabricantes',description:'Inspección de calidad, ensamble y equipamiento de nuevos fabricantes.',url:'https://javi-jim2026.github.io/sudmar-diagnostico/evaluacion-fabricantes.html'},
+  {title:'Pruebas con carga',description:'Registro y resultados de pruebas de funcionamiento con carga.',url:'https://javi-jim2026.github.io/sudmar-pruebas-carga/'}
+ ];
+ return `<section class="technical-reports" aria-label="Formularios técnicos"><div class="technical-reports-grid">${forms.map(f=>`<article class="technical-report-card"><h2>${e(f.title)}</h2><p>${e(f.description)}</p><a class="button primary" href="${e(f.url)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir ${e(f.title)} en una nueva pestaña">Abrir formulario ${icon('external')}</a></article>`).join('')}</div><p class="technical-reports-footnote">Los formularios se abren en una pestaña independiente; los tickets y las actividades de SUDMAR permanecen sin cambios.</p></section>`;
+}
 function render(){if(!state.data)return;const tickets=filtered();const view=views[state.view];$('pageTitle').textContent=view.title;$('pageSubtitle').textContent=view.subtitle;$('breadcrumbTitle').textContent=view.label;$('globalSearch').value=state.filters.q;renderNav();renderFilterChips();$('resultAnnouncement').textContent=`${tickets.length} tickets coinciden con los filtros.`;
  if(state.view==='dashboard')$('content').innerHTML=kpis(tickets)+operationalTaskPanel()+`<div class="grid-main">${statusPanel(tickets)}${trendPanel(tickets)}</div>`+teamWorkloadPanel(tickets)+renderTickets(tickets,true)+`<div class="grid-even" style="margin-top:18px">${barsPanel(tickets,'equipmentType','Tipos de equipo','Equipos en la vista actual')}${barsPanel(tickets,'businessUnit','Unidades de negocio','Participación dentro de la vista actual')}</div>`;
  if(state.view==='tickets')$('content').innerHTML=renderTickets(tickets);
@@ -485,6 +493,7 @@ function render(){if(!state.data)return;const tickets=filtered();const view=view
  if(state.view==='team')$('content').innerHTML=renderTeam(tickets);
  if(state.view==='equipment')$('content').innerHTML=renderEquipment(tickets);
  if(state.view==='clients')$('content').innerHTML=renderClients(tickets);
+ if(state.view==='reports')$('content').innerHTML=renderTechnicalReports();
  $('exportButton').disabled=state.view==='clients'&&state.clientTab==='directory'&&!state.references;writeLocation();
 }
 

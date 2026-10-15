@@ -617,6 +617,17 @@ try{
   await click('[data-action="ticket"][data-id="seed"]');
   assert.equal(await page.locator('#detailDialog [data-action="copy-evidence-request"]').count(),0,'Sin ninguna carpeta válida el botón sigue oculto.');
   await click('#detailDialog [data-action="close-dialog"]');
+  // Reportes: tres enlaces externos en la navegación compartida de escritorio y móvil.
+  await click('#desktopNav [data-action="navigate"][data-view="reports"]');
+  await page.locator('#content .technical-report-card').first().waitFor();
+  assert.equal(await page.locator('#content .technical-report-card').count(),3);
+  assert.deepEqual(await page.locator('#content .technical-report-card a').evaluateAll(a=>a.map(x=>x.href)),[
+    'https://javi-jim2026.github.io/sudmar-diagnostico/',
+    'https://javi-jim2026.github.io/sudmar-diagnostico/evaluacion-fabricantes.html',
+    'https://javi-jim2026.github.io/sudmar-pruebas-carga/'
+  ]);
+  assert.equal(await page.locator('#mobileNav [data-view="reports"]').count(),1);
+  await click('#desktopNav [data-action="navigate"][data-view="dashboard"]');
   assert.deepEqual(errors,[]);console.log('All operational UI flows passed (desktop/tablet/mobile/multiequipo).');
 }finally{await browser.close();server.close();}
 
