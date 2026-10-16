@@ -30,3 +30,13 @@
 .esc-filter select{padding:7px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;max-width:230px}
 .ticket-table tbody tr[hidden],.mobile-ticket-list .mobile-ticket[hidden]{display:none!important}
 @media(max-width:650px){.esc-clock{margin-left:0}.esc-filter{width:100%;flex-wrap:wrap}.esc-dialog{width:96vw}.esc-form{padding:14px}}
+
+/* Ayuda de niveles, contextual y accesible */
+.esc-level-field{display:grid;gap:6px}
+.esc-level-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;font-weight:650}
+.esc-help-toggle{border:1px solid #b8c7d4;background:#f8fafc;color:#344a63;border-radius:50%;height:26px;width:26px;display:grid;place-items:center;cursor:pointer;font-size:17px;line-height:1}
+.esc-help-toggle:hover,.esc-help-toggle:focus-visible{background:#e5eef9;outline:2px solid #60a5fa;outline-offset:2px}
+.esc-level-help{background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:12px;display:grid;gap:10px;font-size:12px;line-height:1.55}
+.esc-level-help[hidden]{display:none}
+.esc-level-help p{margin:0}
+.esc-level-help small{font-size:11px;color:#475569}
