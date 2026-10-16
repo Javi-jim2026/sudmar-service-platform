@@ -23,10 +23,13 @@ function banner(){
  const root=document.getElementById('detailContent'),heading=root?.querySelector('.detail-heading-title'),holder=root?.querySelector('.ticket-header-summary')||heading;
  if(!holder)return;
  const s=stats(id);
+ const signature=JSON.stringify(s.all.map(x=>[x.id,x.status,x.updated_at]));
  root.classList.toggle('esc-ticket-critical',s.exec.length>0);
  root.classList.toggle('esc-ticket-operational',s.exec.length===0&&s.open.length>0);
  let panel=root.querySelector('#escalationTicketPanel');
  if(!panel){panel=document.createElement('section');panel.id='escalationTicketPanel';panel.className='esc-panel';heading?.insertAdjacentElement('afterend',panel);}
+ if(panel.dataset.signature===signature)return;
+ panel.dataset.signature=signature;
  panel.innerHTML='<div class="esc-panel-header"><strong>🚨 Control de escalamientos</strong><button type="button" class="button secondary" data-esc="create" data-ticket="'+esc(id)+'">+ Escalamiento</button></div>'+
  (s.exec.length?'<div class="esc-critical-banner"><span class="esc-beacon" aria-hidden="true"></span><strong>ALERTA EJECUTIVA ACTIVA</strong><span class="esc-clock" data-start="'+esc(s.exec[0].created_at)+'">'+elapsed(s.exec[0].created_at)+'</span></div>':s.open.length?'<div class="esc-operational-banner">⚠ Escalamiento operativo activo</div>':'')+
  '<div class="esc-counts">'+s.all.length+' alertas históricas · '+s.open.length+' activas'+(s.all.length>1?' · Reincidencia '+(s.all.length-1):'')+'</div>'+
@@ -48,14 +51,14 @@ function ticketsList(){
   const s=stats(id);
   row.classList.toggle('esc-row-critical',s.exec.length>0);
   row.classList.toggle('esc-row-operational',s.exec.length===0&&s.open.length>0);
-  row.hidden=!shouldShow(s);
+  const hide=!shouldShow(s);if(row.hidden!==hide)row.hidden=hide;
   let mark=row.querySelector('.esc-row-marker');
-  if(s.all.length){if(!mark){mark=document.createElement('span');mark.className='esc-row-marker';(row.querySelector('.ticket-title .folio,.mobile-ticket-top .folio')||row.querySelector('td')||row).append(mark);}mark.textContent=' ⚑ '+s.all.length;mark.title=s.open.length+' alertas activas · '+s.all.length+' históricas';}
+  if(s.all.length){if(!mark){mark=document.createElement('span');mark.className='esc-row-marker';(row.querySelector('.ticket-title .folio,.mobile-ticket-top .folio')||row.querySelector('td')||row).append(mark);}const label=' ⚑ '+s.all.length;if(mark.textContent!==label)mark.textContent=label;mark.title=s.open.length+' alertas activas · '+s.all.length+' históricas';}
   else mark?.remove();
  });
  let note=root.querySelector('#escFilterNotice');
  if(ticketList&&!note){note=document.createElement('small');note.id='escFilterNotice';note.className='esc-muted';ticketList.append(note);}
- if(note)note.textContent=mode==='all'?'':'Filtro aplicado a tickets cargados en esta página; no modifica los demás filtros ni el total del listado.';
+ if(note){const msg=mode==='all'?'':'Filtro aplicado a tickets cargados en esta página; no modifica los demás filtros ni el total del listado.';if(note.textContent!==msg)note.textContent=msg;}
 }
 function updateDisplay(){if(document.getElementById('detailDialog')?.open)banner();if(location.search.includes('view=tickets'))ticketsList();}
 function tick(){document.querySelectorAll('.esc-clock[data-start]').forEach(el=>el.textContent=elapsed(el.dataset.start));}
