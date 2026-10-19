@@ -473,7 +473,7 @@ async function submitNewTask(event){
    const ticket=state.data.tickets.find(t=>t.folio===payload.ticketFolio);
    if(ticket) showTicketDetail(ticket.id);
    toast('Actividad creada y ligada al ticket #'+payload.ticketFolio+'.');
- } catch(err){error.textContent=err.message||'No se pudo guardar la actividad.';}
+ } catch(err){showNewTaskValidation('⚠ '+(err.message||'No se pudo guardar la actividad.'));}
  finally{button.disabled=false;}
 }
 
@@ -623,6 +623,43 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
 $('filterForm').addEventListener('submit',event=>{event.preventDefault();applyFormFilters();});
 $('newTicketForm').addEventListener('submit',submitNewTicket);
 $('newTaskForm').addEventListener('submit',submitNewTask);
+
+function showNewTaskValidation(message,control=null){
+ const error=$('newTaskError');if(!error)return;
+ error.textContent=message;
+ error.setAttribute('role','alert');
+ error.style.display='block';
+ error.style.color='#b91c1c';
+ error.style.fontWeight='700';
+ error.style.padding='10px 12px';
+ error.style.border='1px solid #fca5a5';
+ error.style.background='#fff1f2';
+ error.style.borderRadius='8px';
+ error.scrollIntoView({block:'center',behavior:'smooth'});
+ if(control){control.setAttribute('aria-invalid','true');control.classList.add('sudmar-invalid-input');}
+}
+$('newTaskForm').addEventListener('invalid',event=>{
+ event.preventDefault();
+ const control=event.target;
+ const label=control.closest('label,.field')?.querySelector('label')?.textContent?.trim()
+   ||control.closest('label')?.textContent?.trim()
+   ||({'newTaskTicket':'Ticket principal','newTaskstartAt':'Fecha de inicio','newTaskowner':'Responsable','newTasktaskType':'Tipo de actividad'})[control.id]
+   ||control.getAttribute('aria-label')||'Campo obligatorio';
+ showNewTaskValidation('⚠ No se puede guardar la actividad. Revisa el campo: '+label+'. '+(control.validity.valueMissing?'Es obligatorio.':control.validationMessage),control);
+},true);
+$('newTaskForm').addEventListener('input',event=>{
+ const control=event.target;
+ if(control?.matches('input,select,textarea')&&control.checkValidity()){
+  control.removeAttribute('aria-invalid');control.classList.remove('sudmar-invalid-input');
+ }
+},true);
+$('newTaskForm').addEventListener('change',event=>{
+ const control=event.target;
+ if(control?.matches('input,select,textarea')&&control.checkValidity()){
+  control.removeAttribute('aria-invalid');control.classList.remove('sudmar-invalid-input');
+ }
+},true);
+
 $('globalSearch').addEventListener('input',event=>{clearTimeout(searchTimer);const value=event.target.value;searchTimer=setTimeout(()=>{state.filters.q=value;state.page=1;render();},160);});
 document.addEventListener('change',event=>{
  if(event.target.matches('.filter-multi input[type="checkbox"]')){event.target.closest('.filter-multi').dataset.multiMode='';updateMultiSummary(event.target.name);}
