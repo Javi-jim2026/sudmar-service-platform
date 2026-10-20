@@ -866,7 +866,23 @@ function ticketHeaderSummary(t){
 }
 const initialLinkedTicket=new URLSearchParams(location.search).get('ticket');
 function ticketDirectUrl(ticket){const url=new URL(location.href);url.search='';url.searchParams.set('view','tickets');url.searchParams.set('ticket',ticket.id);url.hash='';return url.toString();}
-async function copyTicketDirectLink(id){const ticket=state.data?.tickets.find(t=>t.id===id);if(!ticket){toast('No se encontró el ticket.');return;}const url=ticketDirectUrl(ticket);try{await navigator.clipboard.writeText(url);toast('Enlace directo del ticket #'+ticket.folio+' copiado.');}catch{const copy=document.createElement('textarea');copy.value=url;copy.style.position='fixed';copy.style.opacity='0';document.body.append(copy);copy.select();const ok=document.execCommand('copy');copy.remove();if(ok)toast('Enlace del ticket #'+ticket.folio+' copiado.');else window.prompt('Copia el enlace del ticket:',url);}}
+async function copyTicketDirectLink(id){
+ const ticket=state.data?.tickets.find(t=>t.id===id);
+ if(!ticket){toast('No se encontró el ticket.');return;}
+ const url=ticketDirectUrl(ticket);
+ const value='Enlace a la plataforma SUDMAR: '+url;
+ let copied=false;
+ try{await navigator.clipboard.writeText(value);copied=true;}
+ catch{
+  const copy=document.createElement('textarea');copy.value=value;copy.style.position='fixed';copy.style.opacity='0';document.body.append(copy);copy.select();
+  try{copied=document.execCommand('copy');}catch{}copy.remove();
+ }
+ if(copied){
+  toast('✅ Enlace copiado · Ticket #'+ticket.folio);
+  const button=document.querySelector('#detailContent [data-action="copy-ticket-link"]');
+  if(button){const previous=button.textContent;button.textContent='✓ Enlace copiado';setTimeout(()=>{if(button.isConnected)button.textContent=previous;},2300);}
+ }else window.prompt('Copia el enlace del ticket:',value);
+}
 function openLinkedTicket(){const id=initialLinkedTicket;if(!id||!state.data)return;const found=state.data.tickets.find(t=>t.id===id||String(t.folio)===id);if(found){state.view='tickets';render();showTicketDetail(found.id);}else toast('El ticket del enlace no está disponible.');}
 function showTicketDetail(id){
  const t=state.data.tickets.find(t=>t.id===id);if(!t)return;
