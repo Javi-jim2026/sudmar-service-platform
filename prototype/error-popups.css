@@ -1,0 +1,8 @@
+.sudmar-error-popup{width:min(480px,calc(100vw - 32px));max-height:85vh;padding:0;border:1px solid #fecaca;border-radius:16px;background:#fff;color:#1f2937;box-shadow:0 24px 70px #11182744}
+.sudmar-error-popup::backdrop{background:#0f172a85}
+.sudmar-error-popup-inner{padding:24px;display:grid;gap:18px}
+.sudmar-error-heading{display:flex;align-items:center;gap:11px}
+.sudmar-error-heading h2{margin:0;font-size:19px;line-height:1.3;color:#991b1b}
+.sudmar-error-popup [data-error-message]{margin:0;font-size:14px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+.sudmar-error-actions{display:flex;justify-content:flex-end}
+@media(max-width:550px){.sudmar-error-popup-inner{padding:18px}}
