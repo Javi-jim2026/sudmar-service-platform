@@ -1,6 +1,7 @@
 /* Avisos de validación: sin alterar los formularios ni los datos capturados. */
 const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-const errorIds=new Set(['newTicketError','newTaskError','catalogError','filterError','deleteTicketError','newTicketError','newTaskError']);
+const errorIds=new Set(['newTicketError','newTaskError','catalogError','filterError','deleteTicketError','sudmarRewriteError']);
+const isErrorNode=element=>Boolean(element&&(errorIds.has(element.id)||element.matches?.('.esc-error,.form-error')));
 let modal=null,previousFocus=null,lastMessage='',lastAt=0;
 function showError(message){
  const value=String(message??'').trim();
@@ -20,7 +21,7 @@ function showError(message){
  modal.showModal();
 }
 function checkErrorElement(el){
- if(!el||!errorIds.has(el.id))return;
+ if(!isErrorNode(el))return;
  const msg=el.textContent.trim();
  if(msg&&el.dataset.presentedError!==msg){el.dataset.presentedError=msg;showError(msg);}
  if(!msg)delete el.dataset.presentedError;
@@ -29,8 +30,8 @@ const observer=new MutationObserver(records=>{
  const nodes=new Set();
  for(const record of records){
   const element=record.target.nodeType===1?record.target:record.target.parentElement;
-  const field=element?.closest?.('[id]');
-  if(field&&errorIds.has(field.id))nodes.add(field);
+  const field=element?.closest?.('.esc-error,.form-error,[id]');
+  if(isErrorNode(field))nodes.add(field);
  }
  for(const element of nodes)checkErrorElement(element);
 });
