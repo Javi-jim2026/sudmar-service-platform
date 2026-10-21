@@ -104,6 +104,21 @@ const currentTasks=()=>tasksInScope().filter(t=>{
 
 function hydrateIcons(root=document){root.querySelectorAll('[data-icon]').forEach(el=>el.innerHTML=icon(el.dataset.icon));root.querySelectorAll('[data-icon-before]').forEach(el=>{el.insertAdjacentHTML('afterbegin',icon(el.dataset.iconBefore));delete el.dataset.iconBefore;});}
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,3800);}
+const copyFeedbackTimers=new WeakMap();
+function showCopySuccess(button,kind='texto'){
+ if(!button)return;
+ const previous=button.dataset.copyOriginalLabel||button.innerHTML;
+ if(!button.dataset.copyOriginalLabel)button.dataset.copyOriginalLabel=previous;
+ clearTimeout(copyFeedbackTimers.get(button));
+ button.textContent=kind==='enlace'?'✓ Enlace copiado':'✓ Copiado';
+ button.classList.add('copy-feedback-success');
+ button.setAttribute('aria-live','polite');
+ copyFeedbackTimers.set(button,setTimeout(()=>{
+  if(button.isConnected){button.innerHTML=button.dataset.copyOriginalLabel;button.classList.remove('copy-feedback-success');}
+  delete button.dataset.copyOriginalLabel;
+  copyFeedbackTimers.delete(button);
+ },2300));
+}
 function readLocation(){const params=new URLSearchParams(location.search);state.view=views[params.get('view')]?params.get('view'):'dashboard';const defaults=blankFilters();for(const key of Object.keys(defaults)){if(params.has(key)){const raw=params.get(key);if(MULTI_FILTER_KEYS.includes(key)){let parsed=raw;try{if(raw.startsWith('[')||raw.startsWith('{'))parsed=JSON.parse(raw);}catch{}defaults[key]=parseMultiFilter(parsed);}else defaults[key]=typeof defaults[key]==='boolean'?raw==='1':raw;}}if(!['openedAt','dueAt','closedAt'].includes(defaults.dateField))defaults.dateField='openedAt';for(const key of ['from','to'])if(defaults[key]&&!/^\d{4}-\d{2}-\d{2}$/.test(defaults[key]))defaults[key]='';state.filters=defaults;if(state.view==='tickets'&&params.has('dateField')&&Object.hasOwn(TICKET_DATE_FIELDS,defaults.dateField))state.ticketDateField=defaults.dateField;state.page=1;}
 function writeLocation(){try{const params=new URLSearchParams();if(state.view!=='dashboard')params.set('view',state.view);const defaults=blankFilters();for(const[key,value]of Object.entries(state.filters))if(value&&value!==defaults[key])params.set(key,typeof value==='boolean'?'1':typeof value==='object'?JSON.stringify(value):value);history.replaceState(null,'',location.pathname+(params.size?'?'+params.toString():'')+location.hash);}catch{/* A standalone downloaded preview may restrict history. */}}
 function navigate(view){if(!views[view])return;state.view=view;if(view==='tickets')state.filters.dateField=state.ticketDateField;state.page=1;render();window.scrollTo({top:0,behavior:'instant'});}
@@ -880,7 +895,7 @@ async function copyTicketDirectLink(id){
  if(copied){
   toast('✅ Enlace copiado · Ticket #'+ticket.folio);
   const button=document.querySelector('#detailContent [data-action="copy-ticket-link"]');
-  if(button){const previous=button.textContent;button.textContent='✓ Enlace copiado';setTimeout(()=>{if(button.isConnected)button.textContent=previous;},2300);}
+  showCopySuccess(button,'enlace');
  }else window.prompt('Copia el enlace del ticket:',value);
 }
 function openLinkedTicket(){const id=initialLinkedTicket;if(!id||!state.data)return;const found=state.data.tickets.find(t=>t.id===id||String(t.folio)===id);if(found){state.view='tickets';render();showTicketDetail(found.id);}else toast('El ticket del enlace no está disponible.');}
@@ -975,13 +990,13 @@ document.addEventListener('click',async event=>{
  const b=event.target.closest('[data-action]');if(!b)return;
  if(b.dataset.action==='add-catalog')openCatalog(b.dataset.kind,b.dataset.prefix);
   if(b.dataset.action==='multi-catalog'){const row=b.closest('.multi-unit');openCatalog(b.dataset.kind,row.dataset.prefix,row);}
- if(['copy-request','copy-resolution'].includes(b.dataset.action)){const text=$(b.dataset.action==='copy-request'?'cedulaRequestText':'cedulaResolutionText')?.textContent||'';try{await navigator.clipboard.writeText(text);toast('Resumen copiado para cédula.');}catch{toast('No se pudo copiar. Selecciona el resumen y cópialo manualmente.');}}
+ if(['copy-request','copy-resolution'].includes(b.dataset.action)){const text=$(b.dataset.action==='copy-request'?'cedulaRequestText':'cedulaResolutionText')?.textContent||'';try{await navigator.clipboard.writeText(text);showCopySuccess(b);toast('✅ Texto copiado para cédula.');}catch{toast('No se pudo copiar. Selecciona el resumen y cópialo manualmente.');}}
  if(b.dataset.action==='copy-evidence-request'){
   const ticket=state.data.tickets.find(t=>t.id===b.dataset.id);
   const activities=state.data.tasks.filter(task=>task.ticketFolio===ticket?.folio);
    const message=evidenceRequestMessage(ticket,activities);
   if(!message){toast('Este ticket no tiene un enlace válido de carpeta de evidencias.');return;}
-  try{await navigator.clipboard.writeText(message);toast('Solicitud de evidencias copiada. Lista para enviar por WhatsApp o correo.');}
+  try{await navigator.clipboard.writeText(message);showCopySuccess(b);toast('✅ Solicitud de evidencias copiada. Lista para enviar por WhatsApp o correo.');}
   catch{toast('No se pudo copiar la solicitud. Revisa los permisos del portapapeles.');}
  }
 });
