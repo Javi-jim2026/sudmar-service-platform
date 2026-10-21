@@ -452,7 +452,7 @@ function updateSourceTotals(){const visible=ticketsByVisibility(state.data.ticke
 async function refreshOperationalData(){state.data=await repository.loadSupabase();updateSourceTotals();render();}
 async function submitNewTicket(event){
  event.preventDefault();const error=$('newTicketError');error.textContent='';
- if(!repository.canWrite()){showNewTaskValidation('La conexión de escritura con Supabase todavía no está disponible.');return;}
+ if(!repository.canWrite()){error.textContent='La conexión de escritura con Supabase todavía no está disponible.';return;}
  const button=event.submitter;button.disabled=true;
  try{await repository.createTicket({...readTicketFields('newTicket'),isTest:$('newTicketIsTest')?.checked===true});clearUnsaved($('newTicketDialog'));$('newTicketDialog').close();await refreshOperationalData();toast('Ticket creado y guardado en Supabase.');}
  catch(err){error.textContent=err.message||'No se pudo guardar el ticket.';if(err.ticketCreatedId){clearUnsaved($('newTicketDialog'));$('newTicketDialog').close();await refreshOperationalData();showTicketDetail(err.ticketCreatedId);toast(err.message);}}finally{button.disabled=false;}
