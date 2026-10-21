@@ -229,9 +229,10 @@ export class SnapshotRepository {
   }
   async ticketBody(payload,creating=false) {
     const body={updated_at:new Date().toISOString()};
+    const catalogSnapshot=(payload.client!==undefined||payload.catalogModelId!==undefined)?await this.catalogs():null;
     if(payload.requestContext){validateRequest(payload.requestContext);body.request_context=payload.requestContext;body.description=requestSummary(payload.requestContext);body.title=body.description.slice(0,180);}
     else if(creating)throw Error('Completa la captura guiada.');
-    if(payload.client!==undefined){const clients=(await this.catalogs()).clients;const c=clients.find(c=>catalogKey(c.name)===catalogKey(payload.client));if(!c)throw Error('Selecciona un cliente del catálogo.');body.client_id=c.id;}
+    if(payload.client!==undefined){const clients=catalogSnapshot.clients;const c=clients.find(c=>catalogKey(c.name)===catalogKey(payload.client));if(!c)throw Error('Selecciona un cliente del catálogo.');body.client_id=c.id;}
     if(payload.owner!==undefined)body.owner_id=await this.lookupId('personnel','name',payload.owner);
     const mapping={area:'area',businessUnit:'business_unit',priority:'priority',status:'operational_status',openedAt:'opened_at',dueAt:'due_at',resolvedAt:'resolved_at',serviceCategoryId:'service_category_id',catalogModelId:'catalog_model_id',catalogSerialId:'catalog_serial_id',multiEquipment:'is_multi_equipment',log:'logbook',technicalFindings:'technical_findings',workPerformed:'work_performed',finalCondition:'final_condition'};
     for(const [key,column] of Object.entries(mapping)){
@@ -241,7 +242,7 @@ export class SnapshotRepository {
     }
     if(body.priority)body.priority='P'+String(body.priority).replace(/^P/,'');
     if(payload.catalogModelId!==undefined){
-      const catalogs=await this.catalogs();const model=catalogs.models.find(m=>m.id===payload.catalogModelId);
+      const catalogs=catalogSnapshot;const model=catalogs.models.find(m=>m.id===payload.catalogModelId);
       const serial=catalogs.serials.find(s=>s.id===payload.catalogSerialId);
       if(payload.catalogModelId&&!model)throw Error('Modelo no disponible.');
       if(serial&&serial.model_id!==model?.id)throw Error('La serie no corresponde al modelo.');
