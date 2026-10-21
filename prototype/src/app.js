@@ -955,14 +955,19 @@ function openCatalog(kind,prefix,multiRow=null){
    if(kind==='activity_types')existing=c.types.find(x=>catalogKey(x.name)===catalogKey(name));
    if(kind==='activity_statuses'){body={name:name.toUpperCase(),group_code:values.group_code,description:values.description,is_cancelled:new FormData(event.target).has('is_cancelled')};if(!body.group_code)throw Error('Selecciona un grupo estadístico.');if(body.is_cancelled&&body.group_code!=='CERRADA')throw Error('Una cancelación debe pertenecer a CERRADA.');}
    const row=existing||await repository.addCatalog(kind,body);
-   state.data.catalogs=await repository.catalogs();
+   if(!existing){
+    const group={clients:'clients',service_categories:'categories',equipment_models:'models',equipment_serials:'serials',activity_types:'types',activity_statuses:'statuses'}[kind];
+    if(!Array.isArray(c[group]))c[group]=[];
+    c[group].push(row);
+    c[group].sort((a,b)=>String(a.name||a.serial_number||'').localeCompare(String(b.name||b.serial_number||''),'es',{numeric:true}));
+   }
    const target={clients:'client',service_categories:'serviceCategory',equipment_models:'model',equipment_serials:'serial',activity_types:'taskType',activity_statuses:'status'}[kind];
    const input=multiRow?.querySelector(kind==='equipment_models'?'.multi-model':'.multi-serial')||$(prefix+target);
    if(multiRow)refreshMultiCatalogs(multiRow,catalogs());
    if(kind==='activity_statuses')input.innerHTML=catalogs().statuses.map(s=>`<option value="${e(s.name)}">${e(s.name)}</option>`).join('');
    if(kind==='clients'){const search=$(prefix+'clientSearch');search.value='';renderClientOptions(prefix);}
    input.value=row.name||row.serial_number;input.dispatchEvent(new Event('change',{bubbles:true}));dialog.close();toast(existing?'Se reutilizó el registro existente.':'Guardado en catálogo.');
-  }catch(error){$('catalogError').textContent=error.message;}finally{button.disabled=false;}
+  }catch(error){$('catalogError').textContent=error.message||'No se pudo guardar en el catálogo.';$('catalogError').scrollIntoView({block:'nearest'});}finally{button.disabled=false;}
  };
  dialog.showModal();
 }
