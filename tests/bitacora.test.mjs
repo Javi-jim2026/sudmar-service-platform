@@ -1,3 +1,4 @@
+import {buildPrintableBitacora} from '../prototype/src/bitacora-print.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -98,4 +99,16 @@ test('La interfaz de bitácoras es de solo lectura y conserva el exportador CSV'
  assert.match(app,/function exportView\(\)/);
  assert.match(html,/id="bitacoraDialog"/);
  assert.doesNotMatch(generator,/fetch\(|supabaseRequest\(|\bmethod:\s*['"](?:POST|PATCH|DELETE)/);
+});
+
+test('La vista imprimible usa el flujo Guardar como PDF de Reportes y protege el HTML',()=>{
+ const record=buildBitacora({...base,client:'ADNR <script>alert(1)</script>'},tasks);
+ const html=buildPrintableBitacora(record);
+ assert.match(html,/window\.print\(\)/);
+ assert.match(html,/Guardar como PDF/);
+ assert.match(html,/BITÁCORA TÉCNICA DE SERVICIO/);
+ assert.match(html,/@page\{size:A4/);
+ assert.match(html,/89333075\/0002/);
+ assert.match(html,/&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+ assert.doesNotMatch(html,/<script>alert\(1\)<\/script>/);
 });
