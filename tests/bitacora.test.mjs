@@ -112,3 +112,20 @@ test('La vista imprimible usa el flujo Guardar como PDF de Reportes y protege el
  assert.match(html,/&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
  assert.doesNotMatch(html,/<script>alert\(1\)<\/script>/);
 });
+
+test('La identidad SUDMAR mantiene colores diferenciados en pantalla y ambos formatos de bitácora',async()=>{
+ const record=buildBitacora(base,tasks);
+ const binary=Buffer.from(createBitacoraPdf(record)).toString('latin1');
+ assert.match(binary,/0\.87 0\.65 0\.26 rg/,'El PDF incluye acento dorado');
+ assert.match(binary,/0\.88 0\.96 0\.92 rg/,'El estado concluido incluye banda verde');
+ assert.match(binary,/SERVICIO CONCLUIDO/);
+ const printable=buildPrintableBitacora(record);
+ assert.match(printable,/border-bottom:5px solid #e8ae42/);
+ assert.match(printable,/notice notice-ok/);
+ assert.match(printable,/text-success/);
+ const preliminary=buildPrintableBitacora({...record,isConcluded:false});
+ assert.match(preliminary,/notice notice-pending/);
+ const brand=await readFile(new URL('../prototype/brand.css',import.meta.url),'utf8');
+ assert.match(brand,/\.nav-button\.active:before\{background:#ecb44e/);
+ assert.match(brand,/\.kpi-card:nth-child\(2\)\{border-top-color:#1d9874/);
+});

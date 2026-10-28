@@ -78,7 +78,7 @@ export function bitacoraFileName(record) {
 }
 
 const W=595.28, H=841.89, M=43, WIDTH=W-2*M;
-const palette={navy:'0.03 0.16 0.28',blue:'0.04 0.40 0.57',gray:'0.34 0.42 0.48',black:'0.12 0.17 0.22'};
+const palette={navy:'0.04 0.15 0.29',blue:'0.04 0.37 0.53',teal:'0.07 0.49 0.55',gold:'0.87 0.65 0.26',green:'0.08 0.44 0.30',pale:'0.93 0.96 0.98',paleGreen:'0.88 0.96 0.92',paleAmber:'1 0.95 0.85',white:'1 1 1',gray:'0.34 0.42 0.48',black:'0.12 0.17 0.22'};
 const cp1252={'€':128,'‚':130,'ƒ':131,'„':132,'…':133,'†':134,'‡':135,'ˆ':136,'‰':137,'Š':138,'‹':139,'Œ':140,'Ž':142,'‘':145,'’':146,'“':147,'”':148,'•':149,'–':150,'—':151,'˜':152,'™':153,'š':154,'›':155,'œ':156,'ž':158,'Ÿ':159};
 function pdfString(text) {
  let result='';
@@ -128,12 +128,22 @@ export function createBitacoraPdf(record) {
  function text(x,y,label,size=10,bold=false,color=palette.black){
   draw('BT /F'+(bold?'2':'1')+' '+size+' Tf '+color+' rg 1 0 0 1 '+x.toFixed(2)+' '+y.toFixed(2)+' Tm ('+pdfString(label)+') Tj ET');
  }
+ function fillRect(x,y,width,height,color){draw('q '+color+' rg '+x.toFixed(2)+' '+y.toFixed(2)+' '+width.toFixed(2)+' '+height.toFixed(2)+' re f Q');}
  function rule(y){draw(palette.blue+' RG 0.6 w '+M+' '+y.toFixed(2)+' m '+(W-M)+' '+y.toFixed(2)+' l S');}
  function page(){
-  current={commands:[],annotations:[],y:H-83};pages.push(current);
-  text(M,H-44,'SUDMAR  /  ENERGY',16,true,palette.navy);
-  text(W-M-121,H-42,'SERVICE PLATFORM',8,true,palette.blue);
-  rule(H-57);
+  current={commands:[],annotations:[],y:H-91};pages.push(current);
+  fillRect(0,H-70,W,70,palette.navy);
+  fillRect(0,H-74,W,4,palette.gold);
+  text(M,H-43,'SUDMAR  /  ENERGY',16,true,palette.white);
+  text(W-M-121,H-42,'SERVICE PLATFORM',8,true,palette.white);
+ }
+ function stateBanner(){
+  enough(40);
+  const concluded=record.isConcluded;
+  fillRect(M,current.y-11,WIDTH,31,concluded?palette.paleGreen:palette.paleAmber);
+  fillRect(M,current.y-11,5,31,concluded?palette.green:palette.gold);
+  text(M+14,current.y+1,concluded?'SERVICIO CONCLUIDO':'DOCUMENTO PRELIMINAR',10,true,concluded?palette.green:palette.navy);
+  current.y-=46;
  }
  function enough(height=24){if(current.y-height<65)page();}
  function lines(label,{bold=false,size=10,color=palette.black,link=null,indent=0,spacing=4}={}){
@@ -147,9 +157,10 @@ export function createBitacoraPdf(record) {
   current.y-=spacing;
  }
  function section(label){
-  enough(48);current.y-=12;
-  lines(label.toUpperCase(),{size:10,bold:true,color:palette.blue,spacing:5});
-  rule(current.y+1);current.y-=10;
+  enough(51);current.y-=14;
+  fillRect(M,current.y-9,WIDTH,26,palette.pale);
+  fillRect(M,current.y-9,4,26,palette.gold);
+  lines(label.toUpperCase(),{size:10,bold:true,color:palette.navy,indent:13,spacing:16});
  }
  function field(label,entry){
   lines(label+': '+(value(entry)||'No registrado'),{spacing:1});
@@ -162,6 +173,7 @@ export function createBitacoraPdf(record) {
  page();
  lines('BITÁCORA DE SERVICIO   |   TICKET #'+record.folio,{size:15,bold:true,color:palette.navy,spacing:7});
  lines(record.title,{size:11,bold:true,spacing:10});
+ stateBanner();
  if(!record.isConcluded)lines('AVISO: servicio no concluido; documento preliminar.',{bold:true,color:palette.blue,spacing:9});
  if(record.isTest)lines('AVISO: ticket de prueba; no utilizar como registro de servicio.',{bold:true,color:palette.blue,spacing:9});
  section('Identificación y seguimiento');
@@ -219,7 +231,9 @@ export function createBitacoraPdf(record) {
  lines('Generado desde los registros consultados en SUDMAR el '+new Date(record.generatedAt).toLocaleString('es-MX',{timeZone:'America/Mexico_City'})+'.');
  lines('Documento informativo generado automáticamente: no sustituye una cédula técnica aprobada, un acta firmada ni la revisión de evidencias.',{size:9,color:palette.gray});
  for(let i=0;i<pages.length;i++){
-  const prev=current;current=pages[i];rule(54);
+  const prev=current;current=pages[i];
+  fillRect(0,0,W,59,palette.pale);
+  fillRect(0,57,W,2,palette.gold);
   text(M,38,'SUDMAR · Bitácora automática · Uso interno · Sin firma',8,false,palette.gray);
   text(W-M-73,38,'Página '+(i+1)+' de '+pages.length,8,false,palette.gray);
   current=prev;
