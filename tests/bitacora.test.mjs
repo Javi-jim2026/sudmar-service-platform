@@ -93,8 +93,9 @@ test('La interfaz de bitácoras es de solo lectura y conserva el exportador CSV'
  const generator=await readFile(new URL('../prototype/src/bitacora.js',import.meta.url),'utf8');
  assert.match(app,/data-action="preview-bitacora-ticket"/);
  assert.match(app,/data-action="preview-bitacora-client"/);
- assert.match(app,/data-action="download-bitacora"/);
+ assert.match(html,/data-action="download-bitacora"/);
+ assert.match(app,/if\(a==='download-bitacora'\)/);
  assert.match(app,/function exportView\(\)/);
  assert.match(html,/id="bitacoraDialog"/);
- assert.doesNotMatch(generator,/fetch\(|\.from\(|\bmethod:\s*['"](?:POST|PATCH|DELETE)/);
+ assert.doesNotMatch(generator,/fetch\(|supabaseRequest\(|\bmethod:\s*['"](?:POST|PATCH|DELETE)/);
 });
