@@ -117,7 +117,7 @@ try{
  for(const [k,v]of Object.entries({what:'No funciona',where:'Motor de arranque',condition:'Al intentar encender en frío',required:'Diagnóstico eléctrico en sitio'}))await fill('#newTicket'+k,v);
  await page.locator('#newTicketpriority').selectOption('2');
  await fill('#newTicketfolio','9000');
- await click('#newTicketForm [type="submit"]');await page.locator('#newTicketError').filter({hasText:'Ya existe'}).waitFor();
+ await click('#newTicketForm [type="submit"]');await page.locator('#newTicketError').filter({hasText:'Ya existe'}).waitFor();await page.locator('.sudmar-error-popup [data-error-dismiss]').click();
  assert.equal(tables.tickets.length,1);
  await fill('#newTicketfolio','MANUAL-001');
  await click('#newTicketForm [type="submit"]');await page.locator('#newTicketDialog').waitFor({state:'hidden'});
@@ -135,7 +135,7 @@ try{
  await fill('#newTasktaskType','Instalación');await page.locator('#newTaskowner').selectOption('Javier Jimenez');await fill('#newTasknotes','Requerimiento original');await fill('#newTaskantecedentFolio','9000');
  for(let i=0;i<16;i++){await click('#newTaskChecklist [data-action="add-work"]');await page.locator('#newTaskChecklist .work-text').last().fill('Trabajo '+i);if(i<10)await page.locator('#newTaskChecklist .work-completed').last().check();}
  await page.locator('#newTaskChecklist [data-action="remove-work"]').last().click();assert.match(await page.locator('#newTaskChecklist .work-summary').innerText(),/67%/);
- rejectNext=true;await click('#newTaskForm [type="submit"]');await page.locator('#newTaskError').filter({hasText:'Permiso denegado'}).waitFor();assert.equal(await page.locator('#newTaskChecklist .work-item').count(),15);
+ rejectNext=true;await click('#newTaskForm [type="submit"]');await page.locator('#newTaskError').filter({hasText:'Permiso denegado'}).waitFor();await page.locator('.sudmar-error-popup [data-error-dismiss]').click();assert.equal(await page.locator('#newTaskChecklist .work-item').count(),15);
  await click('#newTaskForm [type="submit"]');await page.locator('#newTaskDialog').waitFor({state:'hidden'});assert.equal(tables.tasks.length,1);assert.equal(tables.tasks[0].antecedent_ticket_id,'seed');
   // El aviso se mantiene visible al abrir un ticket ya creado, sobre los botones de copiar.
   // Encabezado compacto con datos críticos, previo al historial de antecedentes.
@@ -252,7 +252,7 @@ try{
  await fill('#deleteTicketFolio',disposable.folio);assert.equal(await page.locator('#confirmDeleteTicket').isEnabled(),true);
  await click('#deleteTicketDialog [data-action="close-dialog"]');assert.ok(tables.tickets.includes(disposable));
  await click('[data-action="delete-ticket"]');await fill('#deleteTicketFolio',disposable.folio);rejectNext=true;
- await click('#confirmDeleteTicket');await page.locator('#deleteTicketError').filter({hasText:'cancelarse/archivarse'}).waitFor();assert.ok(tables.tickets.includes(disposable));
+ await click('#confirmDeleteTicket');await page.locator('#deleteTicketError').filter({hasText:'cancelarse/archivarse'}).waitFor();await page.locator('.sudmar-error-popup [data-error-dismiss]').click();assert.ok(tables.tickets.includes(disposable));
  await click('#confirmDeleteTicket');await page.locator('#deleteTicketDialog').waitFor({state:'hidden'});
  assert.equal(tables.tickets.includes(disposable),false);assert.ok(tables.tickets.some(t=>t.id==='seed'));
  // Hidden tickets are explicitly selected by the user and remain in Supabase and in history.
