@@ -54,6 +54,36 @@ const click=s=>page.locator(s).first().click(),fill=(s,v)=>page.locator(s).fill(
 async function add(kind,prefix,name,extra){await click(`[data-action="add-catalog"][data-kind="${kind}"][data-prefix="${prefix}"]`);await fill('#catalogForm [name="name"]',name);if(extra)await extra();await click('#catalogForm [type="submit"]');await page.locator('#catalogDialog').waitFor({state:'hidden'});}
 try{
  await page.goto(`http://127.0.0.1:${server.address().port}/`);await page.locator('#sourceDate').filter({hasText:'Supabase en línea'}).waitFor();
+ // Bitácora: flujo de cliente y ticket usando únicamente datos simulados.
+ const pdfFixture={id:'bitacora-ci',folio:'2643',client_id:'client',title:'Inspección y reparación',operational_status:'CONCLUIDO',
+  status:'CONCLUIDO',business_unit:'SUDMAR',opened_at:'2026-09-09',closed_at:'2026-10-14',owner_id:'person',
+  source_model:'ESE 350 BW/AS',source_serial:'89333075/0002',technical_findings:'Falla de suministro',work_performed:'Reparación documentada',final_condition:'Operativo'};
+ const activityFixture={id:'activity-bitacora-ci',ticket_id:'bitacora-ci',client_id:'client',task_type:'Diagnóstico',title:'Diagnóstico',
+  activity_status:'COMPLETADA',completed_at:'2026-10-14',notes:'Revisión en campo'};
+ tables.tickets.push(pdfFixture);tables.tasks.push(activityFixture);
+ await page.reload();await page.locator('#sourceDate').filter({hasText:'Supabase en línea'}).waitFor();
+ await click('[data-action="navigate"][data-view="clients"]');
+ await page.locator('#bitacoraClientSelect').selectOption('Cliente prueba');
+ await click('[data-action="preview-bitacora-client"]');
+ await page.locator('#bitacoraSummary').filter({hasText:'Ticket #2643'}).waitFor();
+ assert.match(await page.locator('#bitacoraFrame').getAttribute('src'),/^blob:/);
+ const pdfDownloadPromise=page.waitForEvent('download');
+ await click('[data-action="download-bitacora"]');
+ const pdfDownload=await pdfDownloadPromise;
+ assert.match(pdfDownload.suggestedFilename(),/^SUDMAR_Bitacora_2643_/);
+ const pdfBytes=await readFile(await pdfDownload.path());
+ assert.equal(pdfBytes.subarray(0,8).toString(),'%PDF-1.4');
+ await click('#bitacoraDialog [data-action="close-dialog"]');
+ await click('[data-action="navigate"][data-view="tickets"]');
+ await click('[data-action="ticket"][data-id="bitacora-ci"]');
+ await click('[data-action="preview-bitacora-ticket"]');
+ await page.locator('#bitacoraSummary').filter({hasText:'Ticket #2643'}).waitFor();
+ await click('#bitacoraDialog [data-action="close-dialog"]');
+ tables.tickets=tables.tickets.filter(t=>t.id!=='bitacora-ci');
+ tables.tasks=tables.tasks.filter(t=>t.id!=='activity-bitacora-ci');
+ await page.goto('http://127.0.0.1:'+server.address().port+'/');
+ await page.locator('#sourceDate').filter({hasText:'Supabase en línea'}).waitFor();
+
  // Pilot-only KPI/report/evaluation: names are selected manually and journals stay local.
  await click('[data-action="navigate"][data-view="equipment"]');
  await page.locator('.inv-card').first().waitFor();
