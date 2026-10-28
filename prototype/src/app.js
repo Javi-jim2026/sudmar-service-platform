@@ -3,6 +3,7 @@ import {activityCategories, checklistProgress, validateChecklist, validateActivi
 import {config} from './config.js';
 import {sortTicketList,ticketPageLimit,filterTicketDatePresence,TICKET_PAGE_SIZES,TICKET_DATE_FIELDS,TICKET_DATE_PRESENCE} from './ticket-list.js';
 import {repository} from './repository.js';
+import {latestConcludedTicket,buildBitacora,createBitacoraPdf,bitacoraFileName} from './bitacora.js';
 import {evidenceFolders,evidenceRequestMessage} from './evidence-request.js';
 import {armUnsaved,clearUnsaved,confirmDiscard,isUnsaved,installUnsavedProtection} from './unsaved-guard.js';
 import {icon} from './icons.js';
@@ -401,7 +402,9 @@ function renderClients(tickets){const groups=countsBy(tickets,'client');let cont
  if(state.clientTab==='operations'){content=`<div class="card-grid">${pageSlice(groups).map(g=>{const ts=tickets.filter(t=>(t.client||'Sin registrar')===g.name);return `<button class="entity-card" data-action="filter" data-key="client" data-value="${e(g.name==='Sin registrar'?'__EMPTY__':g.name)}"><span class="entity-card-top"><span class="entity-icon">${icon('users')}</span><span class="number-badge">${g.count} tickets</span></span><h2>${e(g.name)}</h2><p>${unique(ts.map(t=>t.businessUnit)).map(e).join(' · ')}</p><span class="entity-card-foot"><span><strong>${ts.filter(isActive).length}</strong> activos</span><span>Ver operación ↗</span></span></button>`;}).join('')}</div>${groups.length?pagination(groups.length):empty()}`;}
  else if(!state.references){if(!state.referenceError)loadReferences();content=state.referenceError?`<div class="empty-state"><h2>No se pudo cargar el directorio</h2><button class="button" data-action="retry-references">Reintentar</button></div>`:'<div class="loading-state"><div class="loading-ring"></div></div>';}
  else{const list=selectedContacts();content=`<div class="view-summary"><input class="inline-search" id="contactSearch" value="${e(state.contactQuery)}" placeholder="Buscar contacto o compañía" aria-label="Buscar en el directorio"><span>${n(list.length)} contactos en esta vista</span></div>${activeFilters().length?'<p class="notice neutral">El directorio muestra coincidencias exactas con los clientes de los tickets filtrados.</p>':''}<div class="card-grid contact-grid">${pageSlice(list).map(c=>`<article class="contact-card"><h2>${e(c.name||'Contacto sin nombre')}</h2><h3>${e(c.company)}</h3><p>${e(c.role||c.type)}</p><p>${e([c.city,c.region].filter(Boolean).join(', '))}</p>${c.email?`<a href="mailto:${encodeURIComponent(c.email)}">${icon('mail')}${e(c.email)}</a>`:''}${c.phone?`<a href="tel:${c.phone.replace(/[^+\d]/g,'')}">${icon('phone')}${e(c.phone)}</a>`:''}${c.address?`<p style="margin-top:12px">${e(c.address)}</p>`:''}</article>`).join('')}</div>${list.length?pagination(list.length):empty('No hay contactos coincidentes. Puedes limpiar los filtros generales para consultar todo el directorio.')}`;}
- return tabs+content;
+ const clientNames=unique(state.data.tickets.map(t=>t.client));
+ const bitacoraPanel=state.clientTab==='operations'?'<section class="bitacora-client-panel" aria-label="Generar bitácora por cliente"><div><h3>Bitácoras PDF por cliente</h3><p>Consulta el último servicio concluido, ordenado por fecha real de cierre.</p></div><label>Cliente<select id="bitacoraClientSelect" aria-label="Cliente para generar bitácora"><option value="">Selecciona un cliente</option>'+clientNames.map(name=>'<option value="'+e(name)+'">'+e(name)+'</option>').join('')+'</select></label><button type="button" class="button primary" data-action="preview-bitacora-client">Generar bitácora</button></section>':'';
+ return tabs+bitacoraPanel+content;
 }
 let referencesLoading=false;
 async function loadReferences(){if(referencesLoading)return;referencesLoading=true;try{state.references=await repository.references();state.referenceError=false;}catch{state.referenceError=true;}finally{referencesLoading=false;if(state.view==='clients')render();}}
@@ -529,6 +532,30 @@ function showSource(){const m=state.data.metadata;openDetail(detailHeader('INFOR
 function getSavedViews(){try{const data=JSON.parse(localStorage.getItem(config.storageKey)||'[]');return Array.isArray(data)?data.filter(v=>typeof v.name==='string'&&v.filters&&typeof v.filters==='object').slice(0,10):[];}catch{return [];}}
 function renderSavedViews(){const list=getSavedViews();$('savedViews').innerHTML='<option value="">Mis vistas</option>'+list.map((v,i)=>`<option value="${i}">${e(v.name)}</option>`).join('');}
 function exportView(){let records,columns,label;if(state.view==='calendar'){const tickets=calendarTicketSet(filtered());const {first,last}=monthRange(state.calendarMonth||today.slice(0,7));const activities=calendarActivityTasks(filtered()).filter(t=>t.startAt&&t.startAt<=last&&(t.dueAt&&t.dueAt>=t.startAt?t.dueAt:t.startAt)>=first).map(t=>({...t,durationDays:daysInclusive(t.startAt,t.dueAt&&t.dueAt>=t.startAt?t.dueAt:t.startAt)}));records=[...tickets.filter(t=>t.openedAt>=first&&t.openedAt<=last).map(t=>({recordType:'TICKET',folio:t.folio,client:t.client,title:t.title,owner:t.owner,start:t.openedAt,due:'',durationDays:1,status:t.status})),...activities.map(t=>({recordType:'ACTIVIDAD',folio:t.ticketFolio,client:t.client,title:t.title,owner:t.owner,start:t.startAt,due:t.dueAt,durationDays:t.durationDays,status:t.status}))];columns=[['recordType','Tipo'],['folio','Ticket'],['client','Cliente'],['title','Concepto'],['owner','Responsable'],['start','Inicio'],['due','Fecha compromiso'],['durationDays','Duración días'],['status','Estado']];label='calendario_'+(state.calendarMonth||today.slice(0,7));}else if(state.view==='equipment'&&state.inventoryTab==='inventory'){records=(state.data.inventory||[]).filter(r=>state.inventoryArchiveMode==='archived'?r.archived:!r.archived).map(r=>({serie:r.serial_number,modelo:r.model,extraccion:r.extraction_ref,linea:r.product_line,tipo:r.equipment_type,cantidad:r.quantity,estado:r.status,cliente:r.client_name,observaciones:r.notes,renglon:r.source_row}));columns=[['serie','Serie'],['modelo','Equipo'],['extraccion','Extracción'],['linea','Línea'],['tipo','Tipo'],['cantidad','Cantidad'],['estado','Estado'],['cliente','Cliente / destino'],['observaciones','Observaciones'],['renglon','Renglón de origen']];label='inventario_equipos';}else if(state.view==='tasks'){records=currentTasks().map(task=>({...task,category:taskCategoryLabel(taskCategory(task))}));columns=[['ticketFolio','Ticket'],['category','Tipo'],['title','Actividad'],['client','Cliente / tercero'],['owner','Responsable'],['area','Área'],['startAt','Inicio'],['dueAt','Fin programado'],['status','Estado'],['completedAt','Realización'],['notes','Observaciones / requerimiento'],['outcome','Resultado'],['resolution','Resolución']];label='actividades';}else if(state.view==='team'){records=state.personnel.map(p=>{const w=personWorkload(p);return {...p,pendingTasks:w.pending.length,overdueTasks:w.overdue.length,assignedTasks:w.assignedTasks.length,ownedTickets:w.ownedTickets.length};});columns=[['name','Nombre'],['title','Cargo'],['area','Área'],['parentArea','Área principal'],['fieldRole','Rol de campo'],['ownedTickets','Tickets'],['assignedTasks','Tareas'],['pendingTasks','Pendientes'],['overdueTasks','Vencidas']];label='personal';}else if(state.view==='clients'&&state.clientTab==='directory'){records=selectedContacts();columns=[['name','Contacto'],['company','Compañía'],['role','Cargo'],['email','Correo'],['phone','Teléfono'],['address','Dirección'],['city','Ciudad'],['region','Estado']];label='contactos';}else{records=filtered();columns=[['folio','Folio'],['priority','Nivel SLA'],['title','Título'],['client','Cliente'],['businessUnit','Unidad de negocio'],['area','Área'],['equipmentType','Tipo de equipo'],['owner','Responsable'],['openedAt','Inicio'],['dueAt','Meta de cierre'],['closedAt','Cierre real'],['model','Modelo'],['serial','Serie'],['status','Estado'],['log','Bitácora'],['technicalFindings','Hallazgo / diagnóstico'],['workPerformed','Trabajo realizado'],['finalCondition','Resultado / condición final'],['evidenceUrl','Carpeta']];label='tickets';}const blob=new Blob([toCsv(records,columns.map(([key,label])=>({key,label})))],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`SUDMAR_${label}_${today}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast(`${n(records.length)} registros exportados a CSV.`);}
+
+let previewPdfUrl='',previewPdfName='';
+function openBitacoraPreview(ticket) {
+ try {
+  if(!ticket)throw Error('No se encontró el ticket solicitado.');
+  const record=buildBitacora(ticket,state.data.tasks);
+  const pdf=createBitacoraPdf(record);
+  const dialog=$('bitacoraDialog');
+  if(previewPdfUrl)URL.revokeObjectURL(previewPdfUrl);
+  previewPdfUrl=URL.createObjectURL(new Blob([pdf],{type:'application/pdf'}));
+  previewPdfName=bitacoraFileName(record);
+  $('bitacoraSummary').textContent='Cliente: '+record.client+' · Ticket #'+record.folio+' · '+record.status+' · '+record.activities.length+' actividad(es) · '+record.equipment.length+' equipo(s).';
+  $('bitacoraNotice').textContent=record.isConcluded?'Información consultada de SUDMAR. Documento sin aprobación ni firma.':'Este ticket no está concluido. La bitácora se genera como documento preliminar, sin aprobación ni firma.';
+  $('bitacoraFrame').src=previewPdfUrl;
+  if(!dialog.open)dialog.showModal();
+ }catch(error){toast(error.message||'No se pudo generar la bitácora PDF.');}
+}
+function downloadBitacora() {
+ if(!previewPdfUrl)return;
+ const link=document.createElement('a');
+ link.href=previewPdfUrl;link.download=previewPdfName;document.body.append(link);link.click();link.remove();
+ toast('Bitácora PDF preparada para descargar.');
+}
+
 async function install(){if(installEvent){await installEvent.prompt();installEvent=null;return;}openDetail(detailHeader('ACCESO DESDE EL TELÉFONO','Instalar SUDMAR')+`<div class="dialog-body"><p>Cuando la plataforma esté disponible en una dirección HTTPS, podrás añadirla a la pantalla de inicio.</p><div class="source-list"><div class="source-item"><span>Android</span><strong>Menú del navegador → Instalar app o Añadir a pantalla de inicio.</strong></div><div class="source-item"><span>iPhone / iPad</span><strong>Safari → Compartir → Añadir a pantalla de inicio.</strong></div></div><p class="definition-note">Un archivo descargado o una vista previa local no permite la instalación completa. La consulta de datos requiere conexión; esta versión no permite editar sin conexión.</p></div>`);}
 
 document.addEventListener('click',event=>{const b=event.target.closest('[data-action]');if(!b)return;const a=b.dataset.action;if(!state.data&&!['close-dialog'].includes(a))return;
@@ -626,6 +653,15 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
  if(a==='calendar-month-shift'){state.calendarMonth=shiftMonth(state.calendarMonth||today.slice(0,7),Number(b.dataset.delta)||0);render();}
  if(a==='calendar-today'){state.calendarMonth=today.slice(0,7);render();}
  if(a==='source')showSource();
+ if(a==='preview-bitacora-client'){
+  const name=$('bitacoraClientSelect')?.value;
+  const ticket=latestConcludedTicket(state.data.tickets,name);
+  if(!name){toast('Selecciona un cliente para generar su bitácora.');return;}
+  if(!ticket){toast('Este cliente no tiene servicios CONCLUIDOS con fecha real de cierre.');return;}
+  openBitacoraPreview(ticket);
+ }
+ if(a==='preview-bitacora-ticket')openBitacoraPreview(state.data.tickets.find(t=>t.id===b.dataset.id));
+ if(a==='download-bitacora')downloadBitacora();
  if(a==='export')exportView();
  if(a==='install')install();
  if(a==='page'){state.page+=Number(b.dataset.delta);render();window.scrollTo({top:160,behavior:'instant'});}
@@ -639,6 +675,10 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
 $('filterForm').addEventListener('submit',event=>{event.preventDefault();applyFormFilters();});
 $('newTicketForm').addEventListener('submit',submitNewTicket);
 $('newTaskForm').addEventListener('submit',submitNewTask);
+$('bitacoraDialog').addEventListener('close',()=>{
+ $('bitacoraFrame').removeAttribute('src');
+ if(previewPdfUrl){URL.revokeObjectURL(previewPdfUrl);previewPdfUrl='';previewPdfName='';}
+});
 
 function showNewTaskValidation(message,control=null){
  const error=$('newTaskError');if(!error)return;
@@ -902,7 +942,7 @@ function openLinkedTicket(){const id=initialLinkedTicket;if(!id||!state.data)ret
 function showTicketDetail(id){
  const t=state.data.tickets.find(t=>t.id===id);if(!t)return;
  const tasks=state.data.tasks.filter(x=>x.ticketFolio===t.folio),url=safeEvidenceUrl(t.evidenceUrl),hasEvidenceFolders=evidenceFolders(t,tasks).length>0;
- if(!openDetail(detailHeader('SEGUIMIENTO DEL SERVICIO','Ticket #'+t.folio)+`<div class="ticket-share-action"><button type="button" class="button secondary" data-action="copy-ticket-link" data-id="${e(t.id)}" title="Copiar enlace directo al ticket #${e(t.folio)}">🔗 Copiar enlace del ticket</button></div><div class="detail-heading-title"><h3>${e(t.title)}</h3><div class="detail-badges">${badge(t)}${priority(t)}${multiSummary(t)}${t.operationalHidden?'<span class="badge slate">Desactivado</span>':''}</div></div>
+ if(!openDetail(detailHeader('SEGUIMIENTO DEL SERVICIO','Ticket #'+t.folio)+`<div class="ticket-share-action"><button type="button" class="button secondary" data-action="copy-ticket-link" data-id="${e(t.id)}" title="Copiar enlace directo al ticket #${e(t.folio)}">🔗 Copiar enlace del ticket</button><button type="button" class="button secondary" data-action="preview-bitacora-ticket" data-id="${e(t.id)}" title="Vista previa y exportación de la bitácora de este ticket">📄 Exportar bitácora PDF</button></div><div class="detail-heading-title"><h3>${e(t.title)}</h3><div class="detail-badges">${badge(t)}${priority(t)}${multiSummary(t)}${t.operationalHidden?'<span class="badge slate">Desactivado</span>':''}</div></div>
  ${ticketHeaderSummary(t)}
  ${serialHistoryMarkup(t)}
  <section class="detail-section sudmar-dual-summary"><h3>RESUMEN PARA CÉDULA</h3><p class="definition-note">Dos textos independientes, generados desde la captura guiada. Se actualizan al editar los campos.</p><div class="sudmar-summary-card"><h4>Solicitud / incidencia reportada</h4><p class="note-text" id="cedulaRequestText">${e(t.description||requestSummary(t.requestContext)||t.title||'Sin solicitud documentada.')}</p><button type="button" class="button secondary" data-action="copy-request">📋 Copiar solicitud</button></div><div class="sudmar-summary-card"><h4>Resolución / trabajos realizados</h4><p class="note-text" id="cedulaResolutionText">${e(resolutionSummary(t))}</p><button type="button" class="button secondary" data-action="copy-resolution">📋 Copiar resolución</button></div>${hasEvidenceFolders?`<div class="sudmar-evidence-request-action"><button type="button" class="button secondary" data-action="copy-evidence-request" data-id="${e(t.id)}" title="Copiar mensaje para solicitar evidencias de este ticket">📁 Copiar solicitud de evidencias</button><p class="definition-note">Mensaje con folio, cliente, servicio y enlaces de las actividades.</p></div>`:''}</section>
