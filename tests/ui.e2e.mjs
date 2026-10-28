@@ -54,6 +54,42 @@ const click=s=>page.locator(s).first().click(),fill=(s,v)=>page.locator(s).fill(
 async function add(kind,prefix,name,extra){await click(`[data-action="add-catalog"][data-kind="${kind}"][data-prefix="${prefix}"]`);await fill('#catalogForm [name="name"]',name);if(extra)await extra();await click('#catalogForm [type="submit"]');await page.locator('#catalogDialog').waitFor({state:'hidden'});}
 try{
  await page.goto(`http://127.0.0.1:${server.address().port}/`);await page.locator('#sourceDate').filter({hasText:'Supabase en línea'}).waitFor();
+ // Bitácora: flujo de cliente y ticket usando únicamente datos simulados.
+ const pdfFixture={id:'bitacora-ci',folio:'2643',client_id:'client',title:'Inspección y reparación',operational_status:'CONCLUIDO',
+  status:'CONCLUIDO',business_unit:'SUDMAR',opened_at:'2026-09-09',closed_at:'2026-10-14',owner_id:'person',
+  source_model:'ESE 350 BW/AS',source_serial:'89333075/0002',technical_findings:'Falla de suministro',work_performed:'Reparación documentada',final_condition:'Operativo'};
+ const activityFixture={id:'activity-bitacora-ci',ticket_id:'bitacora-ci',client_id:'client',task_type:'Diagnóstico',title:'Diagnóstico',
+  activity_status:'COMPLETADA',completed_at:'2026-10-14',notes:'Revisión en campo'};
+ tables.tickets.push(pdfFixture);tables.tasks.push(activityFixture);
+ await page.reload();await page.locator('#sourceDate').filter({hasText:'Supabase en línea'}).waitFor();
+ await click('[data-action="navigate"][data-view="clients"]');
+ await page.locator('#bitacoraClientSelect').selectOption('Cliente prueba');
+ await click('[data-action="preview-bitacora-client"]');
+ await page.locator('#bitacoraSummary').filter({hasText:'Ticket #2643'}).waitFor();
+ assert.match(await page.locator('#bitacoraFrame').getAttribute('src'),/^blob:/);
+ const pdfDownloadPromise=page.waitForEvent('download');
+ await click('[data-action="download-bitacora"]');
+ const pdfDownload=await pdfDownloadPromise;
+ assert.match(pdfDownload.suggestedFilename(),/^SUDMAR_Bitacora_2643_/);
+ const pdfBytes=await readFile(await pdfDownload.path());
+ assert.equal(pdfBytes.subarray(0,8).toString(),'%PDF-1.4');
+ await click('#bitacoraDialog [data-action="close-dialog"]');
+ await click('[data-action="navigate"][data-view="tickets"]');
+ await click('[data-action="ticket"][data-id="bitacora-ci"]');
+ await click('[data-action="preview-bitacora-ticket"]');
+ await page.locator('#bitacoraSummary').filter({hasText:'Ticket #2643'}).waitFor();
+ await click('[data-action="print-bitacora"]');
+ await page.locator('.btn-pdf').waitFor();
+ assert.match(page.url(),/^blob:/);
+ assert.match(await page.locator('h1').innerText(),/BITÁCORA TÉCNICA DE SERVICIO/);
+ await page.evaluate(()=>{window.__printInvoked=false;window.print=()=>{window.__printInvoked=true;};});
+ await click('.btn-pdf');
+ assert.equal(await page.evaluate(()=>window.__printInvoked),true);
+ tables.tickets=tables.tickets.filter(t=>t.id!=='bitacora-ci');
+ tables.tasks=tables.tasks.filter(t=>t.id!=='activity-bitacora-ci');
+ await page.goto('http://127.0.0.1:'+server.address().port+'/');
+ await page.locator('#sourceDate').filter({hasText:'Supabase en línea'}).waitFor();
+
  // Pilot-only KPI/report/evaluation: names are selected manually and journals stay local.
  await click('[data-action="navigate"][data-view="equipment"]');
  await page.locator('.inv-card').first().waitFor();
@@ -117,7 +153,7 @@ try{
  for(const [k,v]of Object.entries({what:'No funciona',where:'Motor de arranque',condition:'Al intentar encender en frío',required:'Diagnóstico eléctrico en sitio'}))await fill('#newTicket'+k,v);
  await page.locator('#newTicketpriority').selectOption('2');
  await fill('#newTicketfolio','9000');
- await click('#newTicketForm [type="submit"]');await page.locator('#newTicketError').filter({hasText:'Ya existe'}).waitFor();
+ await click('#newTicketForm [type="submit"]');await page.locator('#newTicketError').filter({hasText:'Ya existe'}).waitFor();await page.locator('.sudmar-error-popup [data-error-dismiss]').click();
  assert.equal(tables.tickets.length,1);
  await fill('#newTicketfolio','MANUAL-001');
  await click('#newTicketForm [type="submit"]');await page.locator('#newTicketDialog').waitFor({state:'hidden'});
@@ -135,7 +171,7 @@ try{
  await fill('#newTasktaskType','Instalación');await page.locator('#newTaskowner').selectOption('Javier Jimenez');await fill('#newTasknotes','Requerimiento original');await fill('#newTaskantecedentFolio','9000');
  for(let i=0;i<16;i++){await click('#newTaskChecklist [data-action="add-work"]');await page.locator('#newTaskChecklist .work-text').last().fill('Trabajo '+i);if(i<10)await page.locator('#newTaskChecklist .work-completed').last().check();}
  await page.locator('#newTaskChecklist [data-action="remove-work"]').last().click();assert.match(await page.locator('#newTaskChecklist .work-summary').innerText(),/67%/);
- rejectNext=true;await click('#newTaskForm [type="submit"]');await page.locator('#newTaskError').filter({hasText:'Permiso denegado'}).waitFor();assert.equal(await page.locator('#newTaskChecklist .work-item').count(),15);
+ rejectNext=true;await click('#newTaskForm [type="submit"]');await page.locator('#newTaskError').filter({hasText:'Permiso denegado'}).waitFor();await page.locator('.sudmar-error-popup [data-error-dismiss]').click();assert.equal(await page.locator('#newTaskChecklist .work-item').count(),15);
  await click('#newTaskForm [type="submit"]');await page.locator('#newTaskDialog').waitFor({state:'hidden'});assert.equal(tables.tasks.length,1);assert.equal(tables.tasks[0].antecedent_ticket_id,'seed');
   // El aviso se mantiene visible al abrir un ticket ya creado, sobre los botones de copiar.
   // Encabezado compacto con datos críticos, previo al historial de antecedentes.
@@ -252,7 +288,7 @@ try{
  await fill('#deleteTicketFolio',disposable.folio);assert.equal(await page.locator('#confirmDeleteTicket').isEnabled(),true);
  await click('#deleteTicketDialog [data-action="close-dialog"]');assert.ok(tables.tickets.includes(disposable));
  await click('[data-action="delete-ticket"]');await fill('#deleteTicketFolio',disposable.folio);rejectNext=true;
- await click('#confirmDeleteTicket');await page.locator('#deleteTicketError').filter({hasText:'cancelarse/archivarse'}).waitFor();assert.ok(tables.tickets.includes(disposable));
+ await click('#confirmDeleteTicket');await page.locator('#deleteTicketError').filter({hasText:'cancelarse/archivarse'}).waitFor();await page.locator('.sudmar-error-popup [data-error-dismiss]').click();assert.ok(tables.tickets.includes(disposable));
  await click('#confirmDeleteTicket');await page.locator('#deleteTicketDialog').waitFor({state:'hidden'});
  assert.equal(tables.tickets.includes(disposable),false);assert.ok(tables.tickets.some(t=>t.id==='seed'));
  // Hidden tickets are explicitly selected by the user and remain in Supabase and in history.

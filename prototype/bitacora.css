@@ -1,0 +1,14 @@
+/* Generador de bitácoras: interfaz local de lectura y exportación. */
+.bitacora-client-panel{display:flex;align-items:end;gap:16px;flex-wrap:wrap;background:#f4fafc;border:1px solid #cae3ed;border-radius:13px;padding:17px 19px;margin-bottom:18px}
+.bitacora-client-panel>div{flex:1 1 240px}
+.bitacora-client-panel h3{font-size:14px;color:#073b59;margin:0 0 5px}
+.bitacora-client-panel p{color:#527082;font-size:11px;line-height:1.5;margin:0}
+.bitacora-client-panel label{display:flex;flex-direction:column;gap:6px;flex:1 1 220px;font-size:11px;color:#345467}
+.bitacora-client-panel select{min-height:39px;border:1px solid #b8d3df;border-radius:8px;background:#fff;padding:9px;max-width:100%;font:inherit}
+.bitacora-dialog{width:min(870px,calc(100vw - 28px));max-height:calc(100dvh - 28px)}
+.bitacora-dialog .dialog-body{padding:16px 22px}
+.bitacora-summary{font-size:12px!important;font-weight:600;color:#103b55;margin-bottom:7px}
+.bitacora-notice{font-size:11px!important;color:#526e7d;margin-bottom:12px}
+.bitacora-frame{display:block;width:100%;height:min(63dvh,710px);min-height:280px;border:1px solid #d7e1e7;border-radius:8px;background:#edf3f7}
+.bitacora-dialog .dialog-footer{display:flex;justify-content:flex-end;gap:9px;padding:14px 22px}
+@media(max-width:700px){.bitacora-client-panel{align-items:stretch}.bitacora-client-panel label,.bitacora-client-panel .button{width:100%}.bitacora-dialog .dialog-body{padding:14px}.bitacora-frame{min-height:220px;height:50dvh}}
