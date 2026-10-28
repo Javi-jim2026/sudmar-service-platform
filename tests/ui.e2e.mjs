@@ -78,7 +78,13 @@ try{
  await click('[data-action="ticket"][data-id="bitacora-ci"]');
  await click('[data-action="preview-bitacora-ticket"]');
  await page.locator('#bitacoraSummary').filter({hasText:'Ticket #2643'}).waitFor();
- await click('#bitacoraDialog [data-action="close-dialog"]');
+ await click('[data-action="print-bitacora"]');
+ await page.locator('.btn-pdf').waitFor();
+ assert.match(page.url(),/^blob:/);
+ assert.match(await page.locator('h1').innerText(),/BITÁCORA TÉCNICA DE SERVICIO/);
+ await page.evaluate(()=>{window.__printInvoked=false;window.print=()=>{window.__printInvoked=true;};});
+ await click('.btn-pdf');
+ assert.equal(await page.evaluate(()=>window.__printInvoked),true);
  tables.tickets=tables.tickets.filter(t=>t.id!=='bitacora-ci');
  tables.tasks=tables.tasks.filter(t=>t.id!=='activity-bitacora-ci');
  await page.goto('http://127.0.0.1:'+server.address().port+'/');
