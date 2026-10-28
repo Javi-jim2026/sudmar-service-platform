@@ -1,5 +1,6 @@
 import {isConcludedStatus, safeEvidenceUrl} from './core.js';
 import {evidenceFolders} from './evidence-request.js';
+import {SUDMAR_REPORT_LOGO} from './bitacora-logo.js';
 
 // No database calls: operate exclusively on the snapshot already loaded by SUDMAR.
 const value = input => String(input ?? '').trim();
@@ -134,7 +135,10 @@ export function createBitacoraPdf(record) {
   current={commands:[],annotations:[],y:H-91};pages.push(current);
   fillRect(0,H-70,W,70,palette.navy);
   fillRect(0,H-74,W,4,palette.gold);
-  text(M,H-43,'SUDMAR  /  ENERGY',16,true,palette.white);
+  // Emblema oficial, reproducido desde una imagen RGB incrustada en el PDF.
+  fillRect(M-3,H-63,162,54,palette.white);
+  const logoWidth=151,logoHeight=logoWidth*SUDMAR_REPORT_LOGO.height/SUDMAR_REPORT_LOGO.width;
+  draw('q '+logoWidth.toFixed(2)+' 0 0 '+logoHeight.toFixed(2)+' '+(M+2).toFixed(2)+' '+(H-60).toFixed(2)+' cm /Logo Do Q');
   text(W-M-121,H-42,'SERVICE PLATFORM',8,true,palette.white);
  }
  function stateBanner(){
@@ -240,7 +244,9 @@ export function createBitacoraPdf(record) {
  }
  const objects=[null];
  const reserve=()=>{objects.push('');return objects.length-1;};
- const catalogId=reserve(),pagesId=reserve(),regularId=reserve(),boldId=reserve();
+ const catalogId=reserve(),pagesId=reserve(),regularId=reserve(),boldId=reserve(),logoId=reserve();
+ const logoBinary=atob(SUDMAR_REPORT_LOGO.rgbDeflateBase64);
+ objects[logoId]='<< /Type /XObject /Subtype /Image /Width '+SUDMAR_REPORT_LOGO.width+' /Height '+SUDMAR_REPORT_LOGO.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length '+logoBinary.length+' >>\nstream\n'+logoBinary+'\nendstream';
  objects[regularId]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
  objects[boldId]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
  const pageIds=[];
@@ -253,7 +259,7 @@ export function createBitacoraPdf(record) {
   }
   const stream=p.commands.join('\n')+'\n';
   objects[streamId]='<< /Length '+stream.length+' >>\nstream\n'+stream+'endstream';
-  objects[pageId]='<< /Type /Page /Parent '+pagesId+' 0 R /MediaBox [0 0 '+W+' '+H+'] /Resources << /Font << /F1 '+regularId+' 0 R /F2 '+boldId+' 0 R >> >> /Contents '+streamId+' 0 R'+(annots.length?' /Annots ['+annots.map(id=>id+' 0 R').join(' ')+']':'')+' >>';
+  objects[pageId]='<< /Type /Page /Parent '+pagesId+' 0 R /MediaBox [0 0 '+W+' '+H+'] /Resources << /Font << /F1 '+regularId+' 0 R /F2 '+boldId+' 0 R >> /XObject << /Logo '+logoId+' 0 R >> >> /Contents '+streamId+' 0 R'+(annots.length?' /Annots ['+annots.map(id=>id+' 0 R').join(' ')+']':'')+' >>';
  }
  objects[pagesId]='<< /Type /Pages /Count '+pageIds.length+' /Kids ['+pageIds.map(id=>id+' 0 R').join(' ')+'] >>';
  objects[catalogId]='<< /Type /Catalog /Pages '+pagesId+' 0 R >>';

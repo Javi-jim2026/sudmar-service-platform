@@ -1,4 +1,5 @@
 import {buildPrintableBitacora} from '../prototype/src/bitacora-print.js';
+import {SUDMAR_REPORT_LOGO} from '../prototype/src/bitacora-logo.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -128,4 +129,20 @@ test('La identidad SUDMAR mantiene colores diferenciados en pantalla y ambos for
  const brand=await readFile(new URL('../prototype/brand.css',import.meta.url),'utf8');
  assert.match(brand,/\.nav-button\.active:before\{background:#ecb44e/);
  assert.match(brand,/\.kpi-card:nth-child\(2\)\{border-top-color:#1d9874/);
+});
+
+test('La bitácora exportada utiliza el logo oficial en el PDF directo y la impresión',async()=>{
+ const record=buildBitacora(base,tasks);
+ const pdf=Buffer.from(createBitacoraPdf(record)).toString('latin1');
+ assert.match(pdf,/\/Subtype \/Image \/Width 744 \/Height 230/);
+ assert.match(pdf,/\/XObject << \/Logo \d+ 0 R/);
+ assert.match(pdf,/\/Logo Do Q/);
+ assert.doesNotMatch(pdf,/SUDMAR  \/  ENERGY/);
+ const printable=buildPrintableBitacora(record);
+ assert.match(printable,/<img class="report-logo" src="/);
+ assert.match(printable,/sudmar-energy-report\.png/);
+ assert.doesNotMatch(printable,/>SUDMAR <span>ENERGY<\/span>/);
+ const logo=await readFile(new URL('../prototype/assets/brand/sudmar-energy-report.png',import.meta.url));
+ assert.equal(logo.readUInt32BE(16),SUDMAR_REPORT_LOGO.width);
+ assert.equal(logo.readUInt32BE(20),SUDMAR_REPORT_LOGO.height);
 });

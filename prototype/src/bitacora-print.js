@@ -1,4 +1,5 @@
 // Mismo flujo de SUDMAR Diagnóstico: documento HTML y botón window.print().
+const logoHref=new URL('../assets/brand/sudmar-energy-report.png',import.meta.url).href;
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const val=v=>String(v??'').trim();
 const date=v=>{const p=val(v).slice(0,10).split('-');return p.length===3&&p[0].length===4?p[2]+'/'+p[1]+'/'+p[0]:'Sin fecha';};
@@ -16,7 +17,7 @@ export function buildPrintableBitacora(record){
  '.btn-pdf{background:#efb64d;color:#16304a;border:0;border-radius:8px;padding:12px 20px;font-weight:700;cursor:pointer;flex:1}',
  '.btn-cerrar{background:white;color:#0a2240;border:0;border-radius:8px;padding:12px 20px;font-weight:700;cursor:pointer}',
  '.page{max-width:800px;margin:auto;padding:18px 25px 40px}.report-header{background:linear-gradient(115deg,#0a2d50,#10264b);border-bottom:5px solid #e8ae42;padding:20px 23px;display:flex;justify-content:space-between;gap:15px;align-items:center;border-radius:8px 8px 0 0}',
- '.report-brand{font-size:24px;color:#fff;font-weight:900}.report-brand span{color:#f3c36c}.report-sub{font-size:10px;font-weight:700;color:#dceaf5;text-align:right}',
+ '.report-brand{display:flex;align-items:center}.report-logo{display:block;width:203px;max-width:48vw;height:auto;background:#fff;padding:4px 7px;border-radius:5px}.report-sub{font-size:10px;font-weight:700;color:#dceaf5;text-align:right}',
  'h1{font-size:20px;color:#0a2c4d;margin:21px 7px 12px}h2{font-size:14px;color:#0b3b60;background:#edf5fa;border-left:5px solid #dda53f;margin:23px 7px 12px;padding:9px 12px;border-radius:0 5px 5px 0;break-after:avoid}',
  'h3{font-size:13px;color:#0b6481;margin:12px 7px 6px;break-after:avoid}.notice{background:#e7f5ed;color:#165a3e;border-left:4px solid #20855a;margin:0 7px 18px;padding:10px 13px;border-radius:3px}.notice-pending{background:#fff3d9;color:#75500a;border-left-color:#d49e31}',
  '.datos-grid{display:grid;grid-template-columns:1fr 1fr;border:1px solid #dbe2ea;border-radius:8px;overflow:hidden;margin:0 7px 13px}',
@@ -29,7 +30,7 @@ export function buildPrintableBitacora(record){
  '@page{size:A4;margin:14mm}@media print{.no-print{display:none!important}.page{max-width:none;padding:0}body{print-color-adjust:exact;-webkit-print-color-adjust:exact}h1,h2,h3,.report-header,.activity-head{break-after:avoid}.datos-grid{break-inside:avoid}}',
  '@media(max-width:620px){.page{padding:12px}.datos-grid{grid-template-columns:1fr}.report-header{flex-direction:column;align-items:start}.btn-pdf,.btn-cerrar{padding:10px}}'
  ].join('');
- const html='<header class="report-header"><div class="report-brand">SUDMAR <span>ENERGY</span></div><div class="report-sub">SERVICE PLATFORM · DOCUMENTACIÓN TÉCNICA</div></header>'+
+ const html='<header class="report-header"><div class="report-brand"><img class="report-logo" src="'+esc(logoHref)+'" alt="Sudmar Energy"></div><div class="report-sub">SERVICE PLATFORM · DOCUMENTACIÓN TÉCNICA</div></header>'+
  '<h1>BITÁCORA TÉCNICA DE SERVICIO</h1><p class="notice '+(record.isConcluded?'notice-ok':'notice-pending')+'">'+(record.isConcluded?'Servicio concluido.':'Ticket no concluido: documento preliminar.')+' Información automática sin revisión, firma ni autorización.</p>'+
  '<h2>1. Datos generales</h2><div class="datos-grid">'+field('Ticket','#'+record.folio)+field('Cliente',record.client)+field('Servicio',record.title)+field('Estado',record.status)+field('Unidad',record.businessUnit)+field('Área',record.area)+field('Responsable',record.owner)+field('Inicio',date(record.openedAt))+field('Resolución',date(record.resolvedAt))+field('Cierre real',date(record.closedAt))+'</div>'+
  '<h2>2. Equipos atendidos ('+(record.equipment||[]).length+')</h2>'+equip+
