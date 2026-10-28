@@ -79,3 +79,48 @@ body{background:var(--bg)}
  .mobile-nav{grid-template-columns:repeat(7,minmax(0,1fr))}
 }
 @media(prefers-reduced-motion:reduce){.kpi-card{transition:none}}
+
+/* Color accents across SUDMAR: accessible blue, warm gold and status green. */
+:root{--primary:#135477;--accent:#087e91;--bg:#f2f6fb;--soft:#eaf3f9;--border:#dbe5ef;--shadow:0 8px 22px #1135580b}
+body{background:linear-gradient(180deg,#eaf3f9 0,#f2f6fb 240px)}
+.sidebar{background:linear-gradient(160deg,#06173f 0%,#0c2650 60%,#06132e 100%);border-right-color:#315478}
+.brand.brand-official{border-bottom:1px solid #ffffff18;padding-bottom:17px}
+.brand-official .brand-caption{color:#f0c26c;font-weight:700}
+.workspace-label{color:#d0ddf1}.sidebar .status-dot{background:#efb748;box-shadow:0 0 0 4px #efb74820}
+.nav-button:hover{background:#ffffff16}
+.nav-button.active{background:linear-gradient(90deg,#1c5c78 0%,#17365c 100%);box-shadow:inset 0 0 0 1px #a5dceb35}
+.nav-button.active:before{background:#ecb44e;width:4px}.nav-button.active .icon{color:#f4c869}
+.sidebar-source{border-color:#9ebde540}
+.topbar{border-bottom:2px solid #d5e5ef}.snapshot-badge{background:#e5f6f0;color:#176444;border-color:#b7e5d1}
+.snapshot-badge .status-dot{background:#13845c}
+.page-heading{border-color:#295477;box-shadow:inset 0 4px 0 #e3ad48,0 13px 30px #0b285b22;background:radial-gradient(circle at 88% 20%,#31b7c426 0 110px,transparent 112px),linear-gradient(112deg,#092b56 0%,#10284b 54%,#06152f 100%)}
+.page-heading .eyebrow{color:#f5c879}.page-heading h1{color:#fff}.page-heading p{color:#dfebf9}
+.page-heading .button.primary{color:#23314b;background:#f1bd5b;border-color:#f1bd5b;font-weight:750}
+.page-heading .button.primary:hover{background:#ffcf75;border-color:#ffcf75}
+.button.primary{background:linear-gradient(135deg,#17678b,#104e76);border-color:#155b80;color:#fff;box-shadow:0 4px 12px #115c8830}
+.button.primary:hover{filter:brightness(1.09)}
+.button.secondary:hover,.icon-button:hover{background:#e8f3fa}
+.filter-toolbar:focus-within{border-color:#83baca;box-shadow:0 0 0 3px #087e9113}
+.filter-chip{background:#eaf4fb;border-color:#b8d8e9;color:#175676}
+.panel,.kpi-card,.calendar-summary article{border-color:#dce7f0;box-shadow:0 7px 22px #1237520a}
+.panel-header{background:linear-gradient(90deg,#f0f7fc 0%,#fff 82%);border-bottom-color:#e1ebf2}
+.panel-header h2:before{content:"";display:inline-block;vertical-align:-2px;width:4px;height:15px;margin-right:9px;border-radius:4px;background:#dda83e}
+.kpi-card{background:linear-gradient(180deg,#f8fbff 0%,#fff 45%);border-top-width:4px}
+.kpi-card:first-child{border-top-color:#147aa1}.kpi-card:nth-child(2){border-top-color:#1d9874}.kpi-card:nth-child(3){border-top-color:#d9a039}.kpi-card:nth-child(4){border-top-color:#7966b2}
+.kpi-card:first-child .kpi-icon{background:#e2f3fb;color:#0d739e}
+.kpi-card:nth-child(2) .kpi-icon{background:#e1f6ec;color:#147d5a}
+.kpi-card:nth-child(3) .kpi-icon{background:#fff1d7;color:#96620b}
+.kpi-card:nth-child(4) .kpi-icon{background:#eeeafd;color:#6756aa}
+.kpi-card:hover{border-color:#90bfd2}
+.ticket-table th{background:#edf5fa;color:#355a72;border-bottom-color:#dbe8f0}
+.ticket-table tbody tr:hover,.task-row:hover{background:#f0f8fd}
+.ticket-title .folio{color:#087d97;font-weight:750}
+.badge.green{background:#e2f5eb;color:#126443}.badge.amber{background:#fff0d3;color:#865809}
+.badge.blue{background:#e4f2fc;color:#175b8d}.badge.red{background:#fde8e7;color:#a92d29}
+.dialog-header{background:linear-gradient(110deg,#0b345c,#10264e 65%,#06183a);border-bottom:3px solid #dfaa47}
+.dialog-header .eyebrow{color:#f2c16a}
+.calendar-heading{background:#eff6fc}.calendar-day.today{background:#e6f3fa}.calendar-day.today .calendar-date>span{background:#10698c}
+.work-progress progress,.work-completed{accent-color:#167a60}
+.mobile-nav{border-top:2px solid #cddfec;box-shadow:0 -6px 20px #102c4c13}
+.mobile-nav button.active{background:#e4f3fc;color:#0d6289;font-weight:700}
+@media(prefers-reduced-motion:reduce){.kpi-card,.button{transition:none}}
