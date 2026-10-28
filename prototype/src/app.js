@@ -4,6 +4,7 @@ import {config} from './config.js';
 import {sortTicketList,ticketPageLimit,filterTicketDatePresence,TICKET_PAGE_SIZES,TICKET_DATE_FIELDS,TICKET_DATE_PRESENCE} from './ticket-list.js';
 import {repository} from './repository.js';
 import {latestConcludedTicket,buildBitacora,createBitacoraPdf,bitacoraFileName} from './bitacora.js';
+import {buildPrintableBitacora} from './bitacora-print.js';
 import {evidenceFolders,evidenceRequestMessage} from './evidence-request.js';
 import {armUnsaved,clearUnsaved,confirmDiscard,isUnsaved,installUnsavedProtection} from './unsaved-guard.js';
 import {icon} from './icons.js';
@@ -533,12 +534,13 @@ function getSavedViews(){try{const data=JSON.parse(localStorage.getItem(config.s
 function renderSavedViews(){const list=getSavedViews();$('savedViews').innerHTML='<option value="">Mis vistas</option>'+list.map((v,i)=>`<option value="${i}">${e(v.name)}</option>`).join('');}
 function exportView(){let records,columns,label;if(state.view==='calendar'){const tickets=calendarTicketSet(filtered());const {first,last}=monthRange(state.calendarMonth||today.slice(0,7));const activities=calendarActivityTasks(filtered()).filter(t=>t.startAt&&t.startAt<=last&&(t.dueAt&&t.dueAt>=t.startAt?t.dueAt:t.startAt)>=first).map(t=>({...t,durationDays:daysInclusive(t.startAt,t.dueAt&&t.dueAt>=t.startAt?t.dueAt:t.startAt)}));records=[...tickets.filter(t=>t.openedAt>=first&&t.openedAt<=last).map(t=>({recordType:'TICKET',folio:t.folio,client:t.client,title:t.title,owner:t.owner,start:t.openedAt,due:'',durationDays:1,status:t.status})),...activities.map(t=>({recordType:'ACTIVIDAD',folio:t.ticketFolio,client:t.client,title:t.title,owner:t.owner,start:t.startAt,due:t.dueAt,durationDays:t.durationDays,status:t.status}))];columns=[['recordType','Tipo'],['folio','Ticket'],['client','Cliente'],['title','Concepto'],['owner','Responsable'],['start','Inicio'],['due','Fecha compromiso'],['durationDays','Duración días'],['status','Estado']];label='calendario_'+(state.calendarMonth||today.slice(0,7));}else if(state.view==='equipment'&&state.inventoryTab==='inventory'){records=(state.data.inventory||[]).filter(r=>state.inventoryArchiveMode==='archived'?r.archived:!r.archived).map(r=>({serie:r.serial_number,modelo:r.model,extraccion:r.extraction_ref,linea:r.product_line,tipo:r.equipment_type,cantidad:r.quantity,estado:r.status,cliente:r.client_name,observaciones:r.notes,renglon:r.source_row}));columns=[['serie','Serie'],['modelo','Equipo'],['extraccion','Extracción'],['linea','Línea'],['tipo','Tipo'],['cantidad','Cantidad'],['estado','Estado'],['cliente','Cliente / destino'],['observaciones','Observaciones'],['renglon','Renglón de origen']];label='inventario_equipos';}else if(state.view==='tasks'){records=currentTasks().map(task=>({...task,category:taskCategoryLabel(taskCategory(task))}));columns=[['ticketFolio','Ticket'],['category','Tipo'],['title','Actividad'],['client','Cliente / tercero'],['owner','Responsable'],['area','Área'],['startAt','Inicio'],['dueAt','Fin programado'],['status','Estado'],['completedAt','Realización'],['notes','Observaciones / requerimiento'],['outcome','Resultado'],['resolution','Resolución']];label='actividades';}else if(state.view==='team'){records=state.personnel.map(p=>{const w=personWorkload(p);return {...p,pendingTasks:w.pending.length,overdueTasks:w.overdue.length,assignedTasks:w.assignedTasks.length,ownedTickets:w.ownedTickets.length};});columns=[['name','Nombre'],['title','Cargo'],['area','Área'],['parentArea','Área principal'],['fieldRole','Rol de campo'],['ownedTickets','Tickets'],['assignedTasks','Tareas'],['pendingTasks','Pendientes'],['overdueTasks','Vencidas']];label='personal';}else if(state.view==='clients'&&state.clientTab==='directory'){records=selectedContacts();columns=[['name','Contacto'],['company','Compañía'],['role','Cargo'],['email','Correo'],['phone','Teléfono'],['address','Dirección'],['city','Ciudad'],['region','Estado']];label='contactos';}else{records=filtered();columns=[['folio','Folio'],['priority','Nivel SLA'],['title','Título'],['client','Cliente'],['businessUnit','Unidad de negocio'],['area','Área'],['equipmentType','Tipo de equipo'],['owner','Responsable'],['openedAt','Inicio'],['dueAt','Meta de cierre'],['closedAt','Cierre real'],['model','Modelo'],['serial','Serie'],['status','Estado'],['log','Bitácora'],['technicalFindings','Hallazgo / diagnóstico'],['workPerformed','Trabajo realizado'],['finalCondition','Resultado / condición final'],['evidenceUrl','Carpeta']];label='tickets';}const blob=new Blob([toCsv(records,columns.map(([key,label])=>({key,label})))],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`SUDMAR_${label}_${today}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast(`${n(records.length)} registros exportados a CSV.`);}
 
-let previewPdfUrl='',previewPdfName='';
+let previewPdfUrl='',previewPdfName='',previewBitacoraRecord=null;
 function openBitacoraPreview(ticket) {
  try {
   if(!ticket)throw Error('No se encontró el ticket solicitado.');
   const record=buildBitacora(ticket,state.data.tasks);
   const pdf=createBitacoraPdf(record);
+  previewBitacoraRecord=record;
   const dialog=$('bitacoraDialog');
   if(previewPdfUrl)URL.revokeObjectURL(previewPdfUrl);
   previewPdfUrl=URL.createObjectURL(new Blob([pdf],{type:'application/pdf'}));
@@ -548,6 +550,12 @@ function openBitacoraPreview(ticket) {
   $('bitacoraFrame').src=previewPdfUrl;
   if(!dialog.open)dialog.showModal();
  }catch(error){toast(error.message||'No se pudo generar la bitácora PDF.');}
+}
+function printBitacoraLikeReports(){
+ if(!previewBitacoraRecord)return;
+ const html=buildPrintableBitacora(previewBitacoraRecord);
+ const url=URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'}));
+ window.location.href=url;
 }
 function downloadBitacora() {
  if(!previewPdfUrl)return;
@@ -662,6 +670,7 @@ document.addEventListener('click',event=>{const b=event.target.closest('[data-ac
  }
  if(a==='preview-bitacora-ticket')openBitacoraPreview(state.data.tickets.find(t=>t.id===b.dataset.id));
  if(a==='download-bitacora')downloadBitacora();
+ if(a==='print-bitacora')printBitacoraLikeReports();
  if(a==='export')exportView();
  if(a==='install')install();
  if(a==='page'){state.page+=Number(b.dataset.delta);render();window.scrollTo({top:160,behavior:'instant'});}
@@ -677,7 +686,7 @@ $('newTicketForm').addEventListener('submit',submitNewTicket);
 $('newTaskForm').addEventListener('submit',submitNewTask);
 $('bitacoraDialog').addEventListener('close',()=>{
  $('bitacoraFrame').removeAttribute('src');
- if(previewPdfUrl){URL.revokeObjectURL(previewPdfUrl);previewPdfUrl='';previewPdfName='';}
+ if(previewPdfUrl){URL.revokeObjectURL(previewPdfUrl);previewPdfUrl='';previewPdfName='';previewBitacoraRecord=null;}
 });
 
 function showNewTaskValidation(message,control=null){
