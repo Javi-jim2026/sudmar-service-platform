@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>SUDMAR · Centro de operaciones</title>
   <link rel="icon" href="./assets/brand/mark.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="./assets/brand/icon-180.png">
-  <link rel="manifest" href="./manifest.webmanifest"><link rel="stylesheet" href="./styles.css"><link rel="stylesheet" href="./brand.css"><link rel="stylesheet" href="./enhancements.css"><link rel="stylesheet" href="./ops-pilot.css"><link rel="stylesheet" href="./inventory.css"><link rel="stylesheet" href="./multi-equipment.css"><link rel="stylesheet" href="./escalations.css"><link rel="stylesheet" href="./error-popups.css">
+  <link rel="manifest" href="./manifest.webmanifest"><link rel="stylesheet" href="./bitacora.css"><link rel="stylesheet" href="./styles.css"><link rel="stylesheet" href="./brand.css"><link rel="stylesheet" href="./enhancements.css"><link rel="stylesheet" href="./ops-pilot.css"><link rel="stylesheet" href="./inventory.css"><link rel="stylesheet" href="./multi-equipment.css"><link rel="stylesheet" href="./escalations.css"><link rel="stylesheet" href="./error-popups.css">
 </head>
 <body>
 <a href="#main" class="skip-link">Saltar al contenido</a>
@@ -37,6 +37,16 @@
 <dialog id="saveDialog" class="small-dialog" aria-labelledby="saveTitle"><form id="saveViewForm"><div class="dialog-header"><h2 id="saveTitle">Guardar esta vista</h2><button type="button" class="icon-button" data-action="close-dialog" aria-label="Cerrar" data-icon="close"></button></div><div class="dialog-body"><label class="field">Nombre de la vista<input name="viewName" required maxlength="50" placeholder="Ej. Garantías pendientes"></label><p class="muted">Los filtros se guardan en este navegador.</p></div><div class="dialog-footer"><button class="button primary" type="submit">Guardar vista</button></div></form></dialog>
 <dialog id="newTicketDialog" class="filters-dialog write-dialog" aria-labelledby="newTicketTitle"><form id="newTicketForm"><div class="dialog-header"><div><span class="eyebrow">NUEVA SOLICITUD</span><h2 id="newTicketTitle">Crear ticket</h2></div><button type="button" class="icon-button" data-action="close-dialog" aria-label="Cerrar" data-icon="close"></button></div><div class="filter-fields"></div><div id="newTicketError" class="form-error" role="alert"></div><div class="dialog-footer"><button type="button" class="button ghost" data-action="close-dialog">Cancelar</button><button class="button primary" type="submit">Guardar ticket</button></div></form></dialog>
 <dialog id="newTaskDialog" class="filters-dialog write-dialog" aria-labelledby="newTaskTitle"><form id="newTaskForm"><div class="dialog-header"><div><span class="eyebrow">ACTIVIDAD DEL TICKET</span><h2 id="newTaskTitle">Crear actividad</h2></div><button type="button" class="icon-button" data-action="close-dialog" aria-label="Cerrar" data-icon="close"></button></div><div class="filter-fields"></div><div id="newTaskError" class="form-error" role="alert"></div><div class="dialog-footer"><button type="button" class="button ghost" data-action="close-dialog">Cancelar</button><button class="button primary" type="submit">Guardar actividad</button></div></form></dialog>
+<dialog id="bitacoraDialog" class="bitacora-dialog" aria-labelledby="bitacoraTitle">
+ <div class="dialog-header"><div><span class="eyebrow">DOCUMENTO AUTOMÁTICO · SOLO LECTURA</span><h2 id="bitacoraTitle">Vista previa de bitácora PDF</h2></div><button type="button" class="icon-button" data-action="close-dialog" aria-label="Cerrar vista previa">×</button></div>
+ <div class="dialog-body">
+  <p id="bitacoraSummary" class="bitacora-summary"></p>
+  <p id="bitacoraNotice" class="bitacora-notice"></p>
+  <iframe id="bitacoraFrame" class="bitacora-frame" title="Vista previa de la bitácora en PDF"></iframe>
+  <p class="definition-note">Si tu navegador no muestra la vista previa (por ejemplo, en algunos teléfonos), utiliza el botón Descargar PDF.</p>
+ </div>
+ <div class="dialog-footer"><button type="button" class="button ghost" data-action="close-dialog">Cerrar</button><button type="button" class="button primary" data-action="download-bitacora">Descargar PDF</button></div>
+</dialog>
 <div id="toast" class="toast" role="status" hidden></div><noscript><p class="noscript">Activa JavaScript para consultar el dashboard.</p></noscript>
 <script type="module" src="./src/app.js"></script>
 <script type="module" src="./src/enhancements.js"></script>
